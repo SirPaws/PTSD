@@ -58,7 +58,9 @@ static inline u32 pPrintf(const char *restrict fmt, ...) {
     return result;
 }
 
-void StreamWrite(GenericStream *stream, String str);
+void StreamWriteString(GenericStream *stream, String str);
+void StreamWriteChar(GenericStream *stream, char chr);
+#define StreamWrite(stream, ...) _Generic(__VA_ARGS__, int: StreamWriteChar, char: StreamWriteChar, String: StreamWriteString)(stream, __VA_ARGS__)
 
 /*
 

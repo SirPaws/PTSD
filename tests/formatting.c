@@ -2,7 +2,7 @@
 
 int main(void) {
     String str = pCreateString("hello");
-    
+
     u8 test = 0b1010;
     pPrintf("BINARY:\n");
     pPrintf("\t'%hhb'\n",  test);
@@ -22,11 +22,13 @@ int main(void) {
     pPrintf("\twe have a string '%-10S' rjust\n", str);
     pPrintf("\twe have a string '%10S' ljust\n", str);
 
-    pPrintf("COLOR :\n");
+    pPrintf("COLOR:\n");
     pPrintf("\t%Cfg(255,0,0)this text should be red!%Cc\n");
     pPrintf("\t%Cbg(255,0,0)this background should be red!%Cc\n");
     pPrintf("\tthis should not have any color\n");
     pPrintf("\thow about colored string %Cfg(255,0,0)'%S'%Cc\n", str);
-
-
+    
+    pPrintf("CHAR/UNICODE:\n");
+    pPrintf("\tnow we print a single char '%c'\n", 'Y');
+    pPrintf("\tnow we print a unicode char '%Lc'\n", "🙂");
 }

@@ -47,6 +47,7 @@ void InitializeStdStream(void) __attribute__(( constructor ));
 void DestroyStdStream(void) __attribute__(( destructor ));
 
 static StdStream *StandardStream = NULL;
+u32 default_code_page = 0;
 void InitializeStdStream(void) __attribute__(( constructor ));
 void DestroyStdStream(void) __attribute__(( destructor ));
 
@@ -61,6 +62,10 @@ GenericStream *pSetStream(GenericStream *stream) {
 GenericStream *pGetStream(void) { return pcurrentstream; }
 
 void InitializeStdStream(void) {
+#if defined(_WIN32) || defined(_WIN64)
+    default_code_page = GetConsoleOutputCP();
+    SetConsoleOutputCP(CP_UTF8);
+#endif
     const StdStream template = { 
         .type          = STANDARD_STREAM,
         .flags         = STREAM_INPUT|STREAM_OUTPUT,
@@ -71,9 +76,13 @@ void InitializeStdStream(void) {
     StandardStream = malloc(sizeof *StandardStream);
     pcurrentstream = (void *)StandardStream;
     memcpy(StandardStream, &template, sizeof template);
+
 }
 void DestroyStdStream(void) {
     free(StandardStream);
+#if defined(_WIN32) || defined(_WIN64)
+    SetConsoleOutputCP(default_code_page);
+#endif
 }
 
 
@@ -96,7 +105,7 @@ StdStream *pGetStandardStream(enum StreamFlags flags) {
 
 #define expect(x, value) __builtin_expect(x, value)
 
-void StreamWrite(GenericStream *stream, String str) {
+void StreamWriteString(GenericStream *stream, String str) {
     assert(stream->flags & STREAM_OUTPUT);
 
     if (expect(stream->type == STANDARD_STREAM, 1) || stream->type == FILE_STREAM) {
@@ -117,6 +126,27 @@ void StreamWrite(GenericStream *stream, String str) {
     }
 }
 
+void StreamWriteChar(GenericStream *stream, char str) {
+    assert(stream->flags & STREAM_OUTPUT);
+
+    if (expect(stream->type == STANDARD_STREAM, 1) || stream->type == FILE_STREAM) {
+        FileStream *fstream = (FileStream *)stream;
+        WriteFile(fstream->filehandle, &str, 1, NULL, NULL);
+    } else {
+        // type == STRING_STREAM
+        StringStream *sstream = (StringStream *)stream;
+        usize diff = (sstream->buffersize - sstream->actualsize);
+        if (diff <= 1) {
+            void *tmp = pCurrentAllocatorFunc(sstream->c_str, 
+                    sstream->buffersize + 1, REALLOC, pCurrentAllocatorUserData);
+            sstream->c_str = tmp; 
+            sstream->buffersize += 1;
+        }
+        sstream->c_str[sstream->actualsize] = (u8)str;
+        sstream->actualsize += 1;
+    }
+}
+
 static bool IsCharacters(int character, u32 count, char tests[count]){
     for (u32 i = 0; i < count; i++) {
         if (character == tests[i]) return true;
@@ -126,6 +156,8 @@ static bool IsCharacters(int character, u32 count, char tests[count]){
 
 u64 PrintJustified(GenericStream *stream, String string, bool right_justified, const u8 character, u32 count);
 
+void GetRGB(const char *restrict* fmt, String RGB[3]);
+u32  GetUnicodeLength(const char *chr);
 
 struct JusticifationInfo {
     bool right_justified;
@@ -171,6 +203,7 @@ u32 pVBPrintf(GenericStream *stream, const char *restrict fmt, va_list list) {
         if (*fmt == '%'){
             bool always_print_sign  = false; 
             u32 bitcount = 32;
+            bool bitcountset = false;
             struct JusticifationInfo info = {
                 .right_justified    = false,
                 .justification_count = 0,
@@ -179,7 +212,7 @@ u32 pVBPrintf(GenericStream *stream, const char *restrict fmt, va_list list) {
             };
             const char *restrict fmt_next = fmt + 1;
         repeat:
-            #define SetBitCount(n, increment) bitcount = n; fmt_next += increment
+            #define SetBitCount(n, increment) bitcount = n; bitcountset = true; fmt_next += increment
             switch(*fmt_next) {
                 case '-': info.right_justified             = true; fmt_next++; goto repeat; 
                 case '+': always_print_sign                = true; fmt_next++; goto repeat;
@@ -234,6 +267,10 @@ u32 pVBPrintf(GenericStream *stream, const char *restrict fmt, va_list list) {
                                 character, info.justification_count);
                         break;
                     }
+                case 'i':case 'd': {
+
+                    } break;
+                case 'u':
                 case 'b': {
                         const u8 character = info.justificiation_chars[info.justification_char_is_zero];
                         u64 num = va_arg(list, u64);
@@ -248,43 +285,23 @@ u32 pVBPrintf(GenericStream *stream, const char *restrict fmt, va_list list) {
                         pCurrentAllocatorFunc(ret.buffer, 0, FREE, pCurrentAllocatorUserData);
                         break;
                     }
+                case 'c': {
+                    if (expect(bitcountset == false, 1)){
+                        int character = va_arg(list, int);
+                        StreamWrite(stream, (char)character);
+                    }
+                    else {
+                        const char *character = va_arg(list, const char *);
+                        u32 len = GetUnicodeLength(character);
+                        StreamWrite(stream, (String){ (const u8 *)character, len});
+                    }
+                    break;
+                }
                 case 'C': {
-                        /**/ if (memcmp(fmt_next, "Cbg", 3) == 0) {
-                            fmt_next += 3;
-                            if (*fmt_next != '(') break;
-                            StreamWrite(stream, pCreateString("\x1b[48;2"));
-                            String RGB[3];
-                            GetRBG(RGB);
-                            StreamWrite()
-                            while(*fmt_next != ')') {
-                                StreamWrite(stream, pCreateString(";"));
-                                const u8 *begin = (const u8*)fmt_next + 1;
-                                const u8 *end   = (const u8*)fmt_next + 1;
-                                while(IsCharacters(*end, 2, (char[]){ ',', ')'}) == false) end++;
-
-                                StreamWrite(pcurrentstream, (String){ begin, (usize)(end - begin) });
-                                fmt_next = (const char *)end;
-                            }
-                            StreamWrite(stream, pCreateString("m"));
-                        }
-                        else if (memcmp(fmt_next, "Cfg", 3) == 0) {
-                            fmt_next += 3;
-                            if (*fmt_next != '(') break;
-                            StreamWrite(stream, pCreateString("\x1b[38;2"));
-                            while(*fmt_next != ')') {
-                                StreamWrite(stream, pCreateString(";"));
-                                const u8 *begin = (const u8*)fmt_next + 1;
-                                const u8 *end   = (const u8*)fmt_next + 1;
-                                while(IsCharacters(*end, 2, (char[]){ ',', ')'}) == false) end++;
-
-                                StreamWrite(stream, (String){ begin, (usize)(end - begin) });
-                                fmt_next = (const char *)end;
-                            }
-                            StreamWrite(stream, pCreateString("m"));
-                        }
-                        else if (memcmp(fmt_next, "Cc", 2) == 0) {
+                        if (memcmp(fmt_next, "Cc", 2) == 0) {
                             StreamWrite(stream, pCreateString("\x1b[0m"));
                             fmt_next++;
+                            break;
                         }
                         else if (memcmp(fmt_next, "CB", 2) == 0) {
                             FormatCallBack *callback = va_arg(list, FormatCallBack *);
@@ -292,7 +309,27 @@ u32 pVBPrintf(GenericStream *stream, const char *restrict fmt, va_list list) {
                             fmt_next += 2;
                             FormatCallbackTuple ret = callback(stream, fmt_next, list);
                             fmt_next = ret.end_pos - 1;
+                            list = ret.list;
+                            break;
                         }
+                        else if (memcmp(fmt_next, "Cbg", 3) == 0) {
+                            fmt_next += 3;
+                            if (*fmt_next != '(') break;
+                            StreamWrite(stream, pCreateString("\x1b[48;2;"));
+                        }
+                        else if (memcmp(fmt_next, "Cfg", 3) == 0) {
+                            fmt_next += 3;
+                            if (*fmt_next != '(') break;
+                            StreamWrite(stream, pCreateString("\x1b[38;2;"));
+                        }
+                        String RGB[3];
+                        GetRGB(&fmt_next, RGB);
+                        StreamWrite(stream, RGB[0]);
+                        StreamWrite(stream, ';');
+                        StreamWrite(stream, RGB[1]);
+                        StreamWrite(stream, ';');
+                        StreamWrite(stream, RGB[2]);
+                        StreamWrite(stream, pCreateString("m"));
                     }
                     break;
                 default: break;
@@ -328,7 +365,29 @@ u64 PrintJustified(GenericStream *stream, String string, bool right_justified, c
     }
 }
 
+void GetRGB(const char *restrict* fmtptr, String RGB[3]) {
+    const char *restrict fmt = *fmtptr;
+    int n = 0;
+    while(*fmt != ')') {
+        if (n >= 3) break;
+        const u8 *begin = (const u8*)fmt + 1;
+        const u8 *end   = (const u8*)fmt + 1;
+        while(IsCharacters(*end, 2, (char[2]){ ',', ')'}) == false) end++;
+        RGB[n++] = (String){ begin, (usize)(end - begin) }; 
+        fmt = (const char *)end;
+    }
+    *fmtptr = fmt;
+}
 
+u32 GetUnicodeLength(const char *chr) {
+    /**/ if ((chr[0] & 0xf8) == 0xf0)
+         return 4;
+    else if ((chr[0] & 0xf0) == 0xe0)
+         return 3;
+    else if ((chr[0] & 0xe0) == 0xc0)
+         return 2;
+    else return 1;
+}
 
 
 
