@@ -62,6 +62,9 @@ void StreamWriteString(GenericStream *stream, String str);
 void StreamWriteChar(GenericStream *stream, char chr);
 #define StreamWrite(stream, ...) _Generic(__VA_ARGS__, int: StreamWriteChar, char: StreamWriteChar, String: StreamWriteString)(stream, __VA_ARGS__)
 
+u32 pItoa(char *buf, s64 num);
+u32 pUtoa(char *buf, u64 num);
+
 /*
 
 size = snprintf(NULL, 0, FORMAT, ...);

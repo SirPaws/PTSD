@@ -31,4 +31,11 @@ int main(void) {
     pPrintf("CHAR/UNICODE:\n");
     pPrintf("\tnow we print a single char '%c'\n", 'Y');
     pPrintf("\tnow we print a unicode char '%Lc'\n", "🙂");
+    
+    pPrintf("INTEGERS:\n");
+    pPrintf("\tnow we print a negative signed integer '%i'\n", -5394);
+    pPrintf("\tnow we print a positive signed integer '%5i'\n", 5394);
+    pPrintf("\tnow we print a positive signed integer '%+i'\n", 5394);
+    pPrintf("\tnow we print an unsigned integer '%u'\n", 5394);
+    pPrintf("\tnow we print an unsigned long long integer '%llu'\n", 53945772LL);
 }
