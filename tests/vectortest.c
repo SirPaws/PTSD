@@ -27,6 +27,8 @@ int main(void) {
 
     usize count = pVectorSize((void *)vector);
     printf("vector holds %llu elements\n", count);
+    
+    pPrintf("the vector holds %CB", VectorFormat, vector);
 
     for (int *it = pVectorBegin((void *)vector); it != pVectorEnd((void *)vector); it++){
         printf("%p holds %i\n", (void *)it, *it);
