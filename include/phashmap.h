@@ -12,12 +12,12 @@
 
 typedef struct HashMapKey HashMapKey;
 typedef usize HashFunc(HashMapKey key, usize seed);
-typedef bool KeyCompareFunc(HashMapKey a, HashMapKey b);
+typedef bool KeyCompareFunc(const HashMapKey a, const HashMapKey b);
 typedef struct HashMapInfo HashMapInfo;
 typedef struct HashMap HashMap;
 
 struct HashMapKey {
-    const void *key;
+    void *key;
     usize length;
 };
 
@@ -32,26 +32,17 @@ struct HashMapInfo {
 
 HashMap *pInitHashMap(HashMapInfo info);
 void pFreeHashMap(HashMap *map);
-bool pHashMapHasKey(HashMap *map, HashMapKey key);
-void *pHashMapFind(HashMap *map, HashMapKey key);
+bool pHashMapHasKey(HashMap *map, const HashMapKey key);
+void *pHashMapFind(HashMap *map, const HashMapKey key);
 
 // both HashMapRemove and HashMapInsert returns the value at key
-void *pHashMapRemove(HashMap *map, HashMapKey key);
-void *pHashMapInsert(HashMap *map, HashMapKey key, void *value);
+void *pHashMapRemove(HashMap *map, const HashMapKey key);
+void *pHashMapInsert(HashMap *map, const HashMapKey key, void *value);
 
 usize pMurmurHash2A(HashMapKey key,  usize seed);
 usize pMurmurHash64A(HashMapKey key, usize seed);
 
 // checks if both keys have the same size
 // if they do it then does calls memcmp
-bool pDataCompare(HashMapKey a, HashMapKey b);
-
-
-
-
-
-
-
-
-
+bool pDataCompare(const HashMapKey a, const HashMapKey b);
 

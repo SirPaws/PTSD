@@ -1,9 +1,9 @@
 #include "pstring.h"
 #pragma clang diagnostic ignored "-Wclass-varargs"
 
-typedef struct FileStream   FileStream;
-typedef struct StdStream    StdStream;
-typedef struct StringStream StringStream;
+typedef struct FileStream    FileStream;
+typedef struct StdStream     StdStream;
+typedef struct StringStream  StringStream;
 typedef struct GenericStream GenericStream;
 
 typedef struct FormatCallbackTuple FormatCallbackTuple;
@@ -30,7 +30,7 @@ enum FileStreamFlags {
 
 struct FormatCallbackTuple {
     va_list list;
-    const char *restrict end_pos;
+    char *restrict end_pos;
 };
 
 GenericStream *pSetStream(GenericStream *stream);
@@ -40,17 +40,26 @@ FileStream *pCreateFileStream(const char *filepath, enum FileStreamFlags flags);
 StringStream *pCreateStringStream(u64 initial_size, enum StreamFlags flags);
 StdStream *pGetStandardStream(enum StreamFlags flags);
 
-const u8 *StringStreamToString(StringStream *stream);
+void FreeStream(GenericStream *stream);
 
-u32 pVBPrintf(GenericStream *stream, const char *restrict fmt, va_list list);
-u32 pBPrintf(GenericStream *stream, const char *restrict fmt, ...);
+String pStreamToBufferString(GenericStream *stream);
+
+u32 pVBPrintf(GenericStream *stream, char *restrict fmt, va_list list);
+
+static u32 pBPrintf(GenericStream *stream, char *restrict fmt, ...) {
+    va_list list;
+    va_start(list, fmt);
+    u32 result = pVBPrintf(stream, fmt, list);
+    va_end(list);
+    return result;
+}
 
 
-static inline u32 pVPrintf(const char *restrict fmt, va_list list ) {
+static inline u32 pVPrintf(char *restrict fmt, va_list list ) {
     return pVBPrintf(pGetStream(), fmt, list);
 }
 
-static inline u32 pPrintf(const char *restrict fmt, ...) {
+static inline u32 pPrintf(char *restrict fmt, ...) {
     va_list list;
     va_start(list, fmt);
     u32 result = pVPrintf(fmt, list);
@@ -62,11 +71,11 @@ void StreamWriteString(GenericStream *stream, String str);
 void StreamWriteChar(GenericStream *stream, char chr);
 #define StreamWrite(stream, ...) _Generic(__VA_ARGS__, int: StreamWriteChar, char: StreamWriteChar, String: StreamWriteString)(stream, __VA_ARGS__)
 
+// appends + or - to the start of buffer then calls pUtoa
 u32 pItoa(char *buf, s64 num);
 u32 pUtoa(char *buf, u64 num);
 
 /*
-
 size = snprintf(NULL, 0, FORMAT, ...);
 char buf[size + 1];
 sprintf(buf, FORMAT, ...);

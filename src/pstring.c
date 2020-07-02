@@ -7,12 +7,12 @@
 extern Allocator *pCurrentAllocatorFunc;
 extern void *pCurrentAllocatorUserData;
 
-bool pStringCmp(struct String *rhs, struct String *lhs) {
+bool pStringCmp(const struct String *rhs, const struct String *lhs) {
 	if (rhs->length != lhs->length) return false;
 	return (strncmp((const char *)rhs->c_str, (const char *)lhs->c_str, rhs->length) == 0);
 }
 
-struct String pStringCopy(struct String str) {
+struct String pStringCopy(const struct String str) {
     char *dst = pCurrentAllocatorFunc(NULL, sizeof(char) * str.length, 0, MALLOC, pCurrentAllocatorUserData);
     struct String r = { (u8 *)dst, str.length };
     memcpy(dst, str.c_str, sizeof(char) * str.length);

@@ -24,7 +24,7 @@ void pFreeVector(GenericVector *this_ptr) {
 
 #define EOS_ZERO_TEST (this->endofstorage ? this->endofstorage * 2 : this->datasize * 2)
 
-static void *pInsertBeginning(GenericVector **this_ptr, void *value, usize size, bool resize){
+static void *pInsertBeginning(GenericVector **this_ptr, const void *const value, usize size, bool resize){
 	GenericVector * this_vector = *this_ptr;
     if (resize){
         this_vector = (GenericVector *)pCurrentAllocatorFunc(
@@ -58,8 +58,8 @@ static void *pInsertBeginning(GenericVector **this_ptr, void *value, usize size,
     memcpy(position, value, this_vector->datasize), this_vector->size += this_vector->datasize;\
     return position
 
-void *pVectorInsert(GenericVector **this_ptr, void *pos, void *value){
-    char *position = pos;
+void *pVectorInsert(GenericVector **this_ptr, const void *const pos, void *value){
+    const char *const position = pos;
 
 	GenericVector *this_vector = *this_ptr; 
 	const usize n = (unsigned)(position - this_vector->data);
@@ -124,13 +124,15 @@ void *pVectorPushBack(GenericVector * *this_ptr, void *value){
     return (char *)this_vector->data + this_vector->size;
 }
 
-void *pVectorErase(GenericVector *this_vector, void *position){
-    if ((char *)position + (this_vector->datasize) != pVectorEnd(this_vector)){
-        isize size = ((char *)pVectorEnd(this_vector)) - ((char *)position + this_vector->datasize);
-        memcpy(position, (char *)position + this_vector->datasize, (unsigned)size);
+void *pVectorErase(GenericVector *this_vector, const void *const position){
+    isize offset = (const char *const)position - (const char *const)pVectorBegin(this_vector);
+    char *pos = (char *)pVectorBegin(this_vector) + offset;
+    if (pos + (this_vector->datasize) != pVectorEnd(this_vector)){
+        isize size = ((char *)pVectorEnd(this_vector)) - ((char *)pos + this_vector->datasize);
+        memcpy(pos, (char *)pos + this_vector->datasize, (unsigned)size);
     }
     this_vector->size -= this_vector->datasize;
-    return position;
+    return pos;
 }
 
 void *pVectorBegin(GenericVector *this_vector){

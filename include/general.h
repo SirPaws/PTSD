@@ -25,6 +25,9 @@
 #define typeof __typeof
 #define auto __auto_type
 
+// maybe have this
+// typedef const void *const readonly_ptr;
+
 #pragma clang diagnostic pop
 
 #if _WIN32 || _WIN64

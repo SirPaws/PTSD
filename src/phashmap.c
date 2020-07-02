@@ -17,7 +17,7 @@ struct HashMapBucket {
     HashMapData *data;
 };
 
-static ArrayGenPushBack(HashMapBucketPush, HashMapBucket, HashMapData)
+static pArrayGenPushBack(HashMapBucketPush, HashMapBucket, HashMapData)
 
 struct HashMap {
     HashFunc *hash;
@@ -52,7 +52,7 @@ void pFreeHashMap(HashMap *map) {
     pCurrentAllocatorFunc(map, 0, 0, FREE, pCurrentAllocatorUserData);
 }
 
-void *pHashMapFind(HashMap *map, HashMapKey key) {
+void *pHashMapFind(HashMap *map, const HashMapKey key) {
     assert(map);
     usize index = map->hash(key, map->numbuckets);
     HashMapBucket *bucket = map->buckets + (index % map->numbuckets);
@@ -66,7 +66,7 @@ void *pHashMapFind(HashMap *map, HashMapKey key) {
     
 }
 
-bool pHashMapHasKey(HashMap *map, HashMapKey key) {
+bool pHashMapHasKey(HashMap *map, const HashMapKey key) {
     assert(map);
     usize index = map->hash(key, map->numbuckets);
     HashMapBucket *bucket = map->buckets + (index % map->numbuckets);
@@ -80,7 +80,7 @@ bool pHashMapHasKey(HashMap *map, HashMapKey key) {
 void pBucketRemoveFirst(HashMapBucket *bucket);
 void pBucketRemoveMiddle(HashMapBucket *bucket, usize index);
 // both HashMapRemove and HashMapInsert returns the value at key
-void *pHashMapRemove(HashMap *map, HashMapKey key) {
+void *pHashMapRemove(HashMap *map, const HashMapKey key) {
     assert(map);
     usize index = map->hash(key, map->numbuckets);
     HashMapBucket *bucket = map->buckets + (index % map->numbuckets);
@@ -107,7 +107,7 @@ void *pHashMapRemove(HashMap *map, HashMapKey key) {
     return NULL;
 }
 
-void *pHashMapInsert(HashMap *map, HashMapKey key, void *value) {
+void *pHashMapInsert(HashMap *map, const HashMapKey key, void *value) {
     assert(map);
     usize index = map->hash(key, map->numbuckets);
     HashMapBucket *bucket = map->buckets + (index % map->numbuckets);
@@ -205,7 +205,7 @@ usize pMurmurHash64A(HashMapKey key, usize seed) {
   return h;
 }
 
-bool pDataCompare(HashMapKey a, HashMapKey b) {
+bool pDataCompare(const HashMapKey a, const HashMapKey b) {
     if (a.length != b.length) return false;
     return memcmp(a.key, b.key, b.length) == 0;
 }

@@ -8,17 +8,17 @@
 
 typedef struct String String;
 struct String {
-	const u8 *c_str;
+	u8 *c_str;
     usize length;
 };
 
 typedef struct StringSpan StringSpan;
 struct StringSpan {
-    const u8 CONSTPTR begin, CONSTPTR end;
+    u8 *begin, *end;
 };
 
-bool pStringCmp(String *rhs,String *lhs);
-String pStringCopy(String str);
+bool pStringCmp(const String *rhs, const String *lhs);
+String pStringCopy(const String str);
 // void pStringStreamPush(struct StringStream *ss, const char *str);
 // void pStringStreamPushf(struct StringStream *ss, const char *fmt, ...);
 #endif
