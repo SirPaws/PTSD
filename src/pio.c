@@ -93,7 +93,7 @@ StdStream *pGetStandardStream(enum StreamFlags flags) {
         int *mutable_flags;
     } conv;
 
-    StdStream *std = pCurrentAllocatorFunc(NULL, sizeof *std, MALLOC, pCurrentAllocatorUserData);
+    StdStream *std = pCurrentAllocatorFunc(NULL, sizeof *std, 0, MALLOC, pCurrentAllocatorUserData);
     memcpy(std, StandardStream, sizeof *std);
     conv.flags = &std->flags; *conv.mutable_flags = flags; 
 
@@ -118,7 +118,7 @@ void StreamWriteString(GenericStream *stream, String str) {
         usize diff = (sstream->buffersize - sstream->actualsize);
         if (diff <= str.length) {
             void *tmp = pCurrentAllocatorFunc(sstream->c_str, 
-                    sstream->buffersize + str.length, REALLOC, pCurrentAllocatorUserData);
+                    sstream->buffersize + str.length, 0, REALLOC, pCurrentAllocatorUserData);
             sstream->c_str = tmp; 
             sstream->buffersize += str.length;
         }
@@ -139,7 +139,7 @@ void StreamWriteChar(GenericStream *stream, char str) {
         usize diff = (sstream->buffersize - sstream->actualsize);
         if (diff <= 1) {
             void *tmp = pCurrentAllocatorFunc(sstream->c_str, 
-                    sstream->buffersize + 1, REALLOC, pCurrentAllocatorUserData);
+                    sstream->buffersize + 1, 0, REALLOC, pCurrentAllocatorUserData);
             sstream->c_str = tmp; 
             sstream->buffersize += 1;
         }
@@ -178,7 +178,7 @@ struct BinaryStringReturn MakeBinaryString(u64 bitcount, u64 num) {
     struct BinaryStringReturn ret = { 0 };
 
     u64 bit = 1ULL << (bitcount - 1);
-    ret.buffer = pCurrentAllocatorFunc(NULL, bitcount, MALLOC, pCurrentAllocatorUserData);
+    ret.buffer = pCurrentAllocatorFunc(NULL, bitcount, 0, MALLOC, pCurrentAllocatorUserData);
     for (u64 i = 0; i < bitcount; i++) {
        ret.buffer[i] = (u8)'0' + ((num & bit) ? 1 : 0); 
        bit >>= 1;
@@ -309,7 +309,7 @@ u32 pVBPrintf(GenericStream *stream, const char *restrict fmt, va_list list) {
                         PrintJustified(stream, ret.str, info.right_justified, 
                                 character, info.justification_count);
                         info.justification_count = old_justification_count;
-                        pCurrentAllocatorFunc(ret.buffer, 0, FREE, pCurrentAllocatorUserData);
+                        pCurrentAllocatorFunc(ret.buffer, 0, 0, FREE, pCurrentAllocatorUserData);
                         break;
                     }
                 case 'c': {
@@ -371,7 +371,7 @@ u32 pBPrintf(GenericStream *stream, const char *restrict fmt, ...);
 u64 PrintJustified(GenericStream *stream, String string, bool right_justified, const u8 character, u32 count) {
     s64 test = (s64)count - (s64)string.length;
     if (test > 0) {
-        char *arr = pCurrentAllocatorFunc(NULL, (u64)test, MALLOC, pCurrentAllocatorUserData);
+        char *arr = pCurrentAllocatorFunc(NULL, (u64)test, 0, MALLOC, pCurrentAllocatorUserData);
         void *tmp = memset(arr, character, (u64)test); arr = tmp;
 
         if (expect(!right_justified, 1)) {
@@ -381,7 +381,7 @@ u64 PrintJustified(GenericStream *stream, String string, bool right_justified, c
             StreamWrite(stream, string);
             StreamWrite(stream, (String){ tmp, (u64)test });
         }
-        pCurrentAllocatorFunc(arr, 0, FREE, pCurrentAllocatorUserData);
+        pCurrentAllocatorFunc(arr, 0, 0, FREE, pCurrentAllocatorUserData);
         return string.length + (u64)test;
     } else {
         StreamWrite(stream, string);

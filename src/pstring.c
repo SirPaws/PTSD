@@ -13,7 +13,7 @@ bool pStringCmp(struct String *rhs, struct String *lhs) {
 }
 
 struct String pStringCopy(struct String str) {
-    char *dst = pCurrentAllocatorFunc(NULL, sizeof(char) * str.length, MALLOC, pCurrentAllocatorUserData);
+    char *dst = pCurrentAllocatorFunc(NULL, sizeof(char) * str.length, 0, MALLOC, pCurrentAllocatorUserData);
     struct String r = { (u8 *)dst, str.length };
     memcpy(dst, str.c_str, sizeof(char) * str.length);
 	return r;

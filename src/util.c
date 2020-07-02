@@ -8,7 +8,7 @@ extern void *pCurrentAllocatorUserData;
 
 void array_grow(struct GenericArray *arr, u64 size){
     void *tmp = pCurrentAllocatorFunc(arr->data, 
-            (arr->count + 1) * size, REALLOC, pCurrentAllocatorUserData);
+            (arr->count + 1) * size, 0, REALLOC, pCurrentAllocatorUserData);
     if (!tmp) { assert(true); return; }
     arr->data = tmp;
     ++arr->count;

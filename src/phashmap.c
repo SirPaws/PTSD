@@ -28,19 +28,19 @@ struct HashMap {
 };
 
 HashMap *pInitHashMap(HashMapInfo info) {
-    HashMap *map = pCurrentAllocatorFunc(NULL, sizeof *map, MALLOC, pCurrentAllocatorUserData);
+    HashMap *map = pCurrentAllocatorFunc(NULL, sizeof *map, 0, MALLOC, pCurrentAllocatorUserData);
     map->hash       = info.hashfunction;
     map->cmp        = info.Keycomparisonfunction;
     map->datasize   = info.datasize;
     map->numbuckets = info.numbuckets;
     map->buckets    = pCurrentAllocatorFunc(NULL, 
-            (sizeof *map->buckets) * map->numbuckets, MALLOC, pCurrentAllocatorUserData); 
+            (sizeof *map->buckets), map->numbuckets, ARRAYALLOC, pCurrentAllocatorUserData); 
     memset(map->buckets, 0, (sizeof *map->buckets) * map->numbuckets);
     return map;
 }
 
 static void pFreeBucket(HashMapBucket *bucket) {
-    pCurrentAllocatorFunc(bucket->data, 0, FREE, pCurrentAllocatorUserData);
+    pCurrentAllocatorFunc(bucket->data, 0, 0, FREE, pCurrentAllocatorUserData);
 }
 
 void pFreeHashMap(HashMap *map) {
@@ -48,8 +48,8 @@ void pFreeHashMap(HashMap *map) {
     for (usize i = 0; i < map->numbuckets; i++) {
         if (map->buckets[i].count != 0) pFreeBucket(map->buckets + i); 
     }
-    pCurrentAllocatorFunc(map->buckets, 0, FREE, pCurrentAllocatorUserData);
-    pCurrentAllocatorFunc(map, 0, FREE, pCurrentAllocatorUserData);
+    pCurrentAllocatorFunc(map->buckets, 0, 0, FREE, pCurrentAllocatorUserData);
+    pCurrentAllocatorFunc(map, 0, 0, FREE, pCurrentAllocatorUserData);
 }
 
 void *pHashMapFind(HashMap *map, HashMapKey key) {
@@ -98,7 +98,7 @@ void *pHashMapRemove(HashMap *map, HashMapKey key) {
             else {
                 void *tmp = pCurrentAllocatorFunc(bucket->data, 
                         sizeof(*bucket->data) * (bucket->count - 1), 
-                        REALLOC, pCurrentAllocatorUserData);
+                        0, REALLOC, pCurrentAllocatorUserData);
                 bucket->data = tmp;
             }
             return data;
@@ -215,7 +215,7 @@ bool pDataCompare(HashMapKey a, HashMapKey b) {
 
 void pBucketRemoveFirst(HashMapBucket *bucket) {
     void *tmp = pCurrentAllocatorFunc(NULL, 
-            sizeof(*bucket->data) * bucket->count - 1, MALLOC, pCurrentAllocatorUserData);
+            sizeof(*bucket->data) * bucket->count - 1, 0, MALLOC, pCurrentAllocatorUserData);
     memcpy(tmp, bucket->data + 1, sizeof(*bucket->data) * bucket->count - 1);
     memcpy(bucket->data, tmp,  sizeof(*bucket->data) * bucket->count - 1);
     bucket->count--;
@@ -225,7 +225,7 @@ void pBucketRemoveMiddle(HashMapBucket *bucket, usize index) {
     usize size = bucket->count - (index + 1);
 
     void *tmp = pCurrentAllocatorFunc(NULL, 
-            sizeof(*bucket->data) * size, MALLOC, pCurrentAllocatorUserData);
+            sizeof(*bucket->data) * size, 0, MALLOC, pCurrentAllocatorUserData);
     memcpy(tmp, bucket->data + (index + 1), sizeof(*bucket->data) * size);
     memcpy(bucket->data + index, tmp, sizeof(*bucket->data) * size);
     bucket->count--;

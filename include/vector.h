@@ -38,25 +38,25 @@ void pFreeVector(GenericVector *this_ptr);
 // Expects value to be a pointer to the value and not the value it self
 // ie. &(int){ 32 }
 // not 32
-void *pInsert(GenericVector **this_ptr, void *position, void* value);
+void *pVectorInsert(GenericVector **this_ptr, void *position, void* value);
 
 // Expects value to be a pointer to the value and not the value it self
 // ie. &(int){ 32 }
 // not 32
-void *pPushBack(GenericVector **this_ptr, void *value);
+void *pVectorPushBack(GenericVector **this_ptr, void *value);
 
 // Erases the element at position.
 // this won't resize the vector but will potentionally move values around 
-void *pErase(GenericVector *this_ptr, void *position);
+void *pVectorErase(GenericVector *this_ptr, void *position);
 
 // Gets a pointer to the first element of the vector 
-void *pBegin(GenericVector *this_ptr);
+void *pVectorBegin(GenericVector *this_ptr);
 
 // Gets a pointer to the element after the last valid element 
-void *pEnd(GenericVector *this_ptr);
+void *pVectorEnd(GenericVector *this_ptr);
 
 // Gets the number of elements in the vector
-usize pSize(GenericVector *this_ptr);
+usize pVectorSize(GenericVector *this_ptr);
 
 #endif
 

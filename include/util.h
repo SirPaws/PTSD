@@ -11,7 +11,13 @@ struct GenericArray {
 
 void array_grow(struct GenericArray *arr, u64 size);
 
-#define ArrayGenPushBack(name, array_type, datatype)            \
+#define pCreateArrayType(name, datatype)    \
+    struct name {                           \
+        usize count;                        \
+        datatype *data;                     \
+    }
+
+#define pArrayGenPushBack(name, array_type, datatype)           \
 void name(array_type *arr, datatype data){                      \
     array_grow((struct GenericArray  *)arr, sizeof(datatype));  \
     arr->data[arr->count - 1] = data;                           \

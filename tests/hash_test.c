@@ -17,7 +17,7 @@ int main(void) {
     int value = (int)(pHashMapFind(map, (HashMapKey){ "hello", sizeof("hello") - 1 }));
     printf("key 'hello' holds int with value: %i\n", value);
     int removed = (int)(pHashMapRemove(map, (HashMapKey){ "sir", sizeof("sir") - 1 }));
-    printf("key 'sir' haps been deleted it held an integer with value: %i\n", removed);
+    printf("key 'sir' has been deleted it held an integer with value: %i\n", removed);
     removed = (int)(pHashMapRemove(map, (HashMapKey){ "sir", sizeof("sir") - 1 }));
     printf("key 'sir' has been deleted it held an integer with value: %i\n", removed);
     pFreeHashMap(map);

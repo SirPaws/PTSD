@@ -8,7 +8,7 @@ pCreateVectorStruct(GenericVector, char);
 
 GenericVector *pInitVector(VectorInfo info) {
     usize size = (info.datasize * info.initialsize) + sizeof(GenericVector);
-    GenericVector *vector = (GenericVector *)pCurrentAllocatorFunc(NULL, size, MALLOC, pCurrentAllocatorUserData);
+    GenericVector *vector = (GenericVector *)pCurrentAllocatorFunc(NULL, size, 0, MALLOC, pCurrentAllocatorUserData);
     memset(vector, 0, size);
     vector->datasize = info.datasize;
     vector->endofstorage = info.initialsize * info.datasize;
@@ -17,7 +17,7 @@ GenericVector *pInitVector(VectorInfo info) {
 }
 
 void pFreeVector(GenericVector *this_ptr) {
-    pCurrentAllocatorFunc(this_ptr, 0, FREE, pCurrentAllocatorUserData);
+    pCurrentAllocatorFunc(this_ptr, 0, 0, FREE, pCurrentAllocatorUserData);
 }
 
 #include <string.h>
@@ -28,14 +28,14 @@ static void *pInsertBeginning(GenericVector **this_ptr, void *value, usize size,
 	GenericVector * this_vector = *this_ptr;
     if (resize){
         this_vector = (GenericVector *)pCurrentAllocatorFunc(
-                this_vector, size, REALLOC, pCurrentAllocatorUserData);
+                this_vector, size, 0, REALLOC, pCurrentAllocatorUserData);
         *this_ptr = this_vector;
         if (this_vector->endofstorage > 0){
 
-            void *old_data = pCurrentAllocatorFunc(NULL, this_vector->endofstorage, MALLOC, pCurrentAllocatorUserData);
+            void *old_data = pCurrentAllocatorFunc(NULL, this_vector->endofstorage, 0, MALLOC, pCurrentAllocatorUserData);
             memmove(old_data, this_vector->data, this_vector->endofstorage);
             memmove(&this_vector->data[this_vector->datasize], old_data, this_vector->endofstorage);
-            pCurrentAllocatorFunc(old_data, 0, FREE, pCurrentAllocatorUserData);
+            pCurrentAllocatorFunc(old_data, 0, 0, FREE, pCurrentAllocatorUserData);
         }
         this_vector->endofstorage += 2 * this_vector->datasize;
         this_vector->size += this_vector->datasize;
@@ -43,10 +43,10 @@ static void *pInsertBeginning(GenericVector **this_ptr, void *value, usize size,
         return &this_vector->data[0];
     }else{
         if (this_vector->endofstorage > 0){
-            void *old_data = pCurrentAllocatorFunc(NULL, this_vector->endofstorage, MALLOC, pCurrentAllocatorUserData);
+            void *old_data = pCurrentAllocatorFunc(NULL, this_vector->endofstorage, 0, MALLOC, pCurrentAllocatorUserData);
             memmove(old_data, this_vector->data, this_vector->size);
             memmove(&this_vector->data[this_vector->datasize], old_data, this_vector->size);
-            pCurrentAllocatorFunc(old_data, 0, FREE, pCurrentAllocatorUserData);
+            pCurrentAllocatorFunc(old_data, 0, 0, FREE, pCurrentAllocatorUserData);
         }
         this_vector->size += this_vector->size;
         memcpy(&this_vector->data[0], value, this_vector->datasize);
@@ -58,7 +58,7 @@ static void *pInsertBeginning(GenericVector **this_ptr, void *value, usize size,
     memcpy(position, value, this_vector->datasize), this_vector->size += this_vector->datasize;\
     return position
 
-void *pInsert(GenericVector **this_ptr, void *pos, void *value){
+void *pVectorInsert(GenericVector **this_ptr, void *pos, void *value){
     char *position = pos;
 
 	GenericVector *this_vector = *this_ptr; 
@@ -76,10 +76,10 @@ void *pInsert(GenericVector **this_ptr, void *pos, void *value){
 		}
         if (n < this_vector->size){
             size_t diff = this_vector->size - n;
-            void *old_data = pCurrentAllocatorFunc(NULL, diff, MALLOC, pCurrentAllocatorUserData);
+            void *old_data = pCurrentAllocatorFunc(NULL, diff, 0, MALLOC, pCurrentAllocatorUserData);
 		    memmove(old_data, &this_vector->data[n], diff);
 		    memmove(&this_vector->data[(n + this_vector->datasize)], old_data, diff);
-		    pCurrentAllocatorFunc(old_data, 0, FREE, pCurrentAllocatorUserData); 
+		    pCurrentAllocatorFunc(old_data, 0, 0, FREE, pCurrentAllocatorUserData); 
             old_data = NULL;
             VectorSet(&this_vector->data[n]);
         }
@@ -89,17 +89,17 @@ void *pInsert(GenericVector **this_ptr, void *pos, void *value){
 	}
     if (n < this_vector->size){
 		size_t diff = this_vector->size - n;
-        void *old_data = pCurrentAllocatorFunc(NULL, diff, MALLOC, pCurrentAllocatorUserData);
+        void *old_data = pCurrentAllocatorFunc(NULL, diff, 0, MALLOC, pCurrentAllocatorUserData);
 		memmove(old_data, &this_vector->data[n], diff);
-        this_vector = (GenericVector *)pCurrentAllocatorFunc(this_vector, size, REALLOC, pCurrentAllocatorUserData);
+        this_vector = (GenericVector *)pCurrentAllocatorFunc(this_vector, size, 0, REALLOC, pCurrentAllocatorUserData);
 		memmove(&this_vector->data[(n + this_vector->datasize)], old_data, diff);
-		pCurrentAllocatorFunc(old_data, 0, FREE, pCurrentAllocatorUserData); 
+		pCurrentAllocatorFunc(old_data, 0, 0, FREE, pCurrentAllocatorUserData); 
         this_vector->endofstorage += this_vector->datasize * 2;
         *this_ptr = this_vector;
         VectorSet(&this_vector->data[n]);
     }
     if (n == this_vector->endofstorage){
-        this_vector = (GenericVector *)pCurrentAllocatorFunc(this_vector, size, REALLOC, pCurrentAllocatorUserData);
+        this_vector = (GenericVector *)pCurrentAllocatorFunc(this_vector, size, 0, REALLOC, pCurrentAllocatorUserData);
         *this_ptr = this_vector;
         this_vector->endofstorage += this_vector->datasize * 2;
 	    this_vector->size += this_vector->datasize;
@@ -110,11 +110,11 @@ void *pInsert(GenericVector **this_ptr, void *pos, void *value){
 	return NULL;
 }
 
-void *pPushBack(GenericVector * *this_ptr, void *value){
+void *pVectorPushBack(GenericVector * *this_ptr, void *value){
     GenericVector * this_vector = *this_ptr;
 	size_t size = sizeof *this_vector + this_vector->endofstorage + (this_vector->datasize * 2);
     if (this_vector->size == this_vector->endofstorage){
-        this_vector = (GenericVector *)pCurrentAllocatorFunc(this_vector, size, REALLOC, pCurrentAllocatorUserData);
+        this_vector = (GenericVector *)pCurrentAllocatorFunc(this_vector, size, 0, REALLOC, pCurrentAllocatorUserData);
         *this_ptr = this_vector;
         this_vector->endofstorage += this_vector->datasize * 2;
     }
@@ -124,24 +124,24 @@ void *pPushBack(GenericVector * *this_ptr, void *value){
     return (char *)this_vector->data + this_vector->size;
 }
 
-void *pErase(GenericVector *this_vector, void *position){
-    if ((char *)position + (this_vector->datasize) != pEnd(this_vector)){
-        isize size = ((char *)pEnd(this_vector)) - ((char *)position + this_vector->datasize);
+void *pVectorErase(GenericVector *this_vector, void *position){
+    if ((char *)position + (this_vector->datasize) != pVectorEnd(this_vector)){
+        isize size = ((char *)pVectorEnd(this_vector)) - ((char *)position + this_vector->datasize);
         memcpy(position, (char *)position + this_vector->datasize, (unsigned)size);
     }
     this_vector->size -= this_vector->datasize;
     return position;
 }
 
-void *pBegin(GenericVector *this_vector){
+void *pVectorBegin(GenericVector *this_vector){
     return &this_vector->data[0];
 }
 
-void *pEnd(GenericVector *this_vector){
+void *pVectorEnd(GenericVector *this_vector){
     return &this_vector->data[this_vector->size];
 }
 
-usize pSize(GenericVector *this_ptr) {
+usize pVectorSize(GenericVector *this_ptr) {
     return this_ptr->size / this_ptr->datasize;
 }
 

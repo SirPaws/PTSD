@@ -1,23 +1,40 @@
 
 #include "vector.h"
+#include "pio.h"
 
 typedef pCreateVectorStruct(iVector, int) iVector;
 
+
+static FormatCallbackTuple VectorFormat(GenericStream *stream, const char *restrict extra_args, va_list list) {
+    iVector *vector = va_arg(list, iVector *);
+    StreamWrite(stream, '[');
+    for (int *it = pVectorBegin((void *)vector); it != pVectorEnd((void *)vector); it++){
+        char buf[20];
+        u32 count = pItoa(buf, *it);
+        StreamWrite(stream, (String){ (u8 *)buf + 1, count });
+        if (it == (int *)pVectorEnd((void *)vector) - 1)
+            StreamWrite(stream, ']');
+        else StreamWrite(stream, pCreateString(", "));
+    }
+    return (FormatCallbackTuple){ list, extra_args }; 
+}
+
+
 int main(void) {
     iVector *vector = (void *)pInitVector((VectorInfo){ .datasize = sizeof(int), .initialsize = 2}); 
-    int *pos = pPushBack((void *)&vector, &(int){32});
-    int *second = pInsert((void *)&vector, pos, &(int){55});
+    int *pos = pVectorPushBack((void *)&vector, &(int){32});
+    int *second = pVectorInsert((void *)&vector, pos, &(int){55});
 
-    usize count = pSize((void *)vector);
+    usize count = pVectorSize((void *)vector);
     printf("vector holds %llu elements\n", count);
 
-    for (int *it = pBegin((void *)vector); it != pEnd((void *)vector); it++){
+    for (int *it = pVectorBegin((void *)vector); it != pVectorEnd((void *)vector); it++){
         printf("%p holds %i\n", (void *)it, *it);
     }
 
-    pErase((void *)vector, second);
-    count = pSize((void *)vector);
-    printf("vector holds %llu elements\n", count);
+    pVectorErase((void *)vector, second);
+    count = pVectorSize((void *)vector);
+    printf("vector holds %llu element\n", count);
 
     pFreeVector((void *)vector);
 
