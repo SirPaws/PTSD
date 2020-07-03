@@ -31,6 +31,7 @@
 #pragma clang diagnostic pop
 
 #if _WIN32 || _WIN64
+#   define PLANG_WINDOWS
 #   if _WIN64
 #       define PLANG64 1
 #       define PLANG32 0

@@ -21,3 +21,4 @@ src/allocator.o
 src/pstring.o
 tags
 *.swp
+*.o

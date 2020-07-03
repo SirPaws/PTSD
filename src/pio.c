@@ -3,21 +3,17 @@
 #include <math.h>
 
 #include "allocator.h"
+#include "vector.h"
 extern Allocator *pCurrentAllocatorFunc;
 extern void *pCurrentAllocatorUserData;
 
-enum StreamType {
-    STANDARD_STREAM,
-    FILE_STREAM,
-    STRING_STREAM
-};
+typedef pCreateVectorStruct(StringStreamBuffer, char *) StringStreamBuffer;
 
 struct StringStream {
     enum StreamType  type;
     u32 flags;
-    usize buffersize;
-    usize stringsize;
-    u8 *c_str;
+    StringStreamBuffer *buffer;
+    usize cursor;
     // maybe more if not we just expose stringstream
 };
 
@@ -88,20 +84,80 @@ void DestroyStdStream(void) {
 #endif
 }
 
+GenericStream *pInitStream(StreamInfo info) {
+    switch(info.type) {
+        case STANDARD_STREAM: {
+                StdStream *std = pCurrentAllocatorFunc(NULL, sizeof *std, 0, MALLOC, pCurrentAllocatorUserData);
+                memcpy(std, StandardStream, sizeof *std);
+                std->flags = (u32)info.flags; 
 
-StdStream *pGetStandardStream(enum StreamFlags flags) {
-    StdStream *std = pCurrentAllocatorFunc(NULL, sizeof *std, 0, MALLOC, pCurrentAllocatorUserData);
-    memcpy(std, StandardStream, sizeof *std);
-    std->flags = (u32)flags; 
-
-    if ((flags & STREAM_INPUT) == 0)
-        std->stdin_handle = NULL;
-    if ((flags & STREAM_OUTPUT) == 0)
-        std->stdout_handle = NULL;
-    return std;
+                if ((info.flags & STREAM_INPUT) == 0)
+                    std->stdin_handle = NULL;
+                if ((info.flags & STREAM_OUTPUT) == 0)
+                    std->stdout_handle = NULL;
+                return (GenericStream *)std;
+            }
+        case FILE_STREAM: {
+                u64 filesize;
+                bool result;
+#if defined(PLANG_WINDOWS)
+                // checks if the file exists
+                WIN32_FILE_ATTRIBUTE_DATA data;
+                result = GetFileAttributesEx(info.filename, GetFileExInfoStandard, &data);
+                filesize = ((u64)data.nFileSizeHigh << 31) | data.nFileSizeLow;
+#endif 
+                FileStream *fstream = NULL;
+                if (result == false){
+                    if (info.createifnonexistent) {
+                        fstream = pCurrentAllocatorFunc(NULL, 
+                                sizeof *fstream, 0, MALLOC, pCurrentAllocatorUserData);
+                        fstream->type = FILE_STREAM;
+                        fstream->flags = info.flags;
+#if defined(PLANG_WINDOWS)
+                        DWORD access;
+                        access  = info.flags & STREAM_INPUT  ? GENERIC_READ : 0;
+                        access |= info.flags & STREAM_OUTPUT ? GENERIC_WRITE : 0;
+                        HANDLE handle = CreateFile(info.filename, access, 0, 
+                                NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+                        fstream->handle = handle;
+                        fstream->size   = 0;
+#endif 
+                    }
+                    else return NULL;
+                } else {
+                    fstream = pCurrentAllocatorFunc(NULL, 
+                            sizeof *fstream, 0, MALLOC, pCurrentAllocatorUserData);
+                    fstream->type = FILE_STREAM;
+                    fstream->flags = info.flags;
+                    fstream->size  = filesize;
+#if defined(PLANG_WINDOWS)
+                    DWORD access;
+                    access  = info.flags & STREAM_INPUT  ? GENERIC_READ : 0;
+                    access |= info.flags & STREAM_OUTPUT ? GENERIC_WRITE : 0;
+                    HANDLE handle = CreateFile(info.filename, access, 0, 
+                            NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+                    fstream->handle = handle;
+#endif 
+                }
+                if (info.createbuffer) pStreamToBufferString((void *)fstream);
+                return (void *)fstream;
+            }
+        case STRING_STREAM: {
+                StringStream *sstream = pCurrentAllocatorFunc(NULL, 
+                            sizeof *sstream, 0, MALLOC, pCurrentAllocatorUserData);
+                memset(sstream, 0, sizeof *sstream); 
+                sstream->type  = STRING_STREAM; 
+                sstream->flags = info.flags; 
+                VectorInfo vinfo = { .datasize = sizeof(char), .initialsize = info.buffersize };
+                sstream->buffer = (void *)pInitVector(vinfo);
+                return (void *)sstream;
+            }
+    }
+    return NULL;
 }
 
-void FreeStream(GenericStream *stream) {
+void pFreeStream(GenericStream *stream) {
+    if (!stream) return;
     StdStream    *stdstream;
     FileStream   *fstream;
     StringStream *sstream;
@@ -115,8 +171,7 @@ void FreeStream(GenericStream *stream) {
                 pCurrentAllocatorFunc(fstream->buffer.c_str, 0, 0, FREE, pCurrentAllocatorUserData);
             break;
         case STRING_STREAM:
-            if (sstream->c_str)
-                pCurrentAllocatorFunc(sstream->c_str, 0, 0, FREE, pCurrentAllocatorUserData);
+            pFreeVector((void *)sstream->buffer);
     }
     pCurrentAllocatorFunc(stream, 0, 0, FREE, pCurrentAllocatorUserData);
 }
@@ -126,7 +181,10 @@ String pStreamToBufferString(GenericStream *stream) {
 
     if (stream->type == STRING_STREAM) {
         StringStream *sstream = (void *)stream;
-        return (String) { sstream->c_str, sstream->stringsize };
+        return (String) { 
+            pVectorBegin((GenericVector *)sstream->buffer), 
+            pVectorSize((GenericVector *)sstream->buffer)
+        };
     } else {
         FileStream *fstream = (void *)stream; 
         if (fstream->buffer.length == 0) {
@@ -140,45 +198,50 @@ String pStreamToBufferString(GenericStream *stream) {
 
 #define expect(x, value) __builtin_expect(x, value)
 
+void StreamRead(GenericStream *stream, void *buf, usize size) {
+    assert(stream);
+    assert(stream->flags & STREAM_INPUT);
+
+    if (expect(stream->type == STANDARD_STREAM, 1) || stream->type == FILE_STREAM) {
+        bool result = ReadFile(((FileStream *)stream)->handle, buf, (u32)size, NULL, NULL);
+        if (result == false) memset(buf, 0, size);
+    } else {
+        StringStream *sstream = (void *)stream;
+        if (sstream->cursor + size >= pVectorSize((void *)sstream->buffer)) {
+            memset(buf, 0, size); return;
+        }
+        StringStreamBuffer *buffer = sstream->buffer;
+        memcpy(buf, buffer->data + sstream->cursor, size);
+    }
+}
+
 void StreamWriteString(GenericStream *stream, String str) {
+    assert(stream);
     assert(stream->flags & STREAM_OUTPUT);
 
     if (expect(stream->type == STANDARD_STREAM, 1) || stream->type == FILE_STREAM) {
         FileStream *fstream = (FileStream *)stream;
         WriteFile(fstream->handle, str.c_str, (u32)str.length, NULL, NULL);
     } else {
-        // type == STRING_STREAM
         StringStream *sstream = (StringStream *)stream;
-        usize diff = (sstream->buffersize - sstream->stringsize);
-        if (diff <= str.length) {
-            void *tmp = pCurrentAllocatorFunc(sstream->c_str, 
-                    sstream->buffersize + str.length, 0, REALLOC, pCurrentAllocatorUserData);
-            sstream->c_str = tmp; 
-            sstream->buffersize += str.length;
-        }
-        memcpy(sstream->c_str + sstream->stringsize, str.c_str, str.length);
-        sstream->stringsize += str.length;
+        StringStreamBuffer *buffer = sstream->buffer;
+        buffer->datasize = str.length;
+        pVectorInsert((GenericVector **)&sstream->buffer, buffer->data + sstream->cursor, str.c_str);
+        buffer->datasize = 1;
     }
 }
 
 void StreamWriteChar(GenericStream *stream, char str) {
+    assert(stream);
     assert(stream->flags & STREAM_OUTPUT);
 
     if (expect(stream->type == STANDARD_STREAM, 1) || stream->type == FILE_STREAM) {
         FileStream *fstream = (FileStream *)stream;
         WriteFile(fstream->handle, &str, 1, NULL, NULL);
     } else {
-        // type == STRING_STREAM
         StringStream *sstream = (StringStream *)stream;
-        usize diff = (sstream->buffersize - sstream->stringsize);
-        if (diff <= 1) {
-            void *tmp = pCurrentAllocatorFunc(sstream->c_str, 
-                    sstream->buffersize + 1, 0, REALLOC, pCurrentAllocatorUserData);
-            sstream->c_str = tmp; 
-            sstream->buffersize += 1;
-        }
-        sstream->c_str[sstream->stringsize] = (u8)str;
-        sstream->stringsize += 1;
+        StringStreamBuffer *buffer = sstream->buffer;
+        pVectorInsert((GenericVector **)&sstream->buffer, buffer->data + sstream->cursor, &str);
     }
 }
 

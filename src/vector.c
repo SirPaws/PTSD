@@ -48,7 +48,7 @@ static void *pInsertBeginning(GenericVector **this_ptr, const void *const value,
             memmove(&this_vector->data[this_vector->datasize], old_data, this_vector->size);
             pCurrentAllocatorFunc(old_data, 0, 0, FREE, pCurrentAllocatorUserData);
         }
-        this_vector->size += this_vector->size;
+        this_vector->size += this_vector->datasize;
         memcpy(&this_vector->data[0], value, this_vector->datasize);
         return &this_vector->data[0];
     }

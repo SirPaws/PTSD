@@ -20,27 +20,38 @@ enum StreamFlags {
     STREAM_INPUT  = 0b10,
 };
 
-enum FileStreamFlags {
-    FILE_STREAM_WRITE           = 0b00001,
-    FILE_STREAM_READ            = 0b00010,
-    FILE_STREAM_APPEND          = 0b00100,
-    FILE_STREAM_WRITE_EXTENDED  = 0b01000,
-    FILE_STREAM_READ_EXTENDED   = 0b10000,
-};
-
 struct FormatCallbackTuple {
     va_list list;
     char *restrict end_pos;
 };
 
+enum StreamType {
+    STANDARD_STREAM,
+    FILE_STREAM,
+    STRING_STREAM
+};
+
+// TODO: CreateFile dwShareMode
+// TODO: CreateFile lpSecurityAttributes 
+
+typedef struct StreamInfo StreamInfo;
+struct StreamInfo {
+    enum StreamType type;
+    u32 flags;
+    // filestream | stringstream
+    usize buffersize;
+    // filestream
+    char *filename;
+    bool createbuffer;
+    bool createifnonexistent;
+    bool append;
+};
+
 GenericStream *pSetStream(GenericStream *stream);
 GenericStream *pGetStream(void);
 
-FileStream *pCreateFileStream(const char *filepath, enum FileStreamFlags flags);
-StringStream *pCreateStringStream(u64 initial_size, enum StreamFlags flags);
-StdStream *pGetStandardStream(enum StreamFlags flags);
-
-void FreeStream(GenericStream *stream);
+GenericStream *pInitStream(StreamInfo info);
+void pFreeStream(GenericStream *stream);
 
 String pStreamToBufferString(GenericStream *stream);
 
@@ -74,6 +85,15 @@ void StreamWriteChar(GenericStream *stream, char chr);
 // appends + or - to the start of buffer then calls pUtoa
 u32 pItoa(char *buf, s64 num);
 u32 pUtoa(char *buf, u64 num);
+
+// size: how many bytes to read from stream
+// eof: (if null it's ignored) set to true if the stream is at the end 
+void StreamRead(GenericStream *stream, void *buf, usize size);
+
+static inline void pRead(void *buf, usize size) {
+    StreamRead(pGetStream(), buf, size);
+}
+
 
 /*
 size = snprintf(NULL, 0, FORMAT, ...);
