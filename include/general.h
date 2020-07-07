@@ -24,6 +24,7 @@
 #define countof(array) sizeof(array)/sizeof(array[0])
 #define typeof __typeof
 #define auto __auto_type
+#define pointer_cast(ToType, ptr) ((ToType *)(void *)(ptr))
 
 // maybe have this
 // typedef const void *const readonly_ptr;

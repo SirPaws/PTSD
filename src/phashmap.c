@@ -7,17 +7,27 @@ extern void *pCurrentAllocatorUserData;
 
 typedef struct HashMapData HashMapData;
 struct HashMapData {
-    HashMapKey key;
-    void *data;
+HashMapKey key;
+void *data;
 };
 
 typedef struct HashMapBucket HashMapBucket;
 struct HashMapBucket {
-    usize count;
-    HashMapData *data;
+usize count;
+HashMapData *data;
 };
 
-static pArrayGenPushBack(HashMapBucketPush, HashMapBucket, HashMapData)
+static void HashMapBucketPush(HashMapBucket *arr, HashMapData info, usize datasize){
+    const usize elementsize = sizeof(info) + datasize; 
+    array_grow((struct GenericArray  *)arr, elementsize);
+
+    u8 *arrayposition = (u8 *)arr->data;
+    arrayposition += ((arr->count - 1) * elementsize);
+    pointer_cast(HashMapData, arrayposition)->key = info.key;
+
+    memcpy(arrayposition + sizeof(HashMapData), info.data, datasize);
+    pointer_cast(HashMapData, arrayposition)->data = arrayposition + sizeof(HashMapData);
+} 
 
 struct HashMap {
     HashFunc *hash;
@@ -63,7 +73,6 @@ void *pHashMapFind(HashMap *map, const HashMapKey key) {
         }
     }
     return NULL;
-    
 }
 
 bool pHashMapHasKey(HashMap *map, const HashMapKey key) {
@@ -77,49 +86,45 @@ bool pHashMapHasKey(HashMap *map, const HashMapKey key) {
     return false;
 }
 
-void pBucketRemoveFirst(HashMapBucket *bucket);
-void pBucketRemoveMiddle(HashMapBucket *bucket, usize index);
+void pBucketRemoveFirst(HashMapBucket *bucket, usize datasize);
+void pBucketRemoveMiddle(HashMapBucket *bucket, usize index, usize datasize);
 // both HashMapRemove and HashMapInsert returns the value at key
-void *pHashMapRemove(HashMap *map, const HashMapKey key) {
+bool pHashMapRemove(HashMap *map, const HashMapKey key, void *out) {
     assert(map);
     usize index = map->hash(key, map->numbuckets);
     HashMapBucket *bucket = map->buckets + (index % map->numbuckets);
-    if (bucket->count == 0) return NULL;
+    if (bucket->count == 0) return false; 
     for (u32 i = 0; i < bucket->count; i++) {
         if (map->cmp(bucket->data[i].key, key)) {
             void *data = bucket->data[i].data;
+            memcpy(out, data, map->datasize);
             if (i == 0) {
-                if (bucket->count > 1) pBucketRemoveFirst(bucket);
+                if (bucket->count > 1) pBucketRemoveFirst(bucket, map->datasize);
                 else { pFreeBucket(bucket); bucket->count = 0; }
             }
             else if (i < (bucket->count - 1) ){
-                pBucketRemoveMiddle(bucket, i);
+                pBucketRemoveMiddle(bucket, i, map->datasize);
             }
             else {
                 void *tmp = pCurrentAllocatorFunc(bucket->data, 
-                        sizeof(*bucket->data) * (bucket->count - 1), 
+                        (sizeof(*bucket->data) + map->datasize) * (bucket->count - 1), 
                         0, REALLOC, pCurrentAllocatorUserData);
                 bucket->data = tmp;
             }
-            return data;
+            return true;
         }
     }
-    return NULL;
+    return false;
 }
 
 void *pHashMapInsert(HashMap *map, const HashMapKey key, void *value) {
     assert(map);
     usize index = map->hash(key, map->numbuckets);
     HashMapBucket *bucket = map->buckets + (index % map->numbuckets);
-    HashMapBucketPush(bucket, (HashMapData){ key, value });
+
+    HashMapBucketPush(bucket, (HashMapData){ key, value }, map->datasize);
     return (bucket->data + (bucket->count - 1))->data;
 }
-
-#if PLANG64
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wcast-qual"
-#pragma clang diagnostic ignored "-Wcast-align"
-#endif
 
 #define mmix(h,k) do { k *= m; k ^= k >> r; k *= m; h *= m; h ^= k; } while(0)
 usize pMurmurHash2A(HashMapKey key, usize seed) {
@@ -127,13 +132,13 @@ usize pMurmurHash2A(HashMapKey key, usize seed) {
   const int r = 24;
   u32 l = (u32)key.length;
 
-  const unsigned char * data = (const unsigned char *)key.key;
+  u8 * data = (u8 *)key.key;
 
   u32 h = (u32)seed;
 
   while(key.length >= 4)
   {
-    uint32_t k = *(u32*)data;
+    u32 k = *pointer_cast(u32, data);
 
     mmix(h,k);
 
@@ -159,9 +164,6 @@ usize pMurmurHash2A(HashMapKey key, usize seed) {
 
   return h;
 }
-#if PLANG64
-#pragma clang diagnostic pop
-#endif
 
 usize pMurmurHash64A(HashMapKey key, usize seed) {
   const uint64_t m = 0xc6a4a7935bd1e995LLU;
@@ -213,21 +215,25 @@ bool pDataCompare(const HashMapKey a, const HashMapKey b) {
 
 
 
-void pBucketRemoveFirst(HashMapBucket *bucket) {
+void pBucketRemoveFirst(HashMapBucket *bucket, usize datasize) {
+    usize elemsize = (sizeof(*bucket->data) + datasize); 
+
     void *tmp = pCurrentAllocatorFunc(NULL, 
-            sizeof(*bucket->data) * bucket->count - 1, 0, MALLOC, pCurrentAllocatorUserData);
-    memcpy(tmp, bucket->data + 1, sizeof(*bucket->data) * bucket->count - 1);
-    memcpy(bucket->data, tmp,  sizeof(*bucket->data) * bucket->count - 1);
+            elemsize * bucket->count - 1, 0, MALLOC, pCurrentAllocatorUserData);
+    memcpy(tmp, bucket->data + elemsize, elemsize * bucket->count - 1);
+    memcpy(bucket->data, tmp,  elemsize * bucket->count - 1);
     bucket->count--;
 }
 
-void pBucketRemoveMiddle(HashMapBucket *bucket, usize index) {
+void pBucketRemoveMiddle(HashMapBucket *bucket, usize index, usize datasize) {
+    usize elemsize = (sizeof(*bucket->data) + datasize); 
     usize size = bucket->count - (index + 1);
+    u8 *pos = (u8 *)bucket->data + (elemsize * index);
 
     void *tmp = pCurrentAllocatorFunc(NULL, 
-            sizeof(*bucket->data) * size, 0, MALLOC, pCurrentAllocatorUserData);
-    memcpy(tmp, bucket->data + (index + 1), sizeof(*bucket->data) * size);
-    memcpy(bucket->data + index, tmp, sizeof(*bucket->data) * size);
+            elemsize * size, 0, MALLOC, pCurrentAllocatorUserData);
+    memcpy(tmp, pos + elemsize, elemsize * size);
+    memcpy(pos, tmp, elemsize * size);
     bucket->count--;
 }
 

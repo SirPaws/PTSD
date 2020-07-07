@@ -35,9 +35,9 @@ void pFreeHashMap(HashMap *map);
 bool pHashMapHasKey(HashMap *map, const HashMapKey key);
 void *pHashMapFind(HashMap *map, const HashMapKey key);
 
-// both HashMapRemove and HashMapInsert returns the value at key
-void *pHashMapRemove(HashMap *map, const HashMapKey key);
+// returns the value at key
 void *pHashMapInsert(HashMap *map, const HashMapKey key, void *value);
+bool pHashMapRemove(HashMap *map, const HashMapKey key, void *output);
 
 usize pMurmurHash2A(HashMapKey key,  usize seed);
 usize pMurmurHash64A(HashMapKey key, usize seed);
