@@ -7,9 +7,9 @@
 extern Allocator *pCurrentAllocatorFunc;
 extern void *pCurrentAllocatorUserData;
 
-bool pStringCmp(const struct String *rhs, const struct String *lhs) {
-	if (rhs->length != lhs->length) return false;
-	return (strncmp((const char *)rhs->c_str, (const char *)lhs->c_str, rhs->length) == 0);
+bool pStringCmp(const struct String rhs, const struct String lhs) {
+	if (rhs.length != lhs.length) return false;
+	return (strncmp((const char *)rhs.c_str, (const char *)lhs.c_str, rhs.length) == 0);
 }
 
 struct String pStringCopy(const struct String str) {

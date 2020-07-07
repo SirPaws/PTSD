@@ -17,7 +17,7 @@ struct StringSpan {
     u8 *begin, *end;
 };
 
-bool pStringCmp(const String *rhs, const String *lhs);
+bool pStringCmp(const String rhs, const String lhs);
 String pStringCopy(const String str);
 // void pStringStreamPush(struct StringStream *ss, const char *str);
 // void pStringStreamPushf(struct StringStream *ss, const char *fmt, ...);
