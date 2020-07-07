@@ -7,7 +7,7 @@ extern void *pCurrentAllocatorUserData;
 
 typedef struct HashMapData HashMapData;
 struct HashMapData {
-HashMapKey key;
+void *key;
 void *data;
 };
 
@@ -17,21 +17,23 @@ usize count;
 HashMapData *data;
 };
 
-static void HashMapBucketPush(HashMapBucket *arr, HashMapData info, usize datasize){
-    const usize elementsize = sizeof(info) + datasize; 
+static void HashMapBucketPush(HashMapBucket *arr, HashMapData info, usize keysize ,usize datasize){
+    const usize elementsize = sizeof(info) + keysize + datasize; 
     array_grow((struct GenericArray  *)arr, elementsize);
 
     u8 *arrayposition = (u8 *)arr->data;
     arrayposition += ((arr->count - 1) * elementsize);
-    pointer_cast(HashMapData, arrayposition)->key = info.key;
+    memcpy(arrayposition + sizeof(HashMapData), info.key, keysize);
+    pointer_cast(HashMapData, arrayposition)->key = arrayposition + sizeof(HashMapData);
 
-    memcpy(arrayposition + sizeof(HashMapData), info.data, datasize);
-    pointer_cast(HashMapData, arrayposition)->data = arrayposition + sizeof(HashMapData);
+    memcpy(arrayposition + sizeof(HashMapData) + keysize, info.data, datasize);
+    pointer_cast(HashMapData, arrayposition)->data = arrayposition + sizeof(HashMapData) + keysize;
 } 
 
 struct HashMap {
     HashFunc *hash;
     KeyCompareFunc *cmp;
+    usize keysize;
     usize datasize;
     usize numbuckets;
     struct HashMapBucket *buckets;
@@ -41,6 +43,7 @@ HashMap *pInitHashMap(HashMapInfo info) {
     HashMap *map = pCurrentAllocatorFunc(NULL, sizeof *map, 0, MALLOC, pCurrentAllocatorUserData);
     map->hash       = info.hashfunction;
     map->cmp        = info.Keycomparisonfunction;
+    map->keysize    = info.keysize;
     map->datasize   = info.datasize;
     map->numbuckets = info.numbuckets;
     map->buckets    = pCurrentAllocatorFunc(NULL, 
@@ -62,26 +65,26 @@ void pFreeHashMap(HashMap *map) {
     pCurrentAllocatorFunc(map, 0, 0, FREE, pCurrentAllocatorUserData);
 }
 
-void *pHashMapFind(HashMap *map, const HashMapKey key) {
+void *pHashMapFind(HashMap *map, const HashMapGenericKey key) {
     assert(map);
     usize index = map->hash(key, map->numbuckets);
     HashMapBucket *bucket = map->buckets + (index % map->numbuckets);
     if (bucket->count == 0) return NULL;
     for (u32 i = 0; i < bucket->count; i++) {
-        if (map->cmp(bucket->data[i].key, key)) {
-            return bucket->data[i].data;
+        if (map->cmp((HashMapGenericKey){ bucket->data[i].key }, key)) {
+            return (u8 *)bucket->data[i].data;
         }
     }
     return NULL;
 }
 
-bool pHashMapHasKey(HashMap *map, const HashMapKey key) {
+bool pHashMapHasKey(HashMap *map, const HashMapGenericKey key) {
     assert(map);
     usize index = map->hash(key, map->numbuckets);
     HashMapBucket *bucket = map->buckets + (index % map->numbuckets);
     if (bucket->count == 0) return false;
     for (u32 i = 0; i < bucket->count; i++) {
-        if (map->cmp(bucket->data[i].key, key)) return true;
+        if (map->cmp((HashMapGenericKey){ bucket->data[i].key }, key)) return true;
     }
     return false;
 }
@@ -89,13 +92,13 @@ bool pHashMapHasKey(HashMap *map, const HashMapKey key) {
 void pBucketRemoveFirst(HashMapBucket *bucket, usize datasize);
 void pBucketRemoveMiddle(HashMapBucket *bucket, usize index, usize datasize);
 // both HashMapRemove and HashMapInsert returns the value at key
-bool pHashMapRemove(HashMap *map, const HashMapKey key, void *out) {
+bool pHashMapRemove(HashMap *map, const HashMapGenericKey key, void *out) {
     assert(map);
     usize index = map->hash(key, map->numbuckets);
     HashMapBucket *bucket = map->buckets + (index % map->numbuckets);
     if (bucket->count == 0) return false; 
     for (u32 i = 0; i < bucket->count; i++) {
-        if (map->cmp(bucket->data[i].key, key)) {
+        if (map->cmp((HashMapGenericKey){ bucket->data[i].key }, key)) {
             void *data = bucket->data[i].data;
             memcpy(out, data, map->datasize);
             if (i == 0) {
@@ -117,97 +120,103 @@ bool pHashMapRemove(HashMap *map, const HashMapKey key, void *out) {
     return false;
 }
 
-void *pHashMapInsert(HashMap *map, const HashMapKey key, void *value) {
+void *pHashMapInsert(HashMap *map, const HashMapGenericKey key, void *value) {
     assert(map);
     usize index = map->hash(key, map->numbuckets);
     HashMapBucket *bucket = map->buckets + (index % map->numbuckets);
 
-    HashMapBucketPush(bucket, (HashMapData){ key, value }, map->datasize);
+    HashMapBucketPush(bucket, (HashMapData){ key.key, value }, map->keysize, map->datasize);
     return (bucket->data + (bucket->count - 1))->data;
 }
 
 #define mmix(h,k) do { k *= m; k ^= k >> r; k *= m; h *= m; h ^= k; } while(0)
-usize pMurmurHash2A(HashMapKey key, usize seed) {
-  const u32 m = 0x5bd1e995;
-  const int r = 24;
-  u32 l = (u32)key.length;
+usize pMurmurHash2A(HashMapGenericKey gkey, usize seed) {
+    HashMapKey key = *(HashMapKey *)gkey.key;
 
-  u8 * data = (u8 *)key.key;
+    const u32 m = 0x5bd1e995;
+    const int r = 24;
+    u32 l = (u32)key.length;
 
-  u32 h = (u32)seed;
+    u8 * data = (u8 *)key.key;
 
-  while(key.length >= 4)
-  {
-    u32 k = *pointer_cast(u32, data);
+    u32 h = (u32)seed;
 
-    mmix(h,k);
+    while(key.length >= 4)
+    {
+      u32 k = *pointer_cast(u32, data);
 
-    data += 4;
-    key.length -= 4;
-  }
+      mmix(h,k);
 
-  uint32_t t = 0;
+      data += 4;
+      key.length -= 4;
+    }
 
-  switch(key.length)
-  {
-  case 3: t ^= (unsigned)data[2] << 16; [[fallthrough]]; 
-  case 2: t ^= (unsigned)data[1] << 8;  [[fallthrough]];
-  case 1: t ^= data[0];
-  }
+    uint32_t t = 0;
 
-  mmix(h,t);
-  mmix(h,l);
+    switch(key.length)
+    {
+    case 3: t ^= (unsigned)data[2] << 16; [[fallthrough]]; 
+    case 2: t ^= (unsigned)data[1] << 8;  [[fallthrough]];
+    case 1: t ^= data[0];
+    }
 
-  h ^= h >> 13;
-  h *= m;
-  h ^= h >> 15;
+    mmix(h,t);
+    mmix(h,l);
 
-  return h;
+    h ^= h >> 13;
+    h *= m;
+    h ^= h >> 15;
+
+    return h;
 }
 
-usize pMurmurHash64A(HashMapKey key, usize seed) {
-  const uint64_t m = 0xc6a4a7935bd1e995LLU;
-  const int r = 47;
+usize pMurmurHash64A(HashMapGenericKey gkey, usize seed) {
+    HashMapKey key = *(HashMapKey *)gkey.key;
 
-  uint64_t h = seed ^ (key.length * m);
+    const uint64_t m = 0xc6a4a7935bd1e995LLU;
+    const int r = 47;
 
-  const uint64_t * data = (const uint64_t *)key.key;
-  const uint64_t * end = data + (key.length/8);
+    uint64_t h = seed ^ (key.length * m);
 
-  while(data != end)
-  {
-    uint64_t k = *data++;
+    const uint64_t * data = (const uint64_t *)key.key;
+    const uint64_t * end = data + (key.length/8);
 
-    k *= m; 
-    k ^= k >> r; 
-    k *= m; 
-    
-    h ^= k;
-    h *= m; 
-  }
+    while(data != end)
+    {
+      uint64_t k = *data++;
 
-  const unsigned char * data2 = (const unsigned char*)data;
+      k *= m; 
+      k ^= k >> r; 
+      k *= m; 
+      
+      h ^= k;
+      h *= m; 
+    }
 
-  switch(key.length & 7)
-  {
-  case 7: h ^= (u64)(data2[6]) << 48; [[fallthrough]];
-  case 6: h ^= (u64)(data2[5]) << 40; [[fallthrough]];
-  case 5: h ^= (u64)(data2[4]) << 32; [[fallthrough]];
-  case 4: h ^= (u64)(data2[3]) << 24; [[fallthrough]];
-  case 3: h ^= (u64)(data2[2]) << 16; [[fallthrough]];
-  case 2: h ^= (u64)(data2[1]) << 8;  [[fallthrough]];
-  case 1: h ^= (u64)(data2[0]);
-          h *= m;
-  }
+    const unsigned char * data2 = (const unsigned char*)data;
+
+    switch(key.length & 7)
+    {
+    case 7: h ^= (u64)(data2[6]) << 48; [[fallthrough]];
+    case 6: h ^= (u64)(data2[5]) << 40; [[fallthrough]];
+    case 5: h ^= (u64)(data2[4]) << 32; [[fallthrough]];
+    case 4: h ^= (u64)(data2[3]) << 24; [[fallthrough]];
+    case 3: h ^= (u64)(data2[2]) << 16; [[fallthrough]];
+    case 2: h ^= (u64)(data2[1]) << 8;  [[fallthrough]];
+    case 1: h ^= (u64)(data2[0]);
+            h *= m;
+    }
  
-  h ^= h >> r;
-  h *= m;
-  h ^= h >> r;
+    h ^= h >> r;
+    h *= m;
+    h ^= h >> r;
 
-  return h;
+    return h;
 }
 
-bool pDataCompare(const HashMapKey a, const HashMapKey b) {
+bool pDataCompare(const HashMapGenericKey keya, const HashMapGenericKey keyb) {
+    const HashMapKey a = *(HashMapKey *)keya.key, b = *(HashMapKey *)keyb.key;
+
     if (a.length != b.length) return false;
     return memcmp(a.key, b.key, b.length) == 0;
 }
