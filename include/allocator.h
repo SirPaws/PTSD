@@ -19,11 +19,14 @@ struct AllocatorInfo pGlobalAllocator(void);
 void pSetGlobalAllocator(struct AllocatorInfo info);
 
 // just a malloc with the currently bound allocator
-void *AllocateBuffer(usize size);
+void *pAllocateBuffer(usize size);
 // just a realloc with the currently bound allocator
-void *ReallocateBuffer(void *buffer, usize size);
+void *pReallocateBuffer(void *buffer, usize size);
 // just a calloc with the currently bound allocator
-void *AllocateArray(usize count, usize size);
+void *pAllocateArray(usize count, usize size);
 // just a free with the currently bound allocator
-void *FreeBuffer(void *buffer);
+void *pFreeBuffer(void *buffer);
+
+// a version of memset but for bigger data types see tests for more info
+void *pMemExpand(void *dst, void *src, usize dstsize, usize srcsize);
 
