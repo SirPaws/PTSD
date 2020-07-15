@@ -22,7 +22,7 @@ enum StreamFlags {
 
 struct FormatCallbackTuple {
     va_list list;
-    char *restrict end_pos;
+    const char *restrict end_pos;
 };
 
 enum StreamType {

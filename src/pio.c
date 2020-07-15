@@ -679,6 +679,13 @@ u32 pUtoa(char *buf, u64 num) {
         ptr[1] = s[1];
         ptr += 2;
         printnum += 2;
+    } else {
+        register const char *s = Itoa1000[num];
+        ptr[0] = s[0];
+        ptr[1] = s[1];
+        ptr[2] = s[2];
+        ptr += 3;
+        printnum += 3;
     }
     ptr--;
     while(ptr > buf) {
