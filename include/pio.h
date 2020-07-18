@@ -94,6 +94,9 @@ static inline void pRead(void *buf, usize size) {
     StreamRead(pGetStream(), buf, size);
 }
 
+// don't know if these need to be in the header file
+void InitializeStdStream(void) __attribute__(( constructor ));
+void DestroyStdStream(void) __attribute__(( destructor ));
 
 /*
 size = snprintf(NULL, 0, FORMAT, ...);
