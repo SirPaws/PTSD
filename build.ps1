@@ -2,10 +2,9 @@ param(
     [string] $OutputDirectory = "bin", 
     [string] $IntermediateDirectory = "bin/int", 
     [switch] $Release, 
-    [switch] $RelWithDebug
+    [switch] $RelWithDebug,
+    [switch] $BuildTests
 )
-
-$BuildTests = $true
 
 #if output|intermediate directory does not exists we create it
 if ((Test-Path $OutputDirectory) -eq $false) { mkdir $OutputDirectory }
