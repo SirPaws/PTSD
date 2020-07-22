@@ -1,6 +1,6 @@
 #pragma once
-#ifndef PLANG_GENERAL_HEADER
-#define PLANG_GENERAL_HEADER
+#ifndef PSTD_GENERAL_HEADER
+#define PSTD_GENERAL_HEADER
 
 #include <stdint.h> 
 #include <assert.h>
@@ -107,5 +107,5 @@ static bool pCmpRangeI(s32 num, s32 start, s32 end) {
     return (num >= start) && (num <= end);
 }
 
-#endif // PLANG_GENERAL_HEADER 
+#endif // PSTD_GENERAL_HEADER 
 

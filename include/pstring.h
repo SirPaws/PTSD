@@ -1,5 +1,6 @@
 #pragma once
-
+#ifndef PSTD_PSTRING_HEADER
+#define PSTD_PSTRING_HEADER
 #include "general.h"
 
 #if PLANG_C
@@ -19,6 +20,10 @@ struct StringSpan {
 
 bool pStringCmp(const String rhs, const String lhs);
 String pStringCopy(const String str);
+
+static String pString(u8 *c_str, usize length) {
+    return (String){ c_str, length };
+}
 // void pStringStreamPush(struct StringStream *ss, const char *str);
 // void pStringStreamPushf(struct StringStream *ss, const char *fmt, ...);
 #endif
@@ -40,4 +45,4 @@ struct String {
 	}
 };
 #endif
-
+#endif // PSTD_PSTRING_HEADER

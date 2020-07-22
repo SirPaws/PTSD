@@ -1,3 +1,7 @@
+#pragma once
+#ifndef PSTD_PIO_HEADER
+#define PSTD_PIO_HEADER
+
 #include "pstring.h"
 #pragma clang diagnostic ignored "-Wclass-varargs"
 
@@ -119,15 +123,4 @@ pBPrintf(ss, FORMAT, ...);
 
 */
 
-
-
-
-
-
-
-
-
-
-
-
-
+#endif // PSTD_PIO_HEADER

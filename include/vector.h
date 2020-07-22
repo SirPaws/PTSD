@@ -1,5 +1,6 @@
-#ifndef VECTOR_HEADER
-#define VECTOR_HEADER
+#pragma once
+#ifndef PSTD_VECTOR_HEADER
+#define PSTD_VECTOR_HEADER
 
 #include "general.h"
 
@@ -69,5 +70,5 @@ void *pVectorEnd(GenericVector *this_ptr);
 // Gets the number of elements in the vector
 usize pVectorSize(GenericVector *this_ptr);
 
-#endif
+#endif // PSTD_VECTOR_HEADER
 

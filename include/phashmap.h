@@ -1,4 +1,6 @@
 #pragma once
+#ifndef PSTD_PHASHMAP_HEADER
+#define PSTD_PHASHMAP_HEADER
 #include "general.h"
 
 #if PLANG64 
@@ -53,3 +55,4 @@ usize pMurmurHash64A(HashMapGenericKey key, usize seed);
 // if they do it then does calls memcmp
 bool pDataCompare(const HashMapGenericKey a, const HashMapGenericKey b);
 
+#endif // PSTD_PHASHMAP_HEADER

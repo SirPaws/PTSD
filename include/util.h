@@ -1,5 +1,6 @@
-#ifndef PLANG_UTIL_HEADER
-#define PLANG_UTIL_HEADER
+#pragma once
+#ifndef PSTD_UTIL_HEADER
+#define PSTD_UTIL_HEADER
 
 #include "general.h"
 #include "allocator.h"
@@ -35,5 +36,6 @@ static void array_add(struct PointerArray *arr, void *data) {
 }
 
 void *pGetPlatformHandle(void);
-#endif // PLANG_UTIL_HEADER
+
+#endif // PSTD_UTIL_HEADER
 

@@ -1,4 +1,6 @@
 #pragma once
+#ifndef PSTD_ALLOCATOR_HEADER
+#define PSTD_ALLOCATOR_HEADER
 #include "general.h"
 
 enum AllocatorType {
@@ -30,3 +32,4 @@ void *pFreeBuffer(void *buffer);
 // a version of memset but for bigger data types see tests for more info
 void *pMemExpand(void *dst, void *src, usize dstsize, usize srcsize);
 
+#endif // PSTD_ALLOCATOR_HEADER
