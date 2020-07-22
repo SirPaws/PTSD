@@ -26,3 +26,31 @@ void *pGetPlatformHandle(void) {
     return NULL;
 #endif
 }
+
+
+// ported from _Xtime_get_ticks: https://github.com/microsoft/STL/blob/master/stl/src/xtime.cpp
+static const long long PSTD_EPOCH = 0x19DB1DED53E8000LL; 
+
+pTimePoint pSystemTime(void) {
+    FILETIME ft;
+    GetSystemTimePreciseAsFileTime(&ft);
+    return (((s64)(ft.dwHighDateTime)) << 32) + (s64)(ft.dwLowDateTime) - PSTD_EPOCH;
+}
+// these clocks are taken from MSVC-STL
+// can be found here https://github.com/microsoft/STL
+pTimePoint pGetTick(enum pClockType type) {
+    if (__builtin_expect(type != PSTD_SYSTEM_CLOCK, 1)) {
+        const s64 _Freq; QueryPerformanceFrequency((void *)&_Freq); // doesn't change after system boot
+        const s64 _Ctr;  QueryPerformanceCounter((void*)&_Ctr);
+        // Instead of just having "(_Ctr * period::den) / _Freq",
+        // the algorithm below prevents overflow when _Ctr is sufficiently large.
+        // It assumes that _Freq * period::den does not overflow, which is currently true for nano period.
+        // It is not realistic for _Ctr to accumulate to large values from zero with this assumption,
+        // but the initial value of _Ctr could be large.
+        const s64 _Whole = (_Ctr / _Freq) * 1000000000;
+        const s64 _Part = (_Ctr % _Freq) * 1000000000 / _Freq;
+        return _Whole + _Part;
+    } else {
+        return pSystemTime();
+    }
+}

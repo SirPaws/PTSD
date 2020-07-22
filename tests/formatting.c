@@ -1,30 +1,35 @@
 #include "pio.h"
 
 int main(void) {
+    pPrintf("Test\n");
     StreamInfo fstream_info = {
         .type  = FILE_STREAM,
         .flags = STREAM_INPUT|STREAM_OUTPUT,
         .filename = "pio.s",
     };
     FileStream *fstream = (void *)pInitStream(fstream_info);
-    char arr[23];
-    StreamRead((void *)fstream, arr, 23);
-    String read_from_file = { (u8 *)arr, 23 };
-    pPrintf("read this from a file: {\n%S\n}\n", read_from_file);
-    pFreeStream((void *)fstream);
-    
-    StreamInfo sstream_info = {
-        .type  = STRING_STREAM,
-        .flags = STREAM_INPUT|STREAM_OUTPUT,
-        .buffersize = 50
-    };
-    StringStream *sstream = (void *)pInitStream(sstream_info); 
-    {
-        StreamWriteString((GenericStream *)sstream, read_from_file);
-        String sstream_string = pStreamToBufferString((GenericStream *)sstream);
-        pPrintf("string stream holds {\n%S\n}\n", sstream_string);
+    if (fstream) {
+        char arr[23];
+        StreamRead((void *)fstream, arr, 23);
+        String read_from_file = { (u8 *)arr, 23 };
+        pPrintf("read this from a file: {\n%S\n}\n", read_from_file);
+        pFreeStream((void *)fstream);
+        
+        StreamInfo sstream_info = {
+            .type  = STRING_STREAM,
+            .flags = STREAM_INPUT|STREAM_OUTPUT,
+            .buffersize = 50
+        };
+
+        StringStream *sstream = (void *)pInitStream(sstream_info); 
+        {
+            StreamWriteString((GenericStream *)sstream, read_from_file);
+            String sstream_string = pStreamToBufferString((GenericStream *)sstream);
+            pPrintf("string stream holds {\n%S\n}\n", sstream_string);
+        }
+        pFreeStream((void *)fstream);
     }
-    pFreeStream((void *)fstream);
+    
     String str = pCreateString("hello");
 
     u8 test = 0b1010;
