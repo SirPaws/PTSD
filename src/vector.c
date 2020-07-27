@@ -4,7 +4,7 @@
 extern Allocator *pCurrentAllocatorFunc;
 extern void *pCurrentAllocatorUserData;
 
-pCreateVectorStruct(GenericVector, char);
+pCreateVectorStruct(GenericVector, u8);
 
 GenericVector *pInitVector(VectorInfo info) {
     usize size = (info.datasize * info.initialsize) + sizeof(GenericVector);
@@ -13,6 +13,7 @@ GenericVector *pInitVector(VectorInfo info) {
     vector->datasize = info.datasize;
     vector->endofstorage = info.initialsize * info.datasize;
     vector->size = 0; 
+    vector->data = (u8 *)(vector + 1);
     return vector;
 }
 
@@ -30,6 +31,8 @@ static void *pInsertBeginning(GenericVector **this_ptr, const void *const value,
         this_vector = (GenericVector *)pCurrentAllocatorFunc(
                 this_vector, size, 0, REALLOC, pCurrentAllocatorUserData);
         *this_ptr = this_vector;
+        this_vector->data = (u8 *)(this_vector + 1);
+
         if (this_vector->endofstorage > 0){
 
             void *old_data = pCurrentAllocatorFunc(NULL, this_vector->endofstorage, 0, MALLOC, pCurrentAllocatorUserData);
@@ -59,7 +62,7 @@ static void *pInsertBeginning(GenericVector **this_ptr, const void *const value,
     return position
 
 void *pVectorInsert(GenericVector **this_ptr, const void *const pos, void *value){
-    const char *const position = pos;
+    const u8 *const position = pos;
 
 	GenericVector *this_vector = *this_ptr; 
 	const usize n = (unsigned)(position - this_vector->data);
@@ -76,10 +79,14 @@ void *pVectorInsert(GenericVector **this_ptr, const void *const pos, void *value
 		}
         if (n < this_vector->size){
             size_t diff = this_vector->size - n;
+            
+            // create a new block of data 
+            // this block holds the data 
             void *old_data = pCurrentAllocatorFunc(NULL, diff, 0, MALLOC, pCurrentAllocatorUserData);
 		    memmove(old_data, &this_vector->data[n], diff);
 		    memmove(&this_vector->data[(n + this_vector->datasize)], old_data, diff);
 		    pCurrentAllocatorFunc(old_data, 0, 0, FREE, pCurrentAllocatorUserData); 
+
             old_data = NULL;
             VectorSet(&this_vector->data[n]);
         }

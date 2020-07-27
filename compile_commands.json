@@ -1,7 +1,0 @@
-[
-    {
-      "directory": "C:/Users/jarcc/source/c/pstd",
-      "command": "clang -g -Isrc -Iinclude -Itests  -Weverything -Wno-gnu-binary-literal -std=gnu2x youIdiot.c",
-      "file": "C:/Users/jarcc/source/c/pstd/src/vector.c"
-    }
-]

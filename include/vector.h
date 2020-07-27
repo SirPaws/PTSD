@@ -26,7 +26,7 @@ typedef struct GenericVector GenericVector;
         usize datasize;     \
         usize size;         \
         usize endofstorage; \
-        data_type data[];   \
+        data_type *data;    \
     }
 
 typedef struct VectorInfo VectorInfo;

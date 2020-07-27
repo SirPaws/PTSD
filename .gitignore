@@ -9,3 +9,4 @@ tags
 *.swp
 *.o
 bin/**
+compile_commands.json
