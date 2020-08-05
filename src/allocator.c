@@ -72,7 +72,7 @@ void *pMemExpand(void *dst, void *src, usize dstsize, usize srcsize) {
             srcptr = src;
             for (usize i = 0; i < srcsize; i += sizeof(u32)) {
                 if (dstsize < sizeof(u32)) break;
-                *((usize *)(dstptr + offset)) = *srcptr++;
+                *((u32 *)(dstptr + offset)) = *srcptr++;
                 dstsize -= sizeof(u32); offset += sizeof(u32);
             }
         }
