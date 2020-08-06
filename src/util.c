@@ -32,13 +32,18 @@ void *pGetPlatformHandle(void) {
 static const long long PSTD_EPOCH = 0x19DB1DED53E8000LL; 
 
 pTimePoint pSystemTime(void) {
+#if defined(_WIN32) || defined(_WIN64)
     FILETIME ft;
     GetSystemTimePreciseAsFileTime(&ft);
     return (((s64)(ft.dwHighDateTime)) << 32) + (s64)(ft.dwLowDateTime) - PSTD_EPOCH;
+#else
+    return 0;
+#endif
 }
 // these clocks are taken from MSVC-STL
 // can be found here https://github.com/microsoft/STL
 pTimePoint pGetTick(enum pClockType type) {
+#if defined(_WIN32) || defined(_WIN64)
     if (__builtin_expect(type != PSTD_SYSTEM_CLOCK, 1)) {
         const s64 _Freq; QueryPerformanceFrequency((void *)&_Freq); // doesn't change after system boot
         const s64 _Ctr;  QueryPerformanceCounter((void*)&_Ctr);
@@ -53,4 +58,7 @@ pTimePoint pGetTick(enum pClockType type) {
     } else {
         return pSystemTime();
     }
+#else
+    return 0;
+#endif
 }

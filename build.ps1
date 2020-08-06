@@ -55,6 +55,8 @@ if ($NoBuild) { Exit }
 if ((Test-Path $OutputDirectory) -eq $false) { mkdir $OutputDirectory }
 if ((Test-Path $IntermediateDirectory) -eq $false) { mkdir $IntermediateDirectory }
 
+$platformout = "exe"
+
 switch ($PSVersionTable.Platform) {
     "Win32NT" { 
         $clang = "$clang -D_CRT_SECURE_NO_WARNINGS" 
@@ -63,6 +65,8 @@ switch ($PSVersionTable.Platform) {
     }
     "UNIX" {
         $clang = "$clang" 
+        $lib   = "ar cr $OutputDirectory/libpstd.a" 
+	$platformout = "out"
         break;
     }
 }
@@ -125,8 +129,8 @@ if ($BuildTests) {
         $file = $_
         $basename = $file.BaseName
         $name = $file.Name
-        $testcommands +=, "$clang -L$OutputDirectory -g -std=gnu2x tests/$name -o $OutputDirectory/tests/$basename.exe -lpstd"
-        $formatting_data = "$formatting_data$clang -L$OutputDirectory -g -std=gnu2x tests/$name -o $OutputDirectory/tests/$basename.exe -lpstd`n"
+        $testcommands +=, "$clang -L$OutputDirectory -g -std=gnu2x tests/$name -o $OutputDirectory/tests/$basename.$platformout -lpstd"
+        $formatting_data = "$formatting_data$clang -L$OutputDirectory -g -std=gnu2x tests/$name -o $OutputDirectory/tests/$basename.$platformout -lpstd`n"
     })
     
     if ((Test-Path $formatting_file) -eq $true) {

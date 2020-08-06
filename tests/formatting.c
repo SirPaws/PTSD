@@ -27,7 +27,7 @@ int main(void) {
             String sstream_string = pStreamToBufferString((GenericStream *)sstream);
             pPrintf("string stream holds {\n%S\n}\n", sstream_string);
         }
-        pFreeStream((void *)fstream);
+        pFreeStream((void *)sstream);
     }
     
     String str = pCreateString("hello");

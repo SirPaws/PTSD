@@ -6,6 +6,8 @@
 #elif defined(__linux__) || defined(__unix__)
 #define PIO_LINUX
 #include <unistd.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #elif defined(__APPLE__)
 #error you are using a mac. buy a new computer if you want to use this
 #endif
@@ -50,6 +52,13 @@ struct StdStream {
     u32 stdin_handle;
 #endif
 };
+
+
+#if defined(PIO_WINDOWS)
+#define PIO_HANDLE_NULL NULL
+#elif defined(PIO_LINUX)
+#define PIO_HANDLE_NULL 0
+#endif
 
 struct GenericStream {
     enum StreamType  type;
@@ -112,9 +121,9 @@ GenericStream *pInitStream(StreamInfo info) {
                 std->flags = (u32)info.flags; 
 
                 if ((info.flags & STREAM_INPUT) == 0)
-                    std->stdin_handle = NULL;
+                    std->stdin_handle = PIO_HANDLE_NULL;
                 if ((info.flags & STREAM_OUTPUT) == 0)
-                    std->stdout_handle = NULL;
+                    std->stdout_handle = PIO_HANDLE_NULL;
                 return (GenericStream *)std;
             }
         case FILE_STREAM: {
@@ -128,7 +137,7 @@ GenericStream *pInitStream(StreamInfo info) {
 #elif defined(PIO_LINUX)
                 struct stat data;
                 result = stat(info.filename, &data) == -1 ? false : true;
-                filesize = st_size;
+                filesize = data.st_size;
 #endif 
                 FileStream *fstream = NULL;
                 if (result == false){
@@ -229,7 +238,7 @@ String pStreamToBufferString(GenericStream *stream) {
 #if defined(PIO_WINDOWS)
             ReadFile(fstream->handle, buf, (unsigned long)fstream->size, NULL, NULL);
 #elif defined(PIO_LINUX)
-            s32 readreturn  = read(((FileStream *)stream)->handle, buf, (u32)size);
+            s32 readreturn  = read(((FileStream *)stream)->handle, buf, (u32)fstream->size);
             bool result = (readreturn == -1) ? false : true;
 #endif
             fstream->buffer = (String) { buf, fstream->size };
