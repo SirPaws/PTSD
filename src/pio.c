@@ -144,6 +144,7 @@ GenericStream *pInitStream(StreamInfo info) {
                     if (info.createifnonexistent) {
                         fstream = pCurrentAllocatorFunc(NULL, 
                                 sizeof *fstream, 0, MALLOC, pCurrentAllocatorUserData);
+                        memset(fstream, 0, sizeof *fstream);
                         fstream->type = FILE_STREAM;
                         fstream->flags = info.flags;
 #if defined(PIO_WINDOWS)
@@ -167,6 +168,7 @@ GenericStream *pInitStream(StreamInfo info) {
                 } else {
                     fstream = pCurrentAllocatorFunc(NULL, 
                             sizeof *fstream, 0, MALLOC, pCurrentAllocatorUserData);
+                    memset(fstream, 0, sizeof * fstream);
                     fstream->type = FILE_STREAM;
                     fstream->flags = info.flags;
                     fstream->size  = filesize;
