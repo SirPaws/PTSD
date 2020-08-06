@@ -4,16 +4,16 @@
 extern Allocator *pCurrentAllocatorFunc;
 extern void *pCurrentAllocatorUserData;
 
-void pDynArrayGrow(DynArray *vector, usize datasize, usize count) {
-    if (!count || !vector || !datasize) return;
-    void *tmp = pCurrentAllocatorFunc(vector->data, datasize * (vector->endofstorage + count), 0, REALLOC, pCurrentAllocatorUserData);
+void pDynArrayGrow(DynArray *array, usize datasize, usize count) {
+    if (!count || !array || !datasize) return;
+    void *tmp = pCurrentAllocatorFunc(array->data, datasize * (array->endofstorage + count), 0, REALLOC, pCurrentAllocatorUserData);
     assert(tmp);
-    vector->data = tmp;
-    vector->endofstorage += count;
+    array->data = tmp;
+    array->endofstorage += count;
 }
 
-void pDynArrayFree(DynArray *vector) {
-    pCurrentAllocatorFunc(vector->data, 0, 0, FREE, pCurrentAllocatorUserData);
-    memset(vector, 0, sizeof *vector);
+void pDynArrayFree(DynArray *array) {
+    pCurrentAllocatorFunc(array->data, 0, 0, FREE, pCurrentAllocatorUserData);
+    memset(array, 0, sizeof *array);
 }
 

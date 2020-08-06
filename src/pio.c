@@ -1,5 +1,15 @@
 #include "pio.h"
+
+#if defined(_WIN32) || defined(_WIN64)
+#define PIO_WINDOWS
 #include <Windows.h>
+#elif defined(__linux__) || defined(__unix__)
+#define PIO_LINUX
+#include <unistd.h>
+#elif defined(__APPLE__)
+#error you are using a mac. buy a new computer if you want to use this
+#endif
+
 #include <math.h>
 
 #include "allocator.h"
@@ -20,8 +30,10 @@ struct StringStream {
 struct FileStream {
     enum StreamType  type;
     u32 flags;
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(PIO_WINDOWS)
     HANDLE handle;
+#elif defined(PIO_LINUX)
+    u32 handle;
 #endif
     usize size;
     String buffer;
@@ -30,9 +42,12 @@ struct FileStream {
 struct StdStream {
     enum StreamType  type;
     u32 flags;
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(PIO_WINDOWS)
     HANDLE stdout_handle;
     HANDLE stdin_handle;
+#elif defined(PIO_LINUX)
+    u32 stdout_handle;
+    u32 stdin_handle;
 #endif
 };
 
@@ -61,15 +76,20 @@ GenericStream *pSetStream(GenericStream *stream) {
 GenericStream *pGetStream(void) { return pcurrentstream; }
 
 void InitializeStdStream(void) {
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(PIO_WINDOWS)
     default_code_page = GetConsoleOutputCP();
     SetConsoleOutputCP(CP_UTF8);
 #endif
     const StdStream template = { 
         .type          = STANDARD_STREAM,
         .flags         = STREAM_INPUT|STREAM_OUTPUT,
+#if defined(PIO_WINDOWS)
         .stdout_handle = GetStdHandle(STD_OUTPUT_HANDLE),
         .stdin_handle  = GetStdHandle(STD_INPUT_HANDLE)
+#elif defined(PIO_LINUX)
+        .stdout_handle = 1,
+        .stdin_handle  = 0
+#endif
     };
 
     StandardStream = malloc(sizeof *StandardStream);
@@ -79,7 +99,7 @@ void InitializeStdStream(void) {
 }
 void DestroyStdStream(void) {
     free(StandardStream);
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(PIO_WINDOWS)
     SetConsoleOutputCP(default_code_page);
 #endif
 }
@@ -100,11 +120,15 @@ GenericStream *pInitStream(StreamInfo info) {
         case FILE_STREAM: {
                 u64 filesize;
                 bool result;
-#if defined(PLANG_WINDOWS)
+#if defined(PIO_WINDOWS)
                 // checks if the file exists
                 WIN32_FILE_ATTRIBUTE_DATA data;
                 result = GetFileAttributesEx(info.filename, GetFileExInfoStandard, &data);
                 filesize = ((u64)data.nFileSizeHigh << 31) | data.nFileSizeLow;
+#elif defined(PIO_LINUX)
+                struct stat data;
+                result = stat(info.filename, &data) == -1 ? false : true;
+                filesize = st_size;
 #endif 
                 FileStream *fstream = NULL;
                 if (result == false){
@@ -113,15 +137,22 @@ GenericStream *pInitStream(StreamInfo info) {
                                 sizeof *fstream, 0, MALLOC, pCurrentAllocatorUserData);
                         fstream->type = FILE_STREAM;
                         fstream->flags = info.flags;
-#if defined(PLANG_WINDOWS)
+#if defined(PIO_WINDOWS)
                         DWORD access;
                         access  = info.flags & STREAM_INPUT  ? GENERIC_READ : 0;
                         access |= info.flags & STREAM_OUTPUT ? GENERIC_WRITE : 0;
                         HANDLE handle = CreateFile(info.filename, access, 0, 
                                 NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
                         fstream->handle = handle;
-                        fstream->size   = 0;
+#elif defined(PIO_LINUX)
+                        int access;
+                        access = info.flags & STREAM_INPUT ? O_RDONLY : 0;
+                        access = info.flags & STREAM_OUTPUT ? (access ? O_RDWR : O_WRONLY ) : 0;
+                        access |= O_CREAT;
+                        s32 handle = open(info.filename, access);
+                        fstream->handle = handle;
 #endif 
+                        fstream->size   = 0;
                     }
                     else return NULL;
                 } else {
@@ -130,12 +161,18 @@ GenericStream *pInitStream(StreamInfo info) {
                     fstream->type = FILE_STREAM;
                     fstream->flags = info.flags;
                     fstream->size  = filesize;
-#if defined(PLANG_WINDOWS)
+#if defined(PIO_WINDOWS)
                     DWORD access;
                     access  = info.flags & STREAM_INPUT  ? GENERIC_READ : 0;
                     access |= info.flags & STREAM_OUTPUT ? GENERIC_WRITE : 0;
                     HANDLE handle = CreateFile(info.filename, access, 0, 
                             NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+                    fstream->handle = handle;
+#elif defined(PIO_LINUX)
+                    int access;
+                    access = info.flags & STREAM_INPUT ? O_RDONLY : 0;
+                    access = info.flags & STREAM_OUTPUT ? (access ? O_RDWR : O_WRONLY ) : 0;
+                    s32 handle = open(info.filename, access);
                     fstream->handle = handle;
 #endif 
                 }
@@ -189,7 +226,12 @@ String pStreamToBufferString(GenericStream *stream) {
         FileStream *fstream = (void *)stream; 
         if (fstream->buffer.length == 0) {
             u8 *buf = pCurrentAllocatorFunc(0, fstream->size, 0, MALLOC, pCurrentAllocatorUserData);
+#if defined(PIO_WINDOWS)
             ReadFile(fstream->handle, buf, (unsigned long)fstream->size, NULL, NULL);
+#elif defined(PIO_LINUX)
+            s32 readreturn  = read(((FileStream *)stream)->handle, buf, (u32)size);
+            bool result = (readreturn == -1) ? false : true;
+#endif
             fstream->buffer = (String) { buf, fstream->size };
         }
         return fstream->buffer;
@@ -203,7 +245,12 @@ void StreamRead(GenericStream *stream, void *buf, usize size) {
     assert(stream->flags & STREAM_INPUT);
 
     if (expect(stream->type == STANDARD_STREAM, 1) || stream->type == FILE_STREAM) {
+#if defined(PIO_WINDOWS)
         bool result = ReadFile(((FileStream *)stream)->handle, buf, (u32)size, NULL, NULL);
+#elif defined(PIO_LINUX)
+        s32 readreturn  = read(((FileStream *)stream)->handle, buf, (u32)size);
+        bool result = (readreturn == -1) ? false : true;
+#endif
         if (result == false) memset(buf, 0, size);
     } else {
         StringStream *sstream = (void *)stream;
@@ -221,7 +268,11 @@ void StreamWriteString(GenericStream *stream, String str) {
 
     if (expect(stream->type == STANDARD_STREAM, 1) || stream->type == FILE_STREAM) {
         FileStream *fstream = (FileStream *)stream;
+#if defined(PIO_WINDOWS)
         WriteFile(fstream->handle, str.c_str, (u32)str.length, NULL, NULL);
+#elif defined(PIO_LINUX)
+        write(fstream->handle, str.c_str, (u32)str.length);
+#endif
     } else {
         StringStream *sstream = (StringStream *)stream;
         StringStreamBuffer *buffer = sstream->buffer;
@@ -237,7 +288,11 @@ void StreamWriteChar(GenericStream *stream, char str) {
 
     if (expect(stream->type == STANDARD_STREAM, 1) || stream->type == FILE_STREAM) {
         FileStream *fstream = (FileStream *)stream;
+#if defined(PIO_WINDOWS)
         WriteFile(fstream->handle, &str, 1, NULL, NULL);
+#elif defined(PIO_LINUX)
+        write(fstream->handle, &str, 1);
+#endif
     } else {
         StringStream *sstream = (StringStream *)stream;
         StringStreamBuffer *buffer = sstream->buffer;

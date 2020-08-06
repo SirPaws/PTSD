@@ -7,124 +7,6 @@ param(
     [switch] $NoBuild
 )
 
-if ((Test-Path ./compile_commands.json) -eq $false ) {
-    $loc = Get-Location 
-    $loc = $loc -replace "\\", '/'
-    $filedata = "[
-    {  
-      `"directory`": `"$loc`",
-      `"command`": `"clang -g -Isrc -Iinclude -Itests  -Wall -Wno-gnu-binary-literal -std=gnu2x include/allocator.h`",
-      `"file`": `"$loc/include/vector.h`"
-    },
-    {  
-      `"directory`": `"$loc`",
-      `"command`": `"clang -g -Isrc -Iinclude -Itests  -Wall -Wno-gnu-binary-literal -std=gnu2x include/general.h`",
-      `"file`": `"$loc/include/general.h`"
-    },
-    {  
-      `"directory`": `"$loc`",
-      `"command`": `"clang -g -Isrc -Iinclude -Itests  -Wall -Wno-gnu-binary-literal -std=gnu2x include/phashmap.h`",
-      `"file`": `"$loc/include/phashmap.h`"
-    },
-    {  
-      `"directory`": `"$loc`",
-      `"command`": `"clang -g -Isrc -Iinclude -Itests  -Wall -Wno-gnu-binary-literal -std=gnu2x include/pio.h`",
-      `"file`": `"$loc/include/pio.h`"
-    },
-    {  
-      `"directory`": `"$loc`",
-      `"command`": `"clang -g -Isrc -Iinclude -Itests  -Wall -Wno-gnu-binary-literal -std=gnu2x include/pstring.h`",
-      `"file`": `"$loc/include/pstring.h`"
-    },
-    {  
-      `"directory`": `"$loc`",
-      `"command`": `"clang -g -Isrc -Iinclude -Itests  -Wall -Wno-gnu-binary-literal -std=gnu2x include/util.h`",
-      `"file`": `"$loc/include/util.h`"
-    },
-    {  
-      `"directory`": `"$loc`",
-      `"command`": `"clang -g -Isrc -Iinclude -Itests  -Wall -Wno-gnu-binary-literal -std=gnu2x include/vector.h`",
-      `"file`": `"$loc/include/vector.h`"
-    },
-
-
-
-
-
-
-    {  
-      `"directory`": `"$loc`",
-      `"command`": `"clang -g -Isrc -Iinclude -Itests  -Wall -Wno-gnu-binary-literal -std=gnu2x src/allocator.c`",
-      `"file`": `"$loc/src/allocator.c`"
-    },
-    {  
-      `"directory`": `"$loc`",
-      `"command`": `"clang -g -Isrc -Iinclude -Itests  -Wall -Wno-gnu-binary-literal -std=gnu2x src/phashmap.c`",
-      `"file`": `"$loc/src/phashmap.c`"
-    },
-    {  
-      `"directory`": `"$loc`",
-      `"command`": `"clang -g -Isrc -Iinclude -Itests  -Wall -Wno-gnu-binary-literal -std=gnu2x src/pio.c`",
-      `"file`": `"$loc/src/pio.c`"
-    },
-    {  
-      `"directory`": `"$loc`",
-      `"command`": `"clang -g -Isrc -Iinclude -Itests  -Wall -Wno-gnu-binary-literal -std=gnu2x src/pstring.c`",
-      `"file`": `"$loc/src/pstring.c`"
-    },
-    {  
-      `"directory`": `"$loc`",
-      `"command`": `"clang -g -Isrc -Iinclude -Itests  -Wall -Wno-gnu-binary-literal -std=gnu2x src/util.c`",
-      `"file`": `"$loc/src/util.c`"
-    },
-    {  
-      `"directory`": `"$loc`",
-      `"command`": `"clang -g -Isrc -Iinclude -Itests  -Wall -Wno-gnu-binary-literal -std=gnu2x src/vector.c`",
-      `"file`": `"$loc/src/vector.c`"
-    },
-
-
-
-
-
-
-    {  
-      `"directory`": `"$loc`",
-      `"command`": `"clang -g -Isrc -Iinclude -Itests  -Wall -Wno-gnu-binary-literal -std=gnu2x tests/formatting.c`",
-      `"file`": `"$loc/tests/formatting.c`"
-    },
-    {  
-      `"directory`": `"$loc`",
-      `"command`": `"clang -g -Isrc -Iinclude -Itests  -Wall -Wno-gnu-binary-literal -std=gnu2x tests/formatting_perfomance.c`",
-      `"file`": `"$loc/tests/formatting_perfomance.c`"
-    },
-    {  
-      `"directory`": `"$loc`",
-      `"command`": `"clang -g -Isrc -Iinclude -Itests  -Wall -Wno-gnu-binary-literal -std=gnu2x tests/hash_test.c`",
-      `"file`": `"$loc/tests/hash_test.c`"
-    },
-    {  
-      `"directory`": `"$loc`",
-      `"command`": `"clang -g -Isrc -Iinclude -Itests  -Wall -Wno-gnu-binary-literal -std=gnu2x tests/memexpandtest.c`",
-      `"file`": `"$loc/tests/memexpandtest.c`"
-    },
-    {  
-      `"directory`": `"$loc`",
-      `"command`": `"clang -g -Isrc -Iinclude -Itests  -Wall -Wno-gnu-binary-literal -std=gnu2x tests/vectortest.c`",
-      `"file`": `"$loc/tests/vectortest.c`"
-    }
-]"
-
-    New-Item ./compile_commands.json -ItemType File -Value $filedata
-
-}
-
-if ($NoBuild) { Exit }
-
-#if output|intermediate directory does not exists we create it
-if ((Test-Path $OutputDirectory) -eq $false) { mkdir $OutputDirectory }
-if ((Test-Path $IntermediateDirectory) -eq $false) { mkdir $IntermediateDirectory }
-
 class CompileTarget {
     [string]$input_file
     [string]$output_file
@@ -140,6 +22,38 @@ $default_files = [CompileTarget]::new("src/allocator.c", "$IntermediateDirectory
                  [CompileTarget]::new("src/util.c",      "$IntermediateDirectory/util.o"),
                  [CompileTarget]::new("src/vector.c",    "$IntermediateDirectory/vector.o")
 $files = {$default_files}.Invoke()
+
+function CreateCompileCommands() {
+    $loc = Get-Location 
+    $loc = $loc -replace "\\", '/'
+    $filedata = "["
+    $num = 0;
+    foreach ( $target in $files ) {
+        $file = $target.input_file
+        $filedata += "
+    {
+      `"directory`": `"$loc`",
+      `"command`": `"clang -g -Isrc -Iinclude -Itests -Wall -Wextra -Wno-gnu-binary-literal -std=gnu2x $file`",
+      `"file`": `"$loc/$file`"
+    }"  
+        if ($num -ne ($files.Count - 1)) {
+            $filedata += ","
+        }
+        $num = $num + 1;
+    }
+    $filedata += "`n]"
+    New-Item ./compile_commands.json -ItemType File -Value $filedata
+}
+
+if ((Test-Path ./compile_commands.json) -eq $false ) {
+    CreateCompileCommands 
+}
+
+if ($NoBuild) { Exit }
+
+#if output|intermediate directory does not exists we create it
+if ((Test-Path $OutputDirectory) -eq $false) { mkdir $OutputDirectory }
+if ((Test-Path $IntermediateDirectory) -eq $false) { mkdir $IntermediateDirectory }
 
 switch ($PSVersionTable.Platform) {
     "Win32NT" { 
