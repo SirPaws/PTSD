@@ -90,7 +90,7 @@ void pDynArrayFree(DynArray *);
 static void pMaybeGrowDynArray(DynArray *array, usize datasize) {
     if (array->size + 1 > array->endofstorage) {\
         pDynArrayGrow((DynArray *)array, \
-                sizeof(array->data[0]), P_DYNARRAY_GROWTH_COUNT);\
+                datasize, P_DYNARRAY_GROWTH_COUNT);\
     }
 }
 
