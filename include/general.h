@@ -31,42 +31,52 @@
 
 #pragma clang diagnostic pop
 
+
+#if defined(_WIN32) || defined(_WIN64)
+#define PSTD_WINDOWS
+#elif defined(__linux__) || defined(__unix__)
+#define PSTD_LINUX
+#elif defined(__APPLE__)
+#define PSTD_MACOS
+#warning this has been written with support for linux and windows! It might not work on mac
+#endif
+
+
 #if _WIN32 || _WIN64
-#   define PLANG_WINDOWS
 #   if _WIN64
-#       define PLANG64 1
-#       define PLANG32 0
+#       define PSTD_64 1
+#       define PSTD_32 0
 #   else
-#       define PLANG64 0
-#       define PLANG32 1
+#       define PSTD_64 0
+#       define PSTD_32 1
 #   endif
 #elif __GNUC__
 #   if __x86_64__ || __ppc64__
-#       define PLANG64 1
-#       define PLANG32 0
+#       define PSTD_64 1
+#       define PSTD_32 0
 #   else
-#       define PLANG64 0
-#       define PLANG32 1
+#       define PSTD_64 0
+#       define PSTD_32 1
 #   endif
 #elif UINTPTR_MAX > UINT_MAX
-#   define PLANG64 1
-#   define PLANG32 0
+#   define PSTD_64 1
+#   define PSTD_32 0
 #else
-#   define PLANG64 0
-#   define PLANG32 1
+#   define PSTD_64 0
+#   define PSTD_32 1
 #endif
 
 
 
 #if defined(__cplusplus)
-#	define PLANG_CPP 1
-#	define PLANG_C   0
+#	define PSTD_CPP 1
+#	define PSTD_C   0
 #else
-#	define PLANG_C   1
-#	define PLANG_CPP 0
+#	define PSTD_C   1
+#	define PSTD_CPP 0
 #endif
 
-#if PLANG_C 
+#if PSTD_C 
 typedef enum bool{ false, true } bool;
 #define MAYBE_UNUSED __attribute__((unused))
 #define EXTERNAL extern

@@ -4,111 +4,45 @@ param(
     [switch] $Release, 
     [switch] $RelWithDebug,
     [switch] $BuildTests,
-    [switch] $NoBuild
+    [switch] $NoBuild,
+    [string] $LibraryName = "pstd"
 )
+Import-Module ".\PowershellBuild.psm1"
 
-class CompileTarget {
-    [string]$input_file
-    [string]$output_file
-    CompileTarget ($input_file, $output_file) { $this.input_file = $input_file; $this.output_file = $output_file }
-}
+$incdirs = "include", "src", "tests", "bin"
 
-$clang = "clang -Iinclude"
-$lib   = "" 
-$default_files = [CompileTarget]::new("src/allocator.c", "$IntermediateDirectory/allocator.o"),
-                 [CompileTarget]::new("src/phashmap.c",  "$IntermediateDirectory/phashmap.o"),
-                 [CompileTarget]::new("src/pio.c",       "$IntermediateDirectory/pio.o"),
-                 [CompileTarget]::new("src/pstring.c",   "$IntermediateDirectory/pstring.o"),
-                 [CompileTarget]::new("src/util.c",      "$IntermediateDirectory/util.o"),
-                 [CompileTarget]::new("src/vector.c",    "$IntermediateDirectory/vector.o")
-$files = {$default_files}.Invoke()
+$files = "include/allocator.h",
+         "include/dynarray.h",
+         "include/general.h",
+         "include/phashmap.h",
+         "include/pio.h",
+         "include/pstring.h",
+         "include/util.h",
+         "include/vector.h",
+         "include/pplatform.h",
+         "src/allocator.c",
+         "src/phashmap.c",
+         "src/pio.c",
+         "src/pstring.c",
+         "src/util.c",
+         "src/vector.c",
+         "src/dynarray.c",
+         "src/pplatform.c"
 
-function CreateCompileCommands() {
-    $loc = Get-Location 
-    $loc = $loc -replace "\\", '/'
-    $filedata = "["
-    $num = 0;
-    foreach ( $target in $files ) {
-        $file = $target.input_file
-        $filedata += "
-    {
-      `"directory`": `"$loc`",
-      `"command`": `"clang -g -Isrc -Iinclude -Itests -Wall -Wextra -Wno-gnu-binary-literal -std=gnu2x $file`",
-      `"file`": `"$loc/$file`"
-    }"  
-        if ($num -ne ($files.Count - 1)) {
-            $filedata += ","
-        }
-        $num = $num + 1;
-    }
-    $filedata += "`n]"
-    New-Item ./compile_commands.json -ItemType File -Value $filedata
-}
+$cargs = "-Wall -Wextra -Wno-gnu-binary-literal -std=gnu2x" 
 
-if ((Test-Path ./compile_commands.json) -eq $false ) {
-    CreateCompileCommands 
-}
+Build-Powershell -CreateCompileCommandsFile       `
+    -OutputDirectory       $OutputDirectory       `
+    -IntermediateDirectory $IntermediateDirectory `
+    -Build STATIC_LIB                             `
+    -IncludeDirectories $incdirs                  `
+    -ExtraArgs $cargs                             `
+    -Files $files                                 `
+    -OutputName $LibraryName
 
-if ($NoBuild) { Exit }
-
-#if output|intermediate directory does not exists we create it
-if ((Test-Path $OutputDirectory) -eq $false) { mkdir $OutputDirectory }
-if ((Test-Path $IntermediateDirectory) -eq $false) { mkdir $IntermediateDirectory }
-
-$platformout = "exe"
-
-switch ($PSVersionTable.Platform) {
-    "Win32NT" { 
-        $clang = "$clang -D_CRT_SECURE_NO_WARNINGS" 
-        $lib   = "llvm-lib /OUT:$OutputDirectory/pstd.lib" 
-        break
-    }
-    "UNIX" {
-        $clang = "$clang" 
-        $lib   = "ar cr $OutputDirectory/libpstd.a" 
-	$platformout = "out"
-        break;
-    }
-}
-
-$commands = $()
-
-$linkfiles = $null
-if ($Release) {
-    $files.ForEach({ $file = $_
-        $input_file = $file.input_file
-        $output_file = $file.output_file
-        $commands += ,"$clang -O2 -Ofast -std=gnu2x -c $input_file -o $output_file"
-    })
-} else { 
-    if ($RelWithDebug) {
-        $files.ForEach({ $file = $_
-            $input_file = $file.input_file
-            $output_file = $file.output_file
-            $commands += ,"$clang -g -O2 -Ofast -std=gnu2x -c $input_file -o $output_file"
-        })
-    } else {
-        $files.ForEach({ $file = $_
-            $input_file = $file.input_file
-            $output_file = $file.output_file
-            $commands += ,"$clang -g -Wall -std=gnu2x -c $input_file -o $output_file"
-        })
-    }
-}
-$commands | ForEach-Object -Parallel { 
-    Invoke-Expression $_ 
-}
-  
-$linkfiles = ""
-$files.ForEach({ $file = $_
-    $output_file = $file.output_file
-    $linkfiles = "$linkfiles $output_file"
-})
-
-Invoke-Expression "$lib $linkfiles"
 
 if ($BuildTests) {
-    $tests = Get-ChildItem -File tests 
+    $tests = Get-ChildItem ./tests -Exclude "POOF*"
     
     if ((Test-Path $OutputDirectory/tests) -eq $false) { mkdir $OutputDirectory/tests }
     $testcommands = $()
@@ -129,18 +63,32 @@ if ($BuildTests) {
         $file = $_
         $basename = $file.BaseName
         $name = $file.Name
+        
+        $libdirs =, $OutputDirectory
+        $libs    =, "pstd"
+        $test_files =, "tests/$name"
+
+        Build-Powershell -OutputDirectory "$OutputDirectory/tests" `
+            -IntermediateDirectory $IntermediateDirectory          `
+            -Build EXECUTABLE                                      `
+            -IncludeDirectories $incdirs                           `
+            -LibaryDirectories  $libdirs                           `
+            -Libraries          $libs                              `
+            -ExtraArgs $cargs                                      `
+            -Files $test_files                                     `
+            -OutputName $basename
+
         $testcommands +=, "$clang -L$OutputDirectory -g -std=gnu2x tests/$name -o $OutputDirectory/tests/$basename.$platformout -lpstd"
         $formatting_data = "$formatting_data$clang -L$OutputDirectory -g -std=gnu2x tests/$name -o $OutputDirectory/tests/$basename.$platformout -lpstd`n"
     })
-    
+
+
+
     if ((Test-Path $formatting_file) -eq $true) {
         Remove-Item -Path $formatting_file
     }
     New-Item -Path $formatting_file -ItemType "file" -Value $formatting_data
-
-    $testcommands | ForEach-Object -Parallel {
-        Invoke-Expression $_
-    }
 }
 
+Remove-Module PowershellBuild
 

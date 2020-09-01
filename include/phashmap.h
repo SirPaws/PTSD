@@ -3,9 +3,9 @@
 #define PSTD_PHASHMAP_HEADER
 #include "general.h"
 
-#if PLANG64 
+#if PSTD_64 
 #define DEFAULT_HASH_FUNCTION pMurmurHash64A
-#elif PLANG32 
+#elif PSTD_32 
 #define DEFAULT_HASH_FUNCTION pMurmurHash2A
 #endif
 
