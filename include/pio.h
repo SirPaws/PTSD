@@ -86,9 +86,29 @@ void StreamWriteString(GenericStream *stream, String str);
 void StreamWriteChar(GenericStream *stream, char chr);
 #define StreamWrite(stream, ...) _Generic(__VA_ARGS__, int: StreamWriteChar, char: StreamWriteChar, String: StreamWriteString)(stream, __VA_ARGS__)
 
-// appends + or - to the start of buffer then calls pUtoa
-u32 pItoa(char *buf, s64 num);
-u32 pUtoa(char *buf, u64 num);
+// pSigned**ToString appends + or - to the start of buffer then calls pUnsigned**ToString
+
+u32 pSignedIntToString(char *buf, s64 num, u32 radix, char radixarray[], const char (*pow2array)[2], const char (*pow3array)[3]);
+u32 pUnsignedIntToString(char *buf, u64 num, u32 radix, char radixarray[], const char (*pow2array)[2], const char (*pow3array)[3]);
+
+u32 pSignedDecimalToString(char *buf, s64 num);
+u32 pUnsignedDecimalToString(char *buf, u64 num);
+
+u32 pSignedHexToString(char *buf, s64 num);
+u32 pUnsignedHexToString(char *buf, u64 num);
+
+u32 pSignedOctalToString(char *buf, s64 num);
+u32 pUnsignedOctalToString(char *buf, u64 num);
+
+
+
+u32 pFtoa(char *buf, f32);
+u32 pDtoa(char *buf, f64);
+
+
+
+
+
 
 // size: how many bytes to read from stream
 // eof: (if null it's ignored) set to true if the stream is at the end 

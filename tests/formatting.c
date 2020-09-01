@@ -67,4 +67,21 @@ int main(void) {
     pPrintf("\tnow we print a positive signed integer '%+i'\n", 5394);
     pPrintf("\tnow we print an unsigned integer '%u'\n", 5394);
     pPrintf("\tnow we print an unsigned long long integer '%llu'\n", 53945772LL);
+
+
+
+
+    
+    pPrintf("CALLBACKS:\n");
+    
+    //TODO:
+    // pFormatPush("v", callback);
+    //
+    // printf("%v", 10, (int[10]){ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 });
+    //
+    // pFormatPop("v");
+
+
+
+
 }
