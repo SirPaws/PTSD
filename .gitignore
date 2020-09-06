@@ -3,6 +3,7 @@
 *.ilk
 *.pdb
 .clangd/*
+.cache/*
 .vs/*
 .vscode/*
 tags

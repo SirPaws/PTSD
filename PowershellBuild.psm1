@@ -35,12 +35,10 @@ New-Module {
     }
 
     function GetCompileCommand([string] $location, [string]$file, [string] $Compiler) {
-        return "
-        {
-          `"directory`": `"$location`",
-          `"command`": `"$Compiler $file`",
-          `"file`": `"$location/$file`"
-        }"
+        $t = "    "
+        # if powershell wasn't a stupid piece of shit that added windows line ending i could easily split this into mutliple lines 
+        $command = "`n$t{`n$t$t`"directory`": `"$location`",`n$t$t`"command`": `"$Compiler $file`",`n$t$t`"file`": `"$location/$file`"`n$t}"
+        return $command
     }
 
     function CreateCompileCommands( [string[]] $Files, [string] $Compiler ) {
@@ -48,16 +46,21 @@ New-Module {
         $loc = $loc -replace "\\", '/'
         $filedata = "["
         $num = 0;
-        foreach ( $file in $project_files ) {
-            $filedata += GetCompileCommand -Location $loc -File $file -Compiler $Compiler
-            if ($num -ne ($files.Count - 1)) {
-                $filedata += ","
+        foreach ( $file in $Files ) {
+            $compilecommand = GetCompileCommand -Location $loc -File $file -Compiler $Compiler
+            $filedata = "$filedata$compilecommand"
+            $test = ($Files.Count - 1) - $num
+            if ($test) {
+                $filedata = "$filedata,"
             }
             $num = $num + 1;
         }
 
         $filedata += "`n]"
-        New-Item ./compile_commands.json -ItemType File -Value $filedata
+        $filedata.Replace("`n`r", "`n") 
+        $filedata.Replace("`r`n", "`n") 
+        New-Item ./compile_commands.json -ItemType File 
+        Set-Content ./compile_commands.json -NoNewline $filedata
     }
 
     function BuildFiles([string]$Compiler, [CompileTarget[]]  $Files, [BuildVersion] $version) {
