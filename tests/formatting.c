@@ -1,4 +1,30 @@
 #include "pio.h"
+#include "allocator.h"
+
+pPrintfInfo callback(pPrintfInfo info) {
+    int arrcount = va_arg(info.list, int);
+    int *arr     = va_arg(info.list, int*);
+
+    StreamWrite(info.stream, pCreateString("[ "));
+    info.count += 2;
+
+    u8 buf[20];
+    for (int i = 0; i < arrcount; i++) {
+        usize count = pSignedDecimalToString((char*)buf, arr[i]);
+        
+        u8 *printbuf = buf;
+        if (arr[i] > 0) printbuf++; count--;
+
+        StreamWrite(info.stream, (String){ printbuf, count });
+        info.count += count;
+        if (i != arrcount - 1)
+            StreamWrite(info.stream, pCreateString(", ")), info.count += 2;
+    }
+    StreamWrite(info.stream, pCreateString("]"));
+    info.count++;
+    return info;
+}
+
 
 int main(void) {
     pPrintf("Test\n");
@@ -59,7 +85,7 @@ int main(void) {
     
     pPrintf("CHAR/UNICODE:\n");
     pPrintf("\tnow we print a single char '%c'\n", 'Y');
-    pPrintf("\tnow we print a unicode char '%Lc'\n", "🙂");
+    pPrintf("\tnow we print a unicode char '%lc'\n", "🙂");
     
     pPrintf("INTEGERS:\n");
     pPrintf("\tnow we print a negative signed integer '%i'\n", -5394);
@@ -74,12 +100,11 @@ int main(void) {
     
     pPrintf("CALLBACKS:\n");
     
-    //TODO:
-    // pFormatPush("v", callback);
-    //
-    // printf("%v", 10, (int[10]){ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 });
-    //
-    // pFormatPop("v");
+    pFormatPush("v", callback);
+    
+    pPrintf("%v", 10, (int[10]){ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 });
+    
+    pFormatPop("v");
 
 
 

@@ -122,6 +122,48 @@ static inline void pRead(void *buf, usize size) {
 void InitializeStdStream(void) __attribute__(( constructor ));
 void DestroyStdStream(void) __attribute__(( destructor ));
 
+typedef struct pPrintfInfo pPrintfInfo;
+struct pPrintfInfo {
+    GenericStream *stream; 
+    char *restrict fmt;
+    va_list list;
+    u32 count; 
+    bool *failflag;
+};
+
+enum pFormattingLength {
+    PFL_DEFAULT,
+    PFL_HH,PFL_H,
+    PFL_L, PFL_LL,
+    PFL_J, PFL_Z, PFL_T, PFL_128 /* uppercase L */,
+};
+
+typedef struct pFormattingSpecification pFormattingSpecification;
+struct pFormattingSpecification {
+    bool right_justified;
+    u32 justification_count;
+    u32 zero_justification_count;
+    bool prefix_zero;
+    bool force_sign;
+    enum pFormattingLength length;
+    bool alternative_form;
+};
+
+typedef pPrintfInfo FormatCallback(pPrintfInfo); 
+typedef pPrintfInfo FormatCallbackAdv(pPrintfInfo, pFormattingSpecification); 
+
+void pFormatPushImpl(String fmt, FormatCallback *callback);
+void pFormatPushAdvImpl(String fmt, FormatCallbackAdv *callback);
+#define pFormatPush(fmt, callback) pFormatPushImpl(pCreateString(fmt), callback)
+#define pFormatPushAdv(fmt, callback) pFormatPushAdvImpl(pCreateString(fmt), callback)
+
+void pFormatPopImpl(String fmt);
+void pFormatPopAdvImpl(String fmt);
+#define pFormatPop(fmt) pFormatPopImpl(pCreateString(fmt))
+#define pFormatPopAdv(fmt) pFormatPopAdvImpl(pCreateString(fmt))
+
+
+
 /*
 size = snprintf(NULL, 0, FORMAT, ...);
 char buf[size + 1];

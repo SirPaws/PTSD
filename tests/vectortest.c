@@ -10,7 +10,7 @@ static FormatCallbackTuple VectorFormat(GenericStream *stream, char *restrict ex
     StreamWrite(stream, '[');
     for (int *it = pVectorBegin((void *)vector); it != pVectorEnd((void *)vector); it++){
         char buf[20];
-        u32 count = pItoa(buf, *it);
+        u32 count = pSignedDecimalToString(buf, *it);
         if (*it >= 0)
              StreamWrite(stream, (String){ (u8 *)buf + 1, count - 1});
         else StreamWrite(stream, (String){ (u8 *)buf, count});
