@@ -331,28 +331,42 @@ u32 pVBPrintf(GenericStream *stream, char *restrict fmt, va_list list) {
             StreamWrite(pcurrentstream, (String){ (u8 *)fmt, (usize)(fmt_next - fmt)});
             printcount += fmt_next - fmt;
             fmt = fmt_next;
-        } else {
+        }
+        else {
             bool failed = false;
             struct pFormattingSpecification jinfo = {
-                .right_justified    = false,
+                .right_justified = false,
                 .justification_count = 0,
-                .prefix_zero  = false,
+                .prefix_zero = false,
                 .length = PFL_DEFAULT,
             };
-            char *restrict fmt_next = fmt + 1;
+            char* restrict fmt_next = fmt + 1;
             pPrintfInfo pinfo = {
                 .stream = stream,
                 .fmt = fmt_next,
                 .list = list,
                 .count = printcount,
-                .failflag = &failed, 
+                .failflag = &failed,
             };
 
-            #define SetBitCount(n, increment) bitcount = n; bitcountset = true; fmt_next += increment
+#define SetBitCount(n, increment) bitcount = n; bitcountset = true; fmt_next += increment
             pPrintfInfo tmp;
-            switch(*fmt_next) {
+            bool found_format = false;
+            for (usize i = 0; i < callbacks.size; i++) {
+                if (*fmt_next == callbacks.data[i].format.c_str[0]) {
+                    found_format = true;
+                    String format = callbacks.data[i].format;
+                    for (usize j = 1; j < format.length; j++)
+                        if (format.c_str[j] != fmt_next[j]) found_format = false, Break;
+
+                    if (found_format)
+                        tmp = callbacks.data[i].callback(pinfo), Break;
+                }
+            }
+            if (!found_format) {
+                switch (*fmt_next) {
                 case 'n': tmp = pHandleCharatersWritten(pinfo, jinfo); break;
-                case '-': tmp = pHandleMinus(pinfo, jinfo); break; 
+                case '-': tmp = pHandleMinus(pinfo, jinfo); break;
                 case '+': tmp = pHandlePlus(pinfo, jinfo);  break;
                 case '0': tmp = pHandleZero(pinfo, jinfo);  break;
                 case '#': tmp = pHandleHash(pinfo, jinfo);  break;
@@ -364,19 +378,19 @@ u32 pVBPrintf(GenericStream *stream, char *restrict fmt, va_list list) {
                 case '5': case '6':
                 case '7': case '8':
                 case '9': case '*': tmp = pHandleNumber(pinfo, jinfo); break;
-                         
+
                 case 'h': case 'l':
-                case 'j': case 'z': 
+                case 'j': case 'z':
                 case 't': case 'L': tmp = pHandleLength(pinfo, jinfo); break;
-                
+
                 case 's': case 'S': tmp = pHandleString(pinfo, jinfo, *fmt_next == 's' ? true : false); break;
-                
+
                 case 'f': case 'F':
                 case 'e': case 'E':
                 case 'a': case 'A':
                 case 'g': case 'G': tmp = pHandleFloat(pinfo, jinfo); break;
 
-                case 'u': case 'o': 
+                case 'u': case 'o':
                 case 'x': case 'X':
                 case 'i': case 'd':  tmp = pHandleInt(pinfo, jinfo, *fmt_next); break;
                 case 'p': tmp = pHandlePointer(pinfo, jinfo); break;
@@ -388,31 +402,18 @@ u32 pVBPrintf(GenericStream *stream, char *restrict fmt, va_list list) {
                         else if (memcmp(fmt_next, "Cfg", 3) == 0) tmp = pHandleForegroundColor(pinfo), Break;
                     }
                 default: {
-                        bool found_format = false;
-                        for (usize i = 0; i < callbacks.size; i++){
-                            if (*fmt_next == callbacks.data[i].format.c_str[0]) {
-                                found_format = true;
-                                String format = callbacks.data[i].format; 
-                                for (usize j = 1; j < format.length; j++)
-                                    if (format.c_str[j] != fmt_next[j]) found_format = false, Break;
-
-                                if (found_format)
-                                    tmp = callbacks.data[i].callback(pinfo), Break;
-                            }
-                        }
-                        if (!found_format) {
-                            tmp = pinfo;
-                            failed = true;
-                        }
+                        tmp = pinfo;
+                        failed = true;
                     }
+                }
             }
             if (failed) {
                 StreamWrite(stream, pString((u8*)fmt, tmp.fmt - fmt));
                 fmt = tmp.fmt + 1;
             }
-            fmt        = tmp.fmt + 1;
+            fmt = tmp.fmt + 1;
             printcount = tmp.count;
-            list       = tmp.list;
+            list = tmp.list;
         }
     }
     return printcount;
@@ -732,6 +733,11 @@ pPrintfInfo pHandlePointer(pPrintfInfo info, pFormattingSpecification spec) {
     spec.alternative_form = true; 
 
     void *ptr = va_arg(info.list, void *);
+    if (!ptr) {
+        StreamWrite(info.stream, pCreateString("nullptr"));
+        info.count += 7;
+        return info;
+    }
     return pHandleHexadecimalInt(info, spec, (usize)ptr, false, false);
 }
 
