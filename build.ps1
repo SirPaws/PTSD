@@ -29,7 +29,7 @@ $files = "include/allocator.h",
          "src/dynarray.c",
          "src/pplatform.c"
 
-$cargs = "-Wall -Wextra -Wno-gnu-binary-literal -std=gnu2x" 
+$cargs = "-Wall -Wextra -Wno-gnu-binary-literal -std=gnu2x -fms-compatibility-version=19" 
 
 Build-Powershell -CreateCompileCommandsFile       `
     -OutputDirectory       $OutputDirectory       `
