@@ -61,6 +61,7 @@ String pStreamToBufferString(GenericStream *stream);
 
 u32 pVBPrintf(GenericStream *stream, char *restrict fmt, va_list list);
 
+[[maybe_unused]]
 static u32 pBPrintf(GenericStream *stream, char *restrict fmt, ...) {
     va_list list;
     va_start(list, fmt);

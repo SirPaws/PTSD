@@ -1,3 +1,4 @@
+#pragma once
 #include "general.h"
 
 #define pCreateDynArray(name, datatype) \
@@ -15,11 +16,21 @@
 #define MACRO_ELIF(cond)    : (cond) ?
 #define MACRO_ELSE          :
 
-#define pPushBack(array, value) ({                          \
-    pMaybeGrowDynArray((DynArray *)(array), sizeof(value)); \
-    __auto_type ret = (array)->data + (array)->size++;      \
-    *ret = (value);                                         \
-    ret;                                                    \
+#define _MACRO_NAME(name)
+
+#define pPushBack(array, value) ({                              \
+    pMaybeGrowDynArray((DynArray *)(array), sizeof(value));     \
+    __auto_type pPushBack_ret = (array)->data + (array)->size++;\
+    *pPushBack_ret = (value);                                   \
+    pPushBack_ret;                                              \
+})
+
+#define pPushBytes(array, value, bytes) ({                      \
+    pMaybeByteGrowDynArray((DynArray *)(array), (bytes));       \
+    memcpy((array)->data + (array)->size, (value), (bytes));    \
+    __auto_type pPushBack_ret = (array)->data + ((array)->size);\
+    (array)->size += (bytes);                                   \
+    pPushBack_ret;                                              \
 })
 
 #define pBegin(array) ({ (array)->data; })
@@ -27,8 +38,8 @@
 
 #define pInsert(array, position, value) ({                                            \
     pMaybeGrowDynArray((DynArray *)(array), sizeof(value));                           \
-    usize offset = position - pBegin(array);                                          \
-    MACRO_IF(offset >= (array)->size)                                                 \
+    usize pInsert_offset = position - pBegin(array);                                          \
+    MACRO_IF(pInsert_offset >= (array)->size)                                                 \
         NULL                                                                          \
     MACRO_ELSE ({                                                                     \
         /* first we extract all elements after the place where we want              */\
@@ -41,35 +52,35 @@
         /* [1, 2, 2, 3, 4]                                                          */\
         /* then we insert the value                                                 */\
         /* [1, 6, 2, 3, 4]                                                          */\
-        usize elems = (array)->size - offset;                                         \
-        void *tmp = pAllocateBuffer(sizeof(value) * elems);                           \
-        memcpy(tmp, (array)->data + offset, elems * sizeof(value));                   \
-        memcpy((array)->data + offset + 1, tmp, elems * sizeof(value));               \
-        pFreeBuffer(tmp);                                                             \
+        usize pInsert_elems = (array)->size - pInsert_offset;                                         \
+        void *pInsert_tmp = pAllocateBuffer(sizeof(value) * pInsert_elems);                           \
+        memcpy(pInsert_tmp, (array)->data + pInsert_offset, pInsert_elems * sizeof(value));                   \
+        memcpy((array)->data + pInsert_offset + 1, pInsert_tmp, pInsert_elems * sizeof(value));               \
+        pFreeBuffer(pInsert_tmp);                                                             \
                                                                                       \
         (array)->size++;                                                              \
-        (array)->data[offset] = value;                                                \
-        (array)->data + offset;                                                       \
+        (array)->data[pInsert_offset] = value;                                                \
+        (array)->data + pInsert_offset;                                                       \
     });                                                                               \
 })
 
 #define pRemove(array, position) ({                                                 \
-    usize offset = position - pBegin(array);                                        \
-    MACRO_IF(offset >= (array)->size)                                               \
+    usize pRemove_offset = position - pBegin(array);                                        \
+    MACRO_IF(pRemove_offset >= (array)->size)                                               \
         (__typeof((array)->data[0])){ 0 }                                           \
-    MACRO_ELIF(offset == (array)->size - 1) ({                                      \
+    MACRO_ELIF(pRemove_offset == (array)->size - 1) ({                                      \
         (array)->size--;                                                            \
-        (array)->data[offset];                                                      \
+        (array)->data[pRemove_offset];                                                      \
     }) MACRO_ELSE ({                                                                \
-        __auto_type ret = (array)->data[offset];                                    \
-        usize elems = (array)->size - offset;                                       \
-        void *tmp = pAllocateBuffer(sizeof((array)->data[0]) * elems);              \
-        memcpy(tmp, (array)->data + offset + 1, elems * sizeof((array)->data[0]));  \
-        memcpy((array)->data + offset, tmp, elems * sizeof((array)->data[0]));      \
-        pFreeBuffer(tmp);                                                           \
+        __auto_type pRemove_ret = (array)->data[pRemove_offset];                                    \
+        usize pRemove_elems = (array)->size - pRemove_offset;                                       \
+        void *pRemove_tmp = pAllocateBuffer(sizeof((array)->data[0]) * pRemove_elems);              \
+        memcpy(pRemove_tmp, (array)->data + pRemove_offset + 1, pRemove_elems * sizeof((array)->data[0]));  \
+        memcpy((array)->data + pRemove_offset, pRemove_tmp, pRemove_elems * sizeof((array)->data[0]));      \
+        pFreeBuffer(pRemove_tmp);                                                           \
                                                                                     \
         (array)->size--;                                                            \
-        ret;                                                                        \
+        pRemove_ret;                                                                        \
     });                                                                             \
 })
 
@@ -84,11 +95,18 @@ struct DynArray {
 
 
 // how many elements we should add
+void pDynArrayByteGrow(DynArray *, usize bytes);
 void pDynArrayGrow(DynArray *, usize datasize, usize count);
 void pDynArrayFree(DynArray *);
 
+static void pMaybeByteGrowDynArray(DynArray *array, usize bytes) {
+    if (array->size + bytes > array->endofstorage) {\
+        pDynArrayByteGrow(array, bytes);\
+    }
+}
+
 static void pMaybeGrowDynArray(DynArray *array, usize datasize) {
-    if (array->size + 1 > array->endofstorage) {\
+    if (array->size + datasize > array->endofstorage) {\
         pDynArrayGrow((DynArray *)array, \
                 datasize, P_DYNARRAY_GROWTH_COUNT);\
     }

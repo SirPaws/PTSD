@@ -21,10 +21,13 @@ struct AllocatorInfo pGlobalAllocator(void);
 void pSetGlobalAllocator(struct AllocatorInfo info);
 
 // just a malloc with the currently bound allocator
+__declspec(allocator)
 void *pAllocateBuffer(usize size);
 // just a realloc with the currently bound allocator
+__declspec(allocator)
 void *pReallocateBuffer(void *buffer, usize size);
 // just a calloc with the currently bound allocator
+__declspec(allocator)
 void *pAllocateArray(usize count, usize size);
 // just a free with the currently bound allocator
 void *pFreeBuffer(void *buffer);

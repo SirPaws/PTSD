@@ -1,4 +1,23 @@
-New-Module {
+class CompileTarget {
+    [string]$input_file
+    [string]$output_file
+    CompileTarget ($input_file, $output_file) { $this.input_file = $input_file; $this.output_file = $output_file }
+}
+
+enum Build {
+    STATIC_LIB
+    DYNAMIC_LIB
+    EXECUTABLE
+}
+
+enum BuildVersion {
+    NONE                = 0
+    DEBUG               = 1
+    RELEASE             = 2
+    RELEASE_WITH_DEBUG  = 3
+}
+
+New-Module 'PowershellBuild' {
     function IsNull($objectToCheck) {
         if ($null -eq $objectToCheck) {
             return $true
@@ -13,25 +32,6 @@ New-Module {
         }
     
         return $false
-    }
-
-    class CompileTarget {
-        [string]$input_file
-        [string]$output_file
-        CompileTarget ($input_file, $output_file) { $this.input_file = $input_file; $this.output_file = $output_file }
-    }
-
-    enum Build {
-        STATIC_LIB
-        DYNAMIC_LIB
-        EXECUTABLE
-    }
-    
-    enum BuildVersion {
-        NONE                = 0
-        DEBUG               = 1
-        RELEASE             = 2
-        RELEASE_WITH_DEBUG  = 3
     }
 
     function GetCompileCommand([string] $location, [string]$file, [string] $Compiler) {
@@ -245,4 +245,7 @@ New-Module {
     }
 
     Export-ModuleMember -Function Build-Powershell
+    Export-ModuleMember -Function Get-EnumBuild
+    Export-ModuleMember -Function Get-EnumBuildVersion
+    Export-ModuleMember -Function Get-ClassCompileTarget
 }

@@ -1,3 +1,4 @@
+using module ".\PowershellBuild.psm1"
 param(
     [string] $OutputDirectory = "bin", 
     [string] $IntermediateDirectory = "bin/int", 
@@ -7,7 +8,6 @@ param(
     [switch] $NoBuild,
     [string] $LibraryName = "pstd"
 )
-Import-Module ".\PowershellBuild.psm1"
 
 $incdirs = "include", "src", "tests", "bin"
 
@@ -30,10 +30,17 @@ $files = "include/allocator.h",
          "src/pplatform.c"
 
 $cargs = "-Wall -Wextra -Wno-gnu-binary-literal -std=gnu2x -fms-compatibility-version=19" 
+[BuildVersion]$build_version
+if ($Release)          { $build_version = [BuildVersion]::RELEASE }
+else {
+    if ($RelWithDebug) { $build_version = [BuildVersion]::RELEASE_WITH_DEBUG }
+    else               { $build_version = [BuildVersion]::DEBUG }
+}
 
 Build-Powershell -CreateCompileCommandsFile       `
     -OutputDirectory       $OutputDirectory       `
     -IntermediateDirectory $IntermediateDirectory `
+    -BuildVersion $build_version                  `
     -Build STATIC_LIB                             `
     -IncludeDirectories $incdirs                  `
     -ExtraArgs $cargs                             `
@@ -70,6 +77,7 @@ if ($BuildTests) {
 
         Build-Powershell -OutputDirectory "$OutputDirectory/tests" `
             -IntermediateDirectory $IntermediateDirectory          `
+            -BuildVersion $build_version                           `
             -Build EXECUTABLE                                      `
             -IncludeDirectories $incdirs                           `
             -LibaryDirectories  $libdirs                           `
