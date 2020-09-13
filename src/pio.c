@@ -8,7 +8,6 @@
 #include <math.h>
 
 #include "allocator.h"
-#include "vector.h"
 #include "dynarray.h"
 
 #define Break ({ break; })
@@ -16,7 +15,7 @@
 extern Allocator *pCurrentAllocatorFunc;
 extern void *pCurrentAllocatorUserData;
 
-typedef pCreateVectorStruct(StringStreamBuffer, char *) StringStreamBuffer;
+typedef pCreateDynArray(StringStreamBuffer, char) StringStreamBuffer;
 
 struct AdvancedUserFormat {
     String format;
@@ -34,7 +33,7 @@ typedef pCreateDynArray(UserCallbacks,    struct UserFormat) UserCallbacks;
 struct StringStream {
     enum StreamType  type;
     u32 flags;
-    StringStreamBuffer *buffer;
+    StringStreamBuffer buffer;
     usize cursor;
     // maybe more if not we just expose stringstream
 };
@@ -161,8 +160,6 @@ GenericStream *pInitStream(StreamInfo info) {
                 memset(sstream, 0, sizeof *sstream); 
                 sstream->type  = STRING_STREAM; 
                 sstream->flags = info.flags; 
-                VectorInfo vinfo = { .datasize = sizeof(char), .initialsize = info.buffersize };
-                sstream->buffer = (void *)pInitVector(vinfo);
                 return (void *)sstream;
             }
     }
@@ -185,7 +182,7 @@ void pFreeStream(GenericStream *stream) {
                 pCurrentAllocatorFunc(fstream->buffer.c_str, 0, 0, FREE, pCurrentAllocatorUserData);
             break;
         case STRING_STREAM:
-            pFreeVector((void *)sstream->buffer);
+            if (sstream->buffer.data) pCurrentAllocatorFunc(sstream->buffer.data, 0, 0, FREE, pCurrentAllocatorUserData);
     }
     pCurrentAllocatorFunc(stream, 0, 0, FREE, pCurrentAllocatorUserData);
 }
@@ -196,8 +193,8 @@ String pStreamToBufferString(GenericStream *stream) {
     if (stream->type == STRING_STREAM) {
         StringStream *sstream = (void *)stream;
         return (String) { 
-            pVectorBegin((GenericVector *)sstream->buffer), 
-            pVectorSize((GenericVector *)sstream->buffer)
+            (u8*)sstream->buffer.data,
+            sstream->buffer.size,
         };
     } else {
         FileStream *fstream = (void *)stream; 
@@ -225,11 +222,11 @@ void StreamRead(GenericStream *stream, void *buf, usize size) {
         if (result == false) memset(buf, 0, size);
     } else {
         StringStream *sstream = (void *)stream;
-        if (sstream->cursor + size >= pVectorSize((void *)sstream->buffer)) {
+        if (sstream->cursor + size >= sstream->buffer.size) {
             memset(buf, 0, size); return;
         }
-        StringStreamBuffer *buffer = sstream->buffer;
-        memcpy(buf, buffer->data + sstream->cursor, size);
+        StringStreamBuffer buffer = sstream->buffer;
+        memcpy(buf, buffer.data + sstream->cursor, size);
     }
 }
 
@@ -242,10 +239,9 @@ void StreamWriteString(GenericStream *stream, String str) {
         pFileWrite(fstream->handle, str);
     } else {
         StringStream *sstream = (StringStream *)stream;
-        StringStreamBuffer *buffer = sstream->buffer;
-        buffer->datasize = str.length;
-        pVectorInsert((GenericVector **)&sstream->buffer, buffer->data + sstream->cursor, str.c_str);
-        buffer->datasize = 1;
+        StringStreamBuffer *buffer = &sstream->buffer;
+        pPushBytes(buffer, str.c_str, str.length);
+        sstream->cursor += str.length;
     }
 }
 
@@ -258,8 +254,10 @@ void StreamWriteChar(GenericStream *stream, char str) {
         pFileWrite(fstream->handle, (String){ (u8*)&str, 1 });
     } else {
         StringStream *sstream = (StringStream *)stream;
-        StringStreamBuffer *buffer = sstream->buffer;
-        pVectorInsert((GenericVector **)&sstream->buffer, buffer->data + sstream->cursor, &str);
+        StringStreamBuffer *buffer = &sstream->buffer;
+        pMaybeByteGrowDynArray((DynArray*)buffer, 1);
+        *(buffer->data + sstream->cursor) = str;
+        sstream->cursor++;
     }
 }
 
@@ -328,7 +326,7 @@ u32 pVBPrintf(GenericStream *stream, char *restrict fmt, va_list list) {
         if (expect(*fmt != '%', 1)) {
             char *restrict fmt_next = fmt;
             while (IsCharacters(*fmt_next, 2, (char[2]){ '%', '\0'}) == false) fmt_next++;
-            StreamWrite(pcurrentstream, (String){ (u8 *)fmt, (usize)(fmt_next - fmt)});
+            StreamWrite(stream, (String){ (u8 *)fmt, (usize)(fmt_next - fmt)});
             printcount += fmt_next - fmt;
             fmt = fmt_next;
         }
@@ -829,6 +827,10 @@ pPrintfInfo pHandleNumber(pPrintfInfo info, pFormattingSpecification spec) {
     case '.': return pHandleDot(info, spec);
     case 's': case 'S': return pHandleString(info, spec, *info.fmt == 's' ? true : false);
     
+    case 'h': case 'l':
+    case 'j': case 'z':
+    case 't': case 'L': return pHandleLength(info, spec); break;
+
     case 'f': case 'F':
     case 'e': case 'E':
     case 'a': case 'A':
