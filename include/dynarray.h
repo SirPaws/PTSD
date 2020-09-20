@@ -64,6 +64,11 @@
     });                                                                               \
 })
 
+#define pPopBack(array) ({                                              \
+            MACRO_IF((array)->size == 0) (typeof((array)->data[0])){ 0 }\
+            MACRO_ELSE ({   (array)->data[(array)->size--];  });        \
+        })
+
 #define pRemove(array, position) ({                                                 \
     usize pRemove_offset = position - pBegin(array);                                        \
     MACRO_IF(pRemove_offset >= (array)->size)                                               \

@@ -30,7 +30,7 @@ $files = "include/allocator.h",
          "src/pplatform.c"
 
 $cargs = "-Wall -Wextra -Wno-gnu-binary-literal -std=gnu2x -fms-compatibility-version=19" 
-[BuildVersion]$build_version
+[BuildVersion]$build_version = [BuildVersion]::DEBUG
 if ($Release)          { $build_version = [BuildVersion]::RELEASE }
 else {
     if ($RelWithDebug) { $build_version = [BuildVersion]::RELEASE_WITH_DEBUG }

@@ -68,14 +68,18 @@ New-Module 'PowershellBuild' {
         $ExecutableLinker = ""
         switch ( $version ) {
             DEBUG              {  
+                $debugging_flag = "-g "
+                if ($PSVersionTable.Platform -eq "Win32NT") {
+                    $debugging_flag = "-g -gcodeview"
+                }
 
                 $files.ForEach({ $file = $_
                     $input_file = $file.input_file
                     $output_file = $file.output_file
-                    $command = "$Compiler -g -Wall -c $input_file -o $output_file"
+                    $command = "$Compiler $debugging_flag -Wall -c $input_file -o $output_file"
                     $commands += $command
                 })
-                $ExecutableLinker = "$Compiler -g -Wall"
+                $ExecutableLinker = "$Compiler $debugging_flag -Wall"
                 break
             }
             RELEASE            {  
@@ -92,10 +96,10 @@ New-Module 'PowershellBuild' {
                 $files.ForEach({ $file = $_
                     $input_file = $file.input_file
                     $output_file = $file.output_file
-                    $command = "$Compiler -g -O2 -Ofast -c $input_file -o $output_file"
+                    $command = "$Compiler $debugging_flag -O2 -Ofast -c $input_file -o $output_file"
                     $commands += $command 
                 })
-                $ExecutableLinker = "$Compiler -g -O2 -Ofast"
+                $ExecutableLinker = "$Compiler $debugging_flag -O2 -Ofast"
                 break
             }
         }
@@ -170,7 +174,12 @@ New-Module 'PowershellBuild' {
                 else { $LibType = "lib" }
 
                 if ("" -eq $Compiler ) { $Compiler = "clang -D_CRT_SECURE_NO_WARNINGS" }
-                if ("" -eq $Linker)    { $Linker   = "clang" }
+                if ("" -eq $Linker)    { 
+                    $Linker   = "clang" 
+                    if (($BuildVersion -eq [BuildVersion]::DEBUG) -or ($BuildVersion -eq [BuildVersion]::RELEASE_WITH_DEBUG)) {
+                        $Linker = "$Linker -g"
+                    }
+                }
                 if ("" -eq $Archiver)  { $Archiver = "llvm-lib $IsDll /OUT:$OutputDirectory/$OutputName.$LibType" }
                 $ExecutableFileType = "exe"
                 break
