@@ -18,6 +18,9 @@
 
 #define _MACRO_NAME(name)
 
+#define pCreateStaticDynArray(type, value) (type){ countof(value), countof(value), value }
+
+
 #define pPushBack(array, value) ({                              \
     pMaybeGrowDynArray((DynArray *)(array), sizeof(value));     \
     __auto_type pPushBack_ret = (array)->data + (array)->size++;\
