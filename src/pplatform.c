@@ -7,7 +7,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #elif defined(__APPLE__)
-
+#error support for mac has to been implemented
 #endif
 
 
@@ -51,12 +51,12 @@ pFileStat pGetFileStat(const char *file) {
                         | data.ftLastWriteTime.dwLowDateTime;
 #else
     struct stat data;
-    s32 statret = stat(info.filename, &data);
+    s32 statret = stat(file, &data);
     result.exists = statret == -1 ? false : true; 
     result.filesize = data.st_size;
-    result.creationtime = data.st_ctim; 
-    result.accesstime   = data.st_atim;
-    result.writetime    = data.st_mtim;
+    result.creationtime = data.st_ctim.tv_nsec; 
+    result.accesstime   = data.st_atim.tv_nsec;
+    result.writetime    = data.st_mtim.tv_nsec;
 #endif
     return result;
 }
@@ -69,10 +69,10 @@ pHandle *pFileOpen(const char *filename, pFileAccess access) {
     return CreateFile(filename, file_access, 0, 
             NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 #else
-    int access;
-    access = access & P_READ_ACCESS  ? O_RDONLY : 0;
-    access = access & P_WRITE_ACCESS ? (access ? O_RDWR : O_WRONLY ) : 0;
-    return (void*)open(info.filename, access);
+    int file_access;
+    file_access = access & P_READ_ACCESS  ? O_RDONLY : 0;
+    file_access = access & P_WRITE_ACCESS ? (access ? O_RDWR : O_WRONLY ) : 0;
+    return (void*)(u64)open(filename, file_access);
 #endif
 }
 pHandle *pFileCreate(const char *filename, pFileAccess access) {
@@ -83,11 +83,11 @@ pHandle *pFileCreate(const char *filename, pFileAccess access) {
     return CreateFile(filename, file_access, 0, 
             NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
 #else
-    int access;
-    access = access & P_READ_ACCESS  ? O_RDONLY : 0;
-    access = access & P_WRITE_ACCESS ? (access ? O_RDWR : O_WRONLY ) : 0;
-    access|= O_CREAT;
-    return (void*)open(info.filename, access);
+    int file_access;
+    file_access = access & P_READ_ACCESS  ? O_RDONLY : 0;
+    file_access = access & P_WRITE_ACCESS ? (access ? O_RDWR : O_WRONLY ) : 0;
+    file_access|= O_CREAT;
+    return (void*)(u64)open(filename, file_access);
 #endif
 }
 
@@ -104,7 +104,7 @@ bool pFileWrite(pHandle *handle, String buf) {
 #if defined(PSTD_WINDOWS)
     return WriteFile(handle, buf.c_str, (u32)buf.length, NULL, NULL);
 #else
-    s32 result = write(fstream->handle, str.c_str, (u32)str.length);
+    s32 result = write((u64)(void*)handle, buf.c_str, (u32)buf.length);
     return result == -1 ? false : true;
 #endif
 }
@@ -113,7 +113,7 @@ bool pFileRead(pHandle *handle, String buf) {
 #if defined(PSTD_WINDOWS)
     return ReadFile(handle, buf.c_str, buf.length, NULL, NULL);
 #else
-    s32 result = read(((FileStream *)stream)->handle, buf, (u32)fstream->size);
+    s32 result = read((u64)(void*)handle, buf.c_str, buf.length);
     return result == -1 ? false : true;
 #endif
 }

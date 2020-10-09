@@ -29,7 +29,7 @@ $files = "include/allocator.h",
          "src/dynarray.c",
          "src/pplatform.c"
 
-$cargs = "-Wall -Wextra -Wno-gnu-binary-literal -std=gnu2x -fms-compatibility-version=19" 
+$cargs = "-Wall -Wextra -Wno-gnu-binary-literal -std=gnu2x -fms-compatibility-version=19 -fdeclspec" 
 [BuildVersion]$build_version = [BuildVersion]::DEBUG
 if ($Release)          { $build_version = [BuildVersion]::RELEASE }
 else {
@@ -74,7 +74,6 @@ if ($BuildTests) {
         $libdirs =, $OutputDirectory
         $libs    =, "pstd"
         $test_files =, "tests/$name"
-
         Build-Powershell -OutputDirectory "$OutputDirectory/tests" `
             -IntermediateDirectory $IntermediateDirectory          `
             -BuildVersion $build_version                           `

@@ -181,7 +181,7 @@ New-Module 'PowershellBuild' {
                     }
                 }
                 if ("" -eq $Archiver)  { $Archiver = "llvm-lib $IsDll /OUT:$OutputDirectory/$OutputName.$LibType" }
-                $ExecutableFileType = "exe"
+                $ExecutableFileType = ".exe"
                 break
             }
             "UNIX" {
@@ -191,8 +191,7 @@ New-Module 'PowershellBuild' {
                 #don't know how 
                 if ("" -eq $Compiler ) { $Compiler = "clang" }
                 if ("" -eq $Linker)    { $Linker   = "clang" }
-                if ("" -eq $Archiver)  { $Archiver = "ar cr $OutputDirectory/$OutputName.a" }
-        	    $ExecutableFileType = "out"
+                if ("" -eq $Archiver)  { $Archiver = "ar cr $OutputDirectory/lib$OutputName.a" }
                 break;
             }
         }
@@ -240,11 +239,12 @@ New-Module 'PowershellBuild' {
                     $ExecutableLinker = "$ExecutableLinker -L$libdir"
                 }
             
+                $LibrariesString = ""
                 foreach ( $lib in $Libraries ) {
-                    $ExecutableLinker = "$ExecutableLinker -l$lib"
+                    $LibrariesString = "$LibrariesString -l$lib"
                 }
 
-                Invoke-Expression "$ExecutableLinker $linkfiles -o $OutputDirectory/$OutputName.$ExecutableFileType"  
+                Invoke-Expression "$ExecutableLinker $linkfiles -o $OutputDirectory/$OutputName$ExecutableFileType $LibrariesString"  
             }
         } else {
         

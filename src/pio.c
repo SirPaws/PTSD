@@ -342,10 +342,10 @@ u32 pVBPrintf(GenericStream *stream, char *restrict fmt, va_list list) {
             pPrintfInfo pinfo = {
                 .stream = stream,
                 .fmt = fmt_next,
-                .list = list,
                 .count = printcount,
                 .failflag = &failed,
             };
+            va_copy(pinfo.list, list);
 
 #define SetBitCount(n, increment) bitcount = n; bitcountset = true; fmt_next += increment
             pPrintfInfo tmp;
@@ -432,13 +432,13 @@ u64 PrintJustified(GenericStream *stream, pFormattingSpecification spec, String 
         if (zero_count  > 0)  memset(zeros,  '0', zero_count);
 
         if (expect(!spec.right_justified, 1)) {
-            if (space_count) StreamWrite(stream, (String){ spaces, space_count });
-            if (zero_count)  StreamWrite(stream, (String){ zeros, zero_count });
+            if (space_count > 0) StreamWrite(stream, (String){ spaces, space_count });
+            if (zero_count > 0)  StreamWrite(stream, (String){ zeros, zero_count });
             StreamWrite(stream, string);
         } else {
-            if (zero_count)  StreamWrite(stream, (String){ zeros, zero_count });
+            if (zero_count > 0)  StreamWrite(stream, (String){ zeros, zero_count });
             StreamWrite(stream, string);
-            if (space_count) StreamWrite(stream, (String){ spaces, space_count });
+            if (space_count > 0) StreamWrite(stream, (String){ spaces, space_count });
         }
         pCurrentAllocatorFunc(spaces, 0, 0, FREE, pCurrentAllocatorUserData);
         pCurrentAllocatorFunc(zeros,  0, 0, FREE, pCurrentAllocatorUserData);
@@ -1008,7 +1008,7 @@ pPrintfInfo pHandleMinus(pPrintfInfo info, pFormattingSpecification spec) {
     
     info.fmt++;
     switch( *info.fmt ) {
-    case '+': return pHandleMinus(info, spec);
+    case '+': return pHandlePlus(info, spec);
     case '0': return pHandleZero(info, spec);
     case '.': return pHandleDot(info, spec);
     case '#': return pHandleHash(info, spec);
