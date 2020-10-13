@@ -1,4 +1,5 @@
 #pragma once
+#ifndef PSTD_DYNARRAY_HEADER
 #include "general.h"
 
 #define pCreateDynArray(name, datatype) \
@@ -69,7 +70,7 @@
 
 #define pPopBack(array) ({                                              \
             MACRO_IF((array)->size == 0) (typeof((array)->data[0])){ 0 }\
-            MACRO_ELSE ({   (array)->data[(array)->size--];  });        \
+            MACRO_ELSE ({   (array)->data[((array)->size--) - 1];  });        \
         })
 
 #define pRemove(array, position) ({                                                 \
@@ -121,5 +122,5 @@ static void pMaybeGrowDynArray(DynArray *array, usize datasize) {
 }
 
 
-
+#endif // PSTD_DYNARRAY_HEADER
 
