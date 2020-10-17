@@ -82,6 +82,7 @@ int main(void) {
     pPrintf("\t%Cbg(255,0,0)this background should be red!%Cc\n");
     pPrintf("\tthis should not have any color\n");
     pPrintf("\thow about colored string %Cfg(255,0,0)'%S'%Cc\n", str);
+    pPrintf("\t%Cfg(164, 190, 140)how about with space inbetween arguments%Cc\n");
     
     pPrintf("CHAR/UNICODE:\n");
     pPrintf("\tnow we print a single char '%c'\n", 'Y');
