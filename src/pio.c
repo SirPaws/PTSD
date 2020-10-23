@@ -449,6 +449,13 @@ u64 PrintJustified(GenericStream *stream, pFormattingSpecification spec, String 
     }
 }
 
+static bool IsRGBWhitespace(char chr) {
+     return chr == ' ' 
+         || chr == '\t' 
+         || chr == '\r' 
+         || chr == '\n';
+}
+
 void GetRGB(char *restrict* fmtptr, String RGB[3]) {
     char *restrict fmt = *fmtptr;
     int n = 0;
@@ -458,10 +465,10 @@ void GetRGB(char *restrict* fmtptr, String RGB[3]) {
         u8 *end   = (u8*)fmt + 1;
         // we check if there is any whitespace that needs to be skipped
         // this allows %Cfg( 255 , 255 , 255 )
-        while( *end == ' ' || *end == '\t'  ) end++;
+        while( IsRGBWhitespace(*end) ) begin++, end++;
         while( *end >= '0' && *end <= '9') end++;
         RGB[n++] = (String){ begin, (usize)(end - begin) }; 
-        while( *end == ' ' || *end == '\t'  ) end++;
+        while( IsRGBWhitespace(*end) ) end++;
 
         fmt = (char *)end;
     }
