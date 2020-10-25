@@ -73,25 +73,42 @@
             MACRO_ELSE ({   (array)->data[((array)->size--) - 1];  });        \
         })
 
-#define pRemove(array, position) ({                                                 \
-    usize pRemove_offset = position - pBegin(array);                                        \
-    MACRO_IF(pRemove_offset >= (array)->size)                                               \
-        (__typeof((array)->data[0])){ 0 }                                           \
-    MACRO_ELIF(pRemove_offset == (array)->size - 1) ({                                      \
-        (array)->size--;                                                            \
-        (array)->data[pRemove_offset];                                                      \
-    }) MACRO_ELSE ({                                                                \
-        __auto_type pRemove_ret = (array)->data[pRemove_offset];                                    \
-        usize pRemove_elems = (array)->size - pRemove_offset;                                       \
-        void *pRemove_tmp = pAllocateBuffer(sizeof((array)->data[0]) * pRemove_elems);              \
+#define pRemove(array, position) ({                                                                         \
+    usize pRemove_offset = position - pBegin(array);                                                        \
+    MACRO_IF(pRemove_offset >= (array)->size)                                                               \
+        (__typeof((array)->data[0])){ 0 }                                                                   \
+    MACRO_ELIF(pRemove_offset == (array)->size - 1) ({                                                      \
+        (array)->size--;                                                                                    \
+        (array)->data[pRemove_offset];                                                                      \
+    }) MACRO_ELSE ({                                                                                        \
+        __auto_type pRemove_ret = (array)->data[pRemove_offset];                                            \
+        usize pRemove_elems = (array)->size - pRemove_offset;                                               \
+        void *pRemove_tmp = pAllocateBuffer(sizeof((array)->data[0]) * pRemove_elems);                      \
         memcpy(pRemove_tmp, (array)->data + pRemove_offset + 1, pRemove_elems * sizeof((array)->data[0]));  \
         memcpy((array)->data + pRemove_offset, pRemove_tmp, pRemove_elems * sizeof((array)->data[0]));      \
-        pFreeBuffer(pRemove_tmp);                                                           \
-                                                                                    \
-        (array)->size--;                                                            \
-        pRemove_ret;                                                                        \
-    });                                                                             \
+        pFreeBuffer(pRemove_tmp);                                                                           \
+                                                                                                            \
+        (array)->size--;                                                                                    \
+        pRemove_ret;                                                                                        \
+    });                                                                                                     \
 })
+
+// arr:  another dynamic array
+#define pCopyDynArray(arr) ({                                                           \
+        type pCopyDynArray_tmp = { 0 };                                                 \
+        pCopyDynArray_tmp.data = pAllocateBuffer( (arr).size );                         \
+        memcpy(pCopyDynArray_tmp.data, (arr).data, sizeof(*(arr).data) * (arr).size);   \
+        pCopyDynArray_tmp.size = pCopyDynArray_tmp.endofstorage = (arr).size;           \
+        pCopyDynArray_tmp;})
+
+// type: the type of array we want
+// arr:  a static array
+#define pCopyArray(type, arr) ({                                            \
+        type pCopyArray_tmp = { 0 };                                        \
+        pCopyArray_tmp.data = pAllocateBuffer( sizeof(arr) );               \
+        memcpy(pCopyArray_tmp.data, (arr), sizeof(arr));                    \
+        pCopyArray_tmp.size = pCopyArray_tmp.endofstorage = countof(arr);   \
+        pCopyArray_tmp;})
 
 typedef struct DynArray DynArray;
 struct DynArray {
@@ -99,9 +116,6 @@ struct DynArray {
     usize endofstorage;
     void *data;
 };
-
-
-
 
 // how many elements we should add
 void pDynArrayByteGrow(DynArray *, usize bytes);
@@ -120,7 +134,5 @@ static void pMaybeGrowDynArray(DynArray *array, usize datasize) {
                 datasize, P_DYNARRAY_GROWTH_COUNT);\
     }
 }
-
-
 #endif // PSTD_DYNARRAY_HEADER
 
