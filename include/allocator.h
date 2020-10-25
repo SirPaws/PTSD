@@ -5,6 +5,7 @@
 
 enum AllocatorType {
 	MALLOC,
+    ZALLOC,    // zero allocate
 	REALLOC,
     ARRAYALLOC,
 	FREE
@@ -20,9 +21,17 @@ struct AllocatorInfo {
 struct AllocatorInfo pGlobalAllocator(void);
 void pSetGlobalAllocator(struct AllocatorInfo info);
 
+
+#define pMallocTy(ty) pAllocateBuffer(sizeof(ty))
+
+
 // just a malloc with the currently bound allocator
 __declspec(allocator)
 void *pAllocateBuffer(usize size);
+
+// zero allocate malloc
+void *pZeroAllocateBuffer(usize size);
+
 // just a realloc with the currently bound allocator
 __declspec(allocator)
 void *pReallocateBuffer(void *buffer, usize size);

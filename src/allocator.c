@@ -7,6 +7,11 @@ void *pDefaultAllocator(void *block, usize size, usize count, enum AllocatorType
 void *pDefaultAllocator(void *block, usize size, usize count, enum AllocatorType type, MAYBE_UNUSED void *userdata) {
     switch (type) {
     case MALLOC:     return malloc(size);
+    case ZALLOC: { 
+            void *tmp = malloc(size);
+            memset(tmp, 0, size);
+            return tmp;
+        }
     case REALLOC:    return realloc(block, size);
     case ARRAYALLOC: return calloc(count, size);
     case FREE:       free(block); return NULL;
@@ -28,6 +33,10 @@ void pSetGlobalAllocator(struct AllocatorInfo info){
 
 void *pAllocateBuffer(usize size) {
     return pCurrentAllocatorFunc(NULL, size, 0, MALLOC, pCurrentAllocatorUserData);
+}
+
+void *pZeroAllocateBuffer(usize size) {
+    return pCurrentAllocatorFunc(NULL, size, 0, ZALLOC, pCurrentAllocatorUserData);
 }
 
 void *pReallocateBuffer(void *buffer, usize size) {
