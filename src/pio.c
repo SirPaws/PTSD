@@ -53,6 +53,10 @@ struct StdStream {
     pHandle *stdin_handle;
 };
 
+_Static_assert(
+        __builtin_offsetof(StdStream, stdout_handle) == __builtin_offsetof(FileStream, handle),
+        "stdout_handle is not equivalent to filestream handle");
+
 struct GenericStream {
     enum StreamType  type;
     u32 flags;
@@ -151,7 +155,10 @@ GenericStream *pInitStream(StreamInfo info) {
                     fstream->size  = filesize;
                     fstream->handle = pFileOpen(info.filename, info.flags);
                 }
-                if (info.createbuffer) pStreamToBufferString((void *)fstream);
+                if (info.createbuffer) {
+                    pStreamToBufferString((void *)fstream);
+                    pSeek((void*)fstream->handle, 0, P_SEEK_SET);
+                }
                 return (void *)fstream;
             }
         case STRING_STREAM: {
@@ -210,6 +217,24 @@ String pStreamToBufferString(GenericStream *stream) {
 
 #define expect(x, value) __builtin_expect(x, value)
 
+void StreamMove(GenericStream *stream, isize size) {
+    assert(stream);
+
+    if (expect(stream->type == STANDARD_STREAM, 1) || stream->type == FILE_STREAM) {
+        StdStream *stdstream = (void *)stream;
+        // this should probably have a comment explaning why we do this
+        pHandle *handle = stream->type == STANDARD_STREAM ? stdstream->stdin_handle 
+                : stdstream->stdout_handle;
+        pSeek(handle, size, P_SEEK_CURRENT);
+    } else {
+        StringStream *sstream = (void *)stream;
+        
+        if (sstream->cursor + size >= sstream->buffer.size)
+            sstream->cursor = sstream->buffer.size - 1;
+        else if (sstream->cursor + size < 0) sstream->cursor = 0;
+    }
+}
+
 void StreamRead(GenericStream *stream, void *buf, usize size) {
     assert(stream);
     assert(stream->flags & STREAM_INPUT);
@@ -218,7 +243,7 @@ void StreamRead(GenericStream *stream, void *buf, usize size) {
         StdStream *stdstream = (void *)stream;
         // this should probably have a comment explaning why we do this
         pHandle *handle = stream->type == STANDARD_STREAM ? stdstream->stdin_handle : stdstream->stdout_handle;  
-        bool result = pFileRead(handle, (String){ buf, size });
+        bool result = pFileRead(handle, pString(buf, size));
         if (result == false) memset(buf, 0, size);
     } else {
         StringStream *sstream = (void *)stream;
@@ -1078,15 +1103,19 @@ u32 pUnsignedIntToString(char *buf, u64 num, u32 radix, char radixarray[], const
             register u32 mod = num % pow3;
             num = num / pow3;
             if (mod < radix){
-                *ptr++ = radixarray[mod];
-                printnum++;
+                ptr[0] = '0';
+                ptr[1] = '0';
+                ptr[2] = radixarray[mod];
+                ptr += 3;
+                printnum += 3;
             }
             else if (mod < pow2) {
                 register const char (*s)[2] = pow2array + mod;
                 ptr[0] = (*s)[1];
                 ptr[1] = (*s)[0];
-                ptr += 2;
-                printnum += 2;
+                ptr[2] = '0';
+                ptr += 3;
+                printnum += 3;
             } else {
                 register const char (*s)[3] = pow3array + mod;
                 ptr[0] = (*s)[2];
@@ -1094,6 +1123,28 @@ u32 pUnsignedIntToString(char *buf, u64 num, u32 radix, char radixarray[], const
                 ptr[2] = (*s)[0];
                 ptr += 3;
                 printnum += 3;
+            }
+            if (num < radix) {
+                *ptr++ = radixarray[num];
+                printnum++;
+                num = 0;
+            }
+            else if (num < pow2) {
+                register const char(*s)[2] = pow2array + num;
+                ptr[0] = (*s)[1];
+                ptr[1] = (*s)[0];
+                ptr += 2;
+                printnum += 2;
+                num = 0;
+            }
+            else if (num < pow3) {
+                register const char(*s)[3] = pow3array + num;
+                ptr[0] = (*s)[2];
+                ptr[1] = (*s)[1];
+                ptr[2] = (*s)[0];
+                ptr += 3;
+                printnum += 3;
+                num = 0;
             }
         }
     } else if (num < radix) {

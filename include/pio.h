@@ -119,6 +119,25 @@ static inline void pRead(void *buf, usize size) {
     StreamRead(pGetStream(), buf, size);
 }
 
+
+// move the stream pointer forwards or backwards
+// size is how many bytes to move the stream pointer
+//
+// so if the stream pointer points here
+// example text that the stream holds
+// ----------------^
+// 
+// and you wan't to move it back 3 bytes
+// you would do StreamMove(stream, -3)
+// and now the pointer points here instead
+// example text that the stream holds
+// -------------^
+//
+//
+void StreamMove(GenericStream *stream, isize size);
+
+
+
 // don't know if these need to be in the header file
 void InitializeStdStream(void) __attribute__(( constructor ));
 void DestroyStdStream(void) __attribute__(( destructor ));
@@ -162,6 +181,7 @@ void pFormatPopImpl(String fmt);
 void pFormatPopAdvImpl(String fmt);
 #define pFormatPop(fmt) pFormatPopImpl(pCreateString(fmt))
 #define pFormatPopAdv(fmt) pFormatPopAdvImpl(pCreateString(fmt))
+
 
 
 

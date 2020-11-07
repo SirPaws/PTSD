@@ -118,3 +118,30 @@ bool pFileRead(pHandle *handle, String buf) {
 #endif
 }
 
+bool pSeek(pHandle *handle, isize size, enum pSeekMode mode) {
+#if defined(PSTD_WINDOWS)
+    
+    DWORD wmode;
+    switch (mode) {
+    case P_SEEK_SET: wmode = FILE_BEGIN; break;
+    case P_SEEK_END: wmode = FILE_END;   break;
+    case P_SEEK_CURRENT:
+    default: wmode = FILE_CURRENT;
+    }
+
+    DWORD result = SetFilePointer(handle, size, 0, wmode);
+    return result != INVALID_SET_FILE_POINTER;
+#else
+    DWORD wmode;
+    switch (mode) {
+    case P_SEEK_SET: wmode = SEEK_SET; break;
+    case P_SEEK_END: wmode = SEEK_END; break;
+    case P_SEEK_CURRENT:
+    default: wmode = SEEK_CUR;
+    }
+
+    off_t offset = lseek((u64)(void*)handle, size, mode);
+    return offset != -1;
+#endif
+}
+

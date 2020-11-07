@@ -34,6 +34,13 @@ void pFileClose(pHandle *);
 bool pFileWrite(pHandle*, String);
 bool pFileRead(pHandle*, String);
 
+enum pSeekMode {
+    P_SEEK_SET,
+    P_SEEK_CURRENT,
+    P_SEEK_END,
+};
+
+bool pSeek(pHandle *, isize size, enum pSeekMode mode);
 
 
 
