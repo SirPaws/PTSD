@@ -56,11 +56,11 @@ New-Module 'PowershellBuild' {
             $num = $num + 1;
         }
 
-        $filedata += "`n]"
-        $filedata.Replace("`n`r", "`n") 
-        $filedata.Replace("`r`n", "`n") 
-        New-Item ./compile_commands.json -ItemType File 
-        Set-Content ./compile_commands.json -NoNewline $filedata
+        $tmp = $filedata += "`n]"
+        $tmp = $filedata.Replace("`n`r", "`n") 
+        $tmp = $filedata.Replace("`r`n", "`n") 
+        $tmp = New-Item ./compile_commands.json -ItemType File 
+        $tmp = Set-Content ./compile_commands.json -NoNewline $filedata
     }
 
     function BuildFiles([string]$Compiler, [CompileTarget[]]  $Files, [BuildVersion] $version) {
