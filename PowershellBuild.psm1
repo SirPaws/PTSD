@@ -70,7 +70,7 @@ New-Module 'PowershellBuild' {
             DEBUG              {  
                 $debugging_flag = "-g "
                 if ($PSVersionTable.Platform -eq "Win32NT") {
-                    $debugging_flag = "-g -gcodeview"
+                    $debugging_flag = "-g "
                 }
 
                 $files.ForEach({ $file = $_
