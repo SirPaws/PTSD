@@ -29,7 +29,7 @@ $files = "include/allocator.h",
          "src/dynarray.c",
          "src/pplatform.c"
 
-$cargs = "-Wall -Wextra -Wno-gnu-binary-literal -std=gnu2x -fms-compatibility-version=19 -fdeclspec" 
+$cargs = "-Wall -O0 -Wextra -Wno-gnu-binary-literal -std=gnu2x -fms-compatibility-version=19 -fdeclspec" 
 [BuildVersion]$build_version = [BuildVersion]::DEBUG
 if ($Release)          { $build_version = [BuildVersion]::RELEASE }
 else {

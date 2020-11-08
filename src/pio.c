@@ -11,9 +11,9 @@
 #include "dynarray.h"
 
 #define Break ({ break; })
-
-extern Allocator *pCurrentAllocatorFunc;
-extern void *pCurrentAllocatorUserData;
+#define BASE_10 10
+#define BASE_8   8
+#define BASE_16 16
 
 typedef pCreateDynArray(StringStreamBuffer, char) StringStreamBuffer;
 
@@ -53,10 +53,6 @@ struct StdStream {
     pHandle *stdin_handle;
 };
 
-_Static_assert(
-        __builtin_offsetof(StdStream, stdout_handle) == __builtin_offsetof(FileStream, handle),
-        "stdout_handle is not equivalent to filestream handle");
-
 struct GenericStream {
     enum StreamType  type;
     u32 flags;
@@ -69,18 +65,10 @@ struct BinaryStringReturn {
     bool iszero;
 };
 
-void InitializeStdStream(void) __attribute__(( constructor ));
-void DestroyStdStream(void) __attribute__(( destructor ));
-
 static AdvUserCallbacks advcallbacks;
 static UserCallbacks callbacks;
-
-
 static StdStream *StandardStream = NULL;
 static u32 default_code_page = 0;
-void InitializeStdStream(void) __attribute__(( constructor ));
-void DestroyStdStream(void) __attribute__(( destructor ));
-
 static GenericStream *pcurrentstream;
 
 GenericStream *pSetStream(GenericStream *stream) {
@@ -119,7 +107,7 @@ void DestroyStdStream(void) {
 GenericStream *pInitStream(StreamInfo info) {
     switch(info.type) {
         case STANDARD_STREAM: {
-                StdStream *std = pCurrentAllocatorFunc(NULL, sizeof *std, 0, MALLOC, pCurrentAllocatorUserData);
+                StdStream *std = pAllocateBuffer(sizeof *std);
                 memcpy(std, StandardStream, sizeof *std);
                 std->flags = (u32)info.flags; 
 
@@ -137,8 +125,7 @@ GenericStream *pInitStream(StreamInfo info) {
                 FileStream *fstream = NULL;
                 if (result == false){
                     if (info.createifnonexistent) {
-                        fstream = pCurrentAllocatorFunc(NULL, 
-                                sizeof *fstream, 0, MALLOC, pCurrentAllocatorUserData);
+                        fstream = pAllocateBuffer(sizeof *fstream);
                         memset(fstream, 0, sizeof *fstream);
                         fstream->type = FILE_STREAM;
                         fstream->flags = info.flags;
@@ -147,8 +134,7 @@ GenericStream *pInitStream(StreamInfo info) {
                     }
                     else return NULL;
                 } else {
-                    fstream = pCurrentAllocatorFunc(NULL, 
-                            sizeof *fstream, 0, MALLOC, pCurrentAllocatorUserData);
+                    fstream = pAllocateBuffer(sizeof *fstream);
                     memset(fstream, 0, sizeof * fstream);
                     fstream->type = FILE_STREAM;
                     fstream->flags = info.flags;
@@ -162,8 +148,7 @@ GenericStream *pInitStream(StreamInfo info) {
                 return (void *)fstream;
             }
         case STRING_STREAM: {
-                StringStream *sstream = pCurrentAllocatorFunc(NULL, 
-                            sizeof *sstream, 0, MALLOC, pCurrentAllocatorUserData);
+                StringStream *sstream = pAllocateBuffer(sizeof *sstream);
                 memset(sstream, 0, sizeof *sstream); 
                 sstream->type  = STRING_STREAM; 
                 sstream->flags = info.flags; 
@@ -186,12 +171,12 @@ void pFreeStream(GenericStream *stream) {
         case FILE_STREAM:
             pFileClose(fstream->handle);
             if (fstream->buffer.length) 
-                pCurrentAllocatorFunc(fstream->buffer.c_str, 0, 0, FREE, pCurrentAllocatorUserData);
+                pFreeBuffer(fstream->buffer.c_str);
             break;
         case STRING_STREAM:
-            if (sstream->buffer.data) pCurrentAllocatorFunc(sstream->buffer.data, 0, 0, FREE, pCurrentAllocatorUserData);
+            if (sstream->buffer.data) pFreeBuffer(sstream->buffer.data);
     }
-    pCurrentAllocatorFunc(stream, 0, 0, FREE, pCurrentAllocatorUserData);
+    pFreeBuffer(stream);
 }
 
 String pStreamToBufferString(GenericStream *stream) {
@@ -206,7 +191,7 @@ String pStreamToBufferString(GenericStream *stream) {
     } else {
         FileStream *fstream = (void *)stream; 
         if (fstream->buffer.length == 0) {
-            u8 *tmp = pCurrentAllocatorFunc(0, fstream->size, 0, MALLOC, pCurrentAllocatorUserData);
+            u8 *tmp = pAllocateBuffer(fstream->size);
             String buf = pString(tmp, fstream->size);
             pFileRead(fstream->handle, buf);
             fstream->buffer = buf;
@@ -270,30 +255,30 @@ void StreamWriteString(GenericStream *stream, String str) {
     }
 }
 
-void StreamWriteChar(GenericStream *stream, char str) {
+void StreamWriteChar(GenericStream *stream, char chr) {
     assert(stream);
     assert(stream->flags & STREAM_OUTPUT);
 
     if (expect(stream->type == STANDARD_STREAM, 1) || stream->type == FILE_STREAM) {
         FileStream *fstream = (FileStream *)stream;
-        pFileWrite(fstream->handle, (String){ (u8*)&str, 1 });
+        pFileWrite(fstream->handle, (String){ (u8*)&chr, 1 });
     } else {
         StringStream *sstream = (StringStream *)stream;
         StringStreamBuffer *buffer = &sstream->buffer;
         pMaybeByteGrowDynArray((DynArray*)buffer, 1);
-        *(buffer->data + sstream->cursor) = str;
+        *(buffer->data + sstream->cursor) = chr;
         sstream->cursor++;
     }
 }
 
-static bool IsCharacters(int character, u32 count, char tests[count]){
+static bool IsCharacters(int character, u32 count, const char tests[count]){
     for (u32 i = 0; i < count; i++) {
         if (character == tests[i]) return true;
     }
     return false;
 }
 
-u64 PrintJustified(GenericStream*,pFormattingSpecification,String);
+u64 PrintJustified(GenericStream *stream, pFormattingSpecification spec, String str);
 
 void GetRGB(char *restrict* fmt, String RGB[3]);
 u32  GetUnicodeLength(const char *chr);
@@ -303,7 +288,7 @@ struct BinaryStringReturn MakeBinaryString(u64 bitcount, u64 num) {
     struct BinaryStringReturn ret = { 0 };
 
     u64 bit = 1ULL << (bitcount - 1);
-    ret.buffer = pCurrentAllocatorFunc(NULL, bitcount, 0, MALLOC, pCurrentAllocatorUserData);
+    ret.buffer = pAllocateBuffer(bitcount);
     for (u64 i = 0; i < bitcount; i++) {
        ret.buffer[i] = (u8)'0' + ((num & bit) ? 1 : 0); 
        bit >>= 1;
@@ -321,28 +306,28 @@ struct BinaryStringReturn MakeBinaryString(u64 bitcount, u64 num) {
     return ret;
 }
 
-pPrintfInfo pHandleLength(pPrintfInfo,pFormattingSpecification); //-----
-pPrintfInfo pHandlePlus(pPrintfInfo,pFormattingSpecification);   //-----
-pPrintfInfo pHandleMinus(pPrintfInfo,pFormattingSpecification);  //-----
-pPrintfInfo pHandleSpace(pPrintfInfo,pFormattingSpecification);
-pPrintfInfo pHandleZero(pPrintfInfo,pFormattingSpecification);
-pPrintfInfo pHandleHash(pPrintfInfo,pFormattingSpecification);
-pPrintfInfo pHandleDot(pPrintfInfo,pFormattingSpecification);
-pPrintfInfo pHandleNumber(pPrintfInfo,pFormattingSpecification);
+pPrintfInfo pHandleLength(pPrintfInfo info, pFormattingSpecification spec);
+pPrintfInfo pHandlePlus(pPrintfInfo info, pFormattingSpecification spec);
+pPrintfInfo pHandleMinus(pPrintfInfo info, pFormattingSpecification spec);
+pPrintfInfo pHandleSpace(pPrintfInfo info, pFormattingSpecification spec);
+pPrintfInfo pHandleZero(pPrintfInfo info, pFormattingSpecification spec);
+pPrintfInfo pHandleHash(pPrintfInfo info, pFormattingSpecification spec);
+pPrintfInfo pHandleDot(pPrintfInfo info, pFormattingSpecification spec);
+pPrintfInfo pHandleNumber(pPrintfInfo info, pFormattingSpecification spec);
 
-pPrintfInfo pHandleChar(pPrintfInfo,   bool wide);
-pPrintfInfo pHandleString(pPrintfInfo, pFormattingSpecification, bool cstr);
-pPrintfInfo pHandleInt(pPrintfInfo,    pFormattingSpecification, char printtype);
-pPrintfInfo pHandleFloat(pPrintfInfo,  pFormattingSpecification);
-pPrintfInfo pHandlePointer(pPrintfInfo,pFormattingSpecification);
-pPrintfInfo pHandleCharatersWritten(pPrintfInfo, pFormattingSpecification);
+pPrintfInfo pHandleChar(pPrintfInfo info,   bool wide);
+pPrintfInfo pHandleString(pPrintfInfo info, pFormattingSpecification spec, bool cstr);
+pPrintfInfo pHandleInt(pPrintfInfo info, pFormattingSpecification spec, char printtype);
+pPrintfInfo pHandleFloat(pPrintfInfo info, pFormattingSpecification spec);
+pPrintfInfo pHandlePointer(pPrintfInfo info, pFormattingSpecification spec);
+pPrintfInfo pHandleCharatersWritten(pPrintfInfo info, pFormattingSpecification spec);
 
 
 
-pPrintfInfo pHandleBinary(pPrintfInfo,pFormattingSpecification);
-pPrintfInfo pHandleBackgroundColor(pPrintfInfo);
-pPrintfInfo pHandleForegroundColor(pPrintfInfo);
-pPrintfInfo pHandleColorClear(pPrintfInfo);
+pPrintfInfo pHandleBinary(pPrintfInfo info, pFormattingSpecification spec);
+pPrintfInfo pHandleBackgroundColor(pPrintfInfo info);
+pPrintfInfo pHandleForegroundColor(pPrintfInfo info);
+pPrintfInfo pHandleColorClear(pPrintfInfo info);
 
 u32 pVBPrintf(GenericStream *stream, char *restrict fmt, va_list list) {
     u32 printcount = 0;
@@ -451,8 +436,8 @@ u64 PrintJustified(GenericStream *stream, pFormattingSpecification spec, String 
     if (test > 0) {
         space_count -= (s64)string.length;
         zero_count  -= (s64)string.length;
-        u8 *spaces = pCurrentAllocatorFunc(NULL, space_count > 0 ? space_count : 1, 0, MALLOC, pCurrentAllocatorUserData);
-        u8 *zeros  = pCurrentAllocatorFunc(NULL, zero_count  > 0 ? zero_count  : 1, 0, MALLOC, pCurrentAllocatorUserData);
+        u8 *spaces = pAllocateBuffer(space_count > 0 ? space_count : 1);
+        u8 *zeros  = pAllocateBuffer(zero_count  > 0 ? zero_count  : 1);
         if (space_count > 0) memset(spaces, ' ', space_count);
         if (zero_count  > 0)  memset(zeros,  '0', zero_count);
 
@@ -465,8 +450,8 @@ u64 PrintJustified(GenericStream *stream, pFormattingSpecification spec, String 
             StreamWrite(stream, string);
             if (space_count > 0) StreamWrite(stream, (String){ spaces, space_count });
         }
-        pCurrentAllocatorFunc(spaces, 0, 0, FREE, pCurrentAllocatorUserData);
-        pCurrentAllocatorFunc(zeros,  0, 0, FREE, pCurrentAllocatorUserData);
+        pFreeBuffer(spaces);
+        pFreeBuffer(zeros);
         return string.length + (u64)test;
     } else {
         StreamWrite(stream, string);
@@ -501,16 +486,18 @@ void GetRGB(char *restrict* fmtptr, String RGB[3]) {
 }
 
 pPrintfInfo pHandleBinary(pPrintfInfo info, pFormattingSpecification spec) {
+#define NUM_BITS_IN_BYTE 8
     u32 numbits[] = {
-        [PFL_DEFAULT] = sizeof(u32)       * 8,
-        [PFL_HH]      = sizeof(u8)        * 8,
-        [PFL_H]       = sizeof(u16)       * 8,
-        [PFL_L]       = sizeof(u32)       * 8,
-        [PFL_LL]      = sizeof(u64)       * 8,
-        [PFL_J]       = sizeof(intmax_t)  * 8,
-        [PFL_Z]       = sizeof(size_t)    * 8,
-        [PFL_T]       = sizeof(ptrdiff_t) * 8,
+        [PFL_DEFAULT] = sizeof(u32)       * NUM_BITS_IN_BYTE,
+        [PFL_HH]      = sizeof(u8)        * NUM_BITS_IN_BYTE,
+        [PFL_H]       = sizeof(u16)       * NUM_BITS_IN_BYTE,
+        [PFL_L]       = sizeof(u32)       * NUM_BITS_IN_BYTE,
+        [PFL_LL]      = sizeof(u64)       * NUM_BITS_IN_BYTE,
+        [PFL_J]       = sizeof(intmax_t)  * NUM_BITS_IN_BYTE,
+        [PFL_Z]       = sizeof(size_t)    * NUM_BITS_IN_BYTE,
+        [PFL_T]       = sizeof(ptrdiff_t) * NUM_BITS_IN_BYTE,
     };
+#undef NUM_BITS_IN_BYTE
 
     if (spec.length == PFL_128) {
         union {
@@ -520,10 +507,10 @@ pPrintfInfo pHandleBinary(pPrintfInfo info, pFormattingSpecification spec) {
         long double ld = va_arg(info.list, long double);
         conv.ld = ld;
 
-        struct BinaryStringReturn high = MakeBinaryString(64, conv.high);
-        struct BinaryStringReturn low  = MakeBinaryString(64, conv.low);
+        struct BinaryStringReturn high = MakeBinaryString(numbits[PFL_LL], conv.high);
+        struct BinaryStringReturn low  = MakeBinaryString(numbits[PFL_LL], conv.low);
         if (spec.zero_justification_count == 0 && spec.prefix_zero) {
-            spec.zero_justification_count = 64;
+            spec.zero_justification_count = numbits[PFL_LL];
             info.count += PrintJustified(info.stream, spec, high.str);
             StreamWriteString(info.stream, low.str);
         } else {
@@ -532,8 +519,8 @@ pPrintfInfo pHandleBinary(pPrintfInfo info, pFormattingSpecification spec) {
         }
 
         info.count += low.str.length; 
-        pCurrentAllocatorFunc(high.buffer, 0, 0, FREE, pCurrentAllocatorUserData);
-        pCurrentAllocatorFunc(low.buffer, 0, 0, FREE, pCurrentAllocatorUserData);
+        pFreeBuffer(high.buffer);
+        pFreeBuffer(low.buffer);
     } else {
         u64 num;
         if (expect(spec.length == PFL_DEFAULT, 1)) {
@@ -546,21 +533,21 @@ pPrintfInfo pHandleBinary(pPrintfInfo info, pFormattingSpecification spec) {
             case PFL_L:  num = va_arg(info.list, u32);       break;
             case PFL_LL: num = va_arg(info.list, u64);       break;
             case PFL_J:  num = va_arg(info.list, intmax_t);  break;
-            case PFL_Z:  num = va_arg(info.list, usize);    break;
+            case PFL_Z:
             case PFL_T:  num = va_arg(info.list, usize); break;
             case PFL_DEFAULT: case PFL_128:
             default: return info;
             }
         }
         
-        struct BinaryStringReturn high = MakeBinaryString(numbits[ spec.length ], num);
+        struct BinaryStringReturn binary = MakeBinaryString(numbits[ spec.length ], num);
         if (spec.zero_justification_count == 0 && spec.prefix_zero) {
-            spec.zero_justification_count = high.iszero ? 0 : numbits[ spec.length ]; 
-            info.count += PrintJustified(info.stream, spec, high.str);
+            spec.zero_justification_count = binary.iszero ? 0 : numbits[ spec.length ]; 
+            info.count += PrintJustified(info.stream, spec, binary.str);
         } else {
-            info.count += PrintJustified(info.stream, spec, high.str);
+            info.count += PrintJustified(info.stream, spec, binary.str);
         }
-        pCurrentAllocatorFunc(high.buffer, 0, 0, FREE, pCurrentAllocatorUserData);
+        pFreeBuffer(binary.buffer);
     }
     return info;
 }
@@ -569,6 +556,28 @@ pPrintfInfo pHandleBackgroundColor(pPrintfInfo info) {
     info.fmt += 3;
     if (*info.fmt != '(') return info;
     String header = pCreateString("\x1b[48;2;");
+    StreamWrite(info.stream, header);
+    String RGB[3];
+    GetRGB(&info.fmt, RGB);
+    StreamWrite(info.stream, RGB[0]);
+    StreamWrite(info.stream, ';');
+    StreamWrite(info.stream, RGB[1]);
+    StreamWrite(info.stream, ';');
+    StreamWrite(info.stream, RGB[2]);
+    StreamWrite(info.stream, 'm');
+    info.count += RGB[0].length 
+               +  RGB[1].length 
+               +  RGB[2].length
+               +  header.length 
+               +  3;
+
+    return info;
+}
+
+pPrintfInfo pHandleForegroundColor(pPrintfInfo info) {
+    info.fmt += 3;
+    if (*info.fmt != '(') return info;
+    String header = pCreateString("\x1b[38;2;");
     StreamWrite(info.stream, header);
     String RGB[3];
     GetRGB(&info.fmt, RGB);
@@ -614,204 +623,6 @@ pPrintfInfo pHandleString(pPrintfInfo info, pFormattingSpecification spec, bool 
     return info;
 }
 
-
-pPrintfInfo pHandleSignedInt(pPrintfInfo,pFormattingSpecification,s64, bool always_print_sign);
-pPrintfInfo pHandleOctalInt(pPrintfInfo,pFormattingSpecification,s64, bool always_print_sign);
-pPrintfInfo pHandleHexadecimalInt(pPrintfInfo,pFormattingSpecification,u64, bool always_print_sign, bool uppercase);
-pPrintfInfo pHandleUnsignedInt(pPrintfInfo,pFormattingSpecification,u64, bool always_print_sign);
-
-pPrintfInfo pHandleInt(pPrintfInfo info, pFormattingSpecification spec, char printtype) {
-    u64 num = 0;
-
-    if ( expect( spec.length == PFL_DEFAULT, 1) ) {
-        num = va_arg(info.list, s32);
-    } else {
-        switch(spec.length) {
-            case PFL_HH: 
-            case PFL_H: 
-            case PFL_L:  num = va_arg(info.list, u32);       break;
-            case PFL_LL: num = va_arg(info.list, u64);       break;
-            case PFL_J:  num = va_arg(info.list, intmax_t);  break;
-            case PFL_Z:  num = va_arg(info.list, usize);    break;
-            case PFL_T:  num = va_arg(info.list, usize); break;
-            case PFL_DEFAULT: case PFL_128:
-            default: return info;
-        }
-    }
-
-    switch (printtype) {
-    case 'd': case 'i': return pHandleSignedInt(info, spec, (s64)num, spec.force_sign);
-    case 'o':           return pHandleOctalInt(info, spec, (s64)num, spec.force_sign);
-    case 'x': case 'X': return pHandleHexadecimalInt(info, spec, (s64)num, spec.force_sign, printtype == 'X');
-    case 'u':           return pHandleUnsignedInt(info, spec, (s64)num, spec.force_sign);
-    default: return info;
-    }
-
-}
-
-pPrintfInfo pHandleSignedInt(pPrintfInfo info, pFormattingSpecification spec, s64 num, bool always_print_sign) {
-    u32 count;
-    char buf[20];
-
-    count = pSignedDecimalToString(buf, num);
-    char *printbuf = buf;
-    if (num > 0 && !always_print_sign) { printbuf++; count--; }
-    info.count += PrintJustified(info.stream, spec, (String){ (u8 *)printbuf, count });
-    return info;
-}
-
-pPrintfInfo pHandleUnsignedInt(pPrintfInfo info, pFormattingSpecification spec, u64 num, bool always_print_sign) {
-    u32 count;
-    char buf[20];
-    count = pUnsignedDecimalToString(buf, num);
-    
-    if (always_print_sign)
-        StreamWrite(info.stream, '+');
-
-    info.count += PrintJustified(info.stream, spec, (String){ (u8 *)buf, count }) + 1;
-    return info;
-}
-pPrintfInfo pHandleOctalInt(pPrintfInfo info,pFormattingSpecification spec, s64 num, bool always_print_sign) {
-    u32 count;
-    char buf[20];
-    count = pSignedOctalToString(buf, num);
-    
-    char *printbuf = buf;
-    if (num > 0 && !always_print_sign) { printbuf++; count--; }
-    
-    if (spec.alternative_form && num != 0) {
-        String str = pCreateString("0o");
-        if (spec.prefix_zero) {
-            u32 zeros = spec.zero_justification_count;
-            spec.zero_justification_count = 0;
-            info.count += PrintJustified(info.stream, spec, str) + 1;
-            spec.justification_count = 0; 
-            spec.zero_justification_count = zeros;
-            PrintJustified( info.stream, spec, (String){ (u8 *)printbuf, count } );
-        } else {
-            info.count += PrintJustified(info.stream, spec, str) + 1;
-            info.count += count;
-            StreamWrite( info.stream, (String){ (u8 *)printbuf, count } );
-        }
-    }
-    else {
-        info.count += PrintJustified(info.stream, spec, (String){ (u8 *)printbuf, count }) + 1;
-    }
-    return info;
-}
-
-pPrintfInfo pHandleHexadecimalInt(pPrintfInfo info,pFormattingSpecification spec, u64 num, bool always_print_sign, bool uppercase) {
-    u32 count;
-#warning currently buffers for string to int are pretty small (20 bytes) so this might cause an issue
-    char buf[20];
-    count = pUnsignedHexToString(buf, num);
-   
-    if (uppercase) {
-        for (u32 i = 0; i < count + 1; i++) {
-            buf[i] = toupper(buf[i]);
-        }
-    }
-
-    if (always_print_sign)
-        StreamWrite(info.stream, '+');
-
-    if (spec.alternative_form && num != 0) {
-        String str[2] = { pCreateString("0x"), pCreateString("0X") };
-        if (spec.prefix_zero) {
-            u32 zeros = spec.zero_justification_count;
-            spec.zero_justification_count = 0;
-            info.count += PrintJustified(info.stream, spec, str[uppercase]) + 1;
-            spec.justification_count = 0; 
-            spec.zero_justification_count = zeros;
-            PrintJustified( info.stream, spec, (String){ (u8 *)buf, count } );
-        } else {
-            info.count += PrintJustified(info.stream, spec, str[uppercase]) + 1;
-            info.count += count;
-            StreamWrite( info.stream, (String){ (u8 *)buf, count } );
-        }
-    }
-    else {
-        info.count += PrintJustified(info.stream, spec, (String){ (u8 *)buf, count }) + 1;
-    }
-    return info;
-    
-}
-
-pPrintfInfo pHandleFloat(pPrintfInfo info, pFormattingSpecification spec) {
-#warning pHandleFloat just passes it into printf so it has not been implemented and might never be
-    (void)spec;
-    const char *restrict begin = info.fmt; 
-    while (*begin != '%') begin--;
-
-    usize size = info.fmt - begin + 1;
-    char buf[size];
-    memcpy(buf, begin, size);
-    buf[size] = '\0';
-    info.count += vprintf(buf, info.list);
-    return info;
-}
-
-pPrintfInfo pHandlePointer(pPrintfInfo info, pFormattingSpecification spec) {
-#if defined(PSTD_32)
-    spec.length = PFL_DEFAULT;
-#elif defined(PSTD_64)
-    spec.length = PFL_LL;
-#else
-#error neither 32 or 64 bit!
-#endif
-
-    spec.alternative_form = true; 
-
-    void *ptr = va_arg(info.list, void *);
-    if (!ptr) {
-        StreamWrite(info.stream, pCreateString("nullptr"));
-        info.count += 7;
-        return info;
-    }
-    return pHandleHexadecimalInt(info, spec, (usize)ptr, false, false);
-}
-
-pPrintfInfo pHandleCharatersWritten(pPrintfInfo info, pFormattingSpecification spec) {
-    if ( expect( spec.length == PFL_DEFAULT, 1) ) {
-        s32 *count = va_arg(info.list, s32*);
-        *count = info.count;
-    } else {
-        switch(spec.length) {
-            case PFL_HH: {  u8  *count = va_arg(info.list, u8 *); *count = info.count; } break;  
-            case PFL_H:  {  u16 *count = va_arg(info.list, u16*); *count = info.count; } break; 
-            case PFL_L:  {  u32 *count = va_arg(info.list, u32*); *count = info.count; } break; 
-            case PFL_LL: {  u64 *count = va_arg(info.list, u64*); *count = info.count; } break; 
-            case PFL_J:  {  u64 *count = va_arg(info.list, u64*); *count = info.count; } break; 
-            case PFL_Z:  {  u64 *count = va_arg(info.list, u64*); *count = info.count; } break; 
-            case PFL_T:  {  u64 *count = va_arg(info.list, u64*); *count = info.count; } break; 
-            case PFL_DEFAULT: case PFL_128:
-            default: break;
-        }
-    }
-    return info;
-}
-
-pPrintfInfo pHandleForegroundColor(pPrintfInfo info) {
-    info.fmt += 3;
-    if (*info.fmt != '(') return info;
-    String header = pCreateString("\x1b[38;2;");
-    StreamWrite(info.stream, header);
-    String RGB[3];
-    GetRGB(&info.fmt, RGB);
-    StreamWrite(info.stream, RGB[0]);
-    StreamWrite(info.stream, ';');
-    StreamWrite(info.stream, RGB[1]);
-    StreamWrite(info.stream, ';');
-    StreamWrite(info.stream, RGB[2]);
-    StreamWrite(info.stream, 'm');
-    info.count += RGB[0].length 
-               +  RGB[1].length 
-               +  RGB[2].length
-               +  header.length 
-               +  3;
-
-    return info;
-}
 pPrintfInfo pHandleColorClear(pPrintfInfo info) {
     String reset = pCreateString("\x1b[0m");
     StreamWrite(info.stream, reset);
@@ -847,7 +658,7 @@ pPrintfInfo pHandleNumber(pPrintfInfo info, pFormattingSpecification spec) {
     const char *restrict begin = info.fmt;
     char *end;
     if (*info.fmt != '*')
-        spec.justification_count = strtoul(begin, &end, 10);
+        spec.justification_count = strtoul(begin, &end, BASE_10);
     else {
         spec.justification_count = va_arg(info.list, int);
         end = info.fmt+1;
@@ -883,7 +694,7 @@ pPrintfInfo pHandleDot(pPrintfInfo info, pFormattingSpecification spec) {
     char *restrict begin = info.fmt + 1;
     char *end;
     if (*begin >= '1' && *begin <= '9')
-        spec.zero_justification_count = strtoul(begin, &end, 10);
+        spec.zero_justification_count = strtoul(begin, &end, BASE_10);
     else if (*begin == '*'){
         spec.zero_justification_count = va_arg(info.list, int);
         end = begin+1;
@@ -921,7 +732,7 @@ pPrintfInfo pHandleZero(pPrintfInfo info, pFormattingSpecification spec) {
     char *restrict begin = info.fmt + 1;
     char *end;
     if (*begin >= '1' && *begin <= '9')
-        spec.zero_justification_count = strtoul(begin, &end, 10);
+        spec.zero_justification_count = strtoul(begin, &end, BASE_10);
     else if (*begin == '*'){
         spec.zero_justification_count = va_arg(info.list, int);
         end = begin+1;
@@ -1062,14 +873,201 @@ pPrintfInfo pHandleMinus(pPrintfInfo info, pFormattingSpecification spec) {
     return info;
 }
 
+
+pPrintfInfo pHandleSignedInt(pPrintfInfo info, pFormattingSpecification spec, s64 num, bool always_print_sign);
+pPrintfInfo pHandleOctalInt(pPrintfInfo info, pFormattingSpecification spec, s64 num, bool always_print_sign);
+pPrintfInfo pHandleHexadecimalInt(pPrintfInfo info, pFormattingSpecification spec, u64 num, bool always_print_sign, bool uppercase);
+pPrintfInfo pHandleUnsignedInt(pPrintfInfo info, pFormattingSpecification spec, u64 num, bool always_print_sign);
+
+pPrintfInfo pHandleInt(pPrintfInfo info, pFormattingSpecification spec, char printtype) {
+    u64 num = 0;
+
+    if ( expect( spec.length == PFL_DEFAULT, 1) ) {
+        num = va_arg(info.list, s32);
+    } else {
+        switch(spec.length) {
+            case PFL_HH: 
+            case PFL_H: 
+            case PFL_L:  num = va_arg(info.list, u32);       break;
+            case PFL_LL: num = va_arg(info.list, u64);       break;
+            case PFL_J:  num = va_arg(info.list, intmax_t);  break;
+            case PFL_Z:
+            case PFL_T:  num = va_arg(info.list, usize); break;
+            case PFL_DEFAULT: case PFL_128:
+            default: return info;
+        }
+    }
+
+    switch (printtype) {
+    case 'd': case 'i': return pHandleSignedInt(info, spec, (s64)num, spec.force_sign);
+    case 'o':           return pHandleOctalInt(info, spec, (s64)num, spec.force_sign);
+    case 'x': case 'X': return pHandleHexadecimalInt(info, spec, (s64)num, spec.force_sign, printtype == 'X');
+    case 'u':           return pHandleUnsignedInt(info, spec, (s64)num, spec.force_sign);
+    default: return info;
+    }
+
+}
+
+#define STRING_BUFFER_SIZE 25
+
+pPrintfInfo pHandleSignedInt(pPrintfInfo info, pFormattingSpecification spec, s64 num, bool always_print_sign) {
+    u32 count;
+    char buf[STRING_BUFFER_SIZE];
+
+    count = pSignedDecimalToString(buf, num);
+    char *printbuf = buf;
+    if (num > 0 && !always_print_sign) { printbuf++; count--; }
+    info.count += PrintJustified(info.stream, spec, (String){ (u8 *)printbuf, count });
+    return info;
+}
+
+pPrintfInfo pHandleUnsignedInt(pPrintfInfo info, pFormattingSpecification spec, u64 num, bool always_print_sign) {
+    u32 count;
+    char buf[STRING_BUFFER_SIZE];
+    count = pUnsignedDecimalToString(buf, num);
+    
+    if (always_print_sign)
+        StreamWrite(info.stream, '+');
+
+    info.count += PrintJustified(info.stream, spec, (String){ (u8 *)buf, count }) + 1;
+    return info;
+}
+pPrintfInfo pHandleOctalInt(pPrintfInfo info,pFormattingSpecification spec, s64 num, bool always_print_sign) {
+    u32 count;
+    char buf[STRING_BUFFER_SIZE];
+    count = pSignedOctalToString(buf, num);
+    
+    char *printbuf = buf;
+    if (num > 0 && !always_print_sign) { printbuf++; count--; }
+    
+    if (spec.alternative_form && num != 0) {
+        String str = pCreateString("0o");
+        if (spec.prefix_zero) {
+            u32 zeros = spec.zero_justification_count;
+            spec.zero_justification_count = 0;
+            info.count += PrintJustified(info.stream, spec, str) + 1;
+            spec.justification_count = 0; 
+            spec.zero_justification_count = zeros;
+            PrintJustified( info.stream, spec, (String){ (u8 *)printbuf, count } );
+        } else {
+            info.count += PrintJustified(info.stream, spec, str) + 1;
+            info.count += count;
+            StreamWrite( info.stream, (String){ (u8 *)printbuf, count } );
+        }
+    }
+    else {
+        info.count += PrintJustified(info.stream, spec, (String){ (u8 *)printbuf, count }) + 1;
+    }
+    return info;
+}
+
+pPrintfInfo pHandleHexadecimalInt(pPrintfInfo info,pFormattingSpecification spec, u64 num, bool always_print_sign, bool uppercase) {
+    u32 count;
+    char buf[STRING_BUFFER_SIZE];
+    count = pUnsignedHexToString(buf, num);
+   
+    if (uppercase) {
+        for (u32 i = 0; i < count + 1; i++) {
+            buf[i] = toupper(buf[i]);
+        }
+    }
+
+    if (always_print_sign)
+        StreamWrite(info.stream, '+');
+
+    if (spec.alternative_form && num != 0) {
+        String str[2] = { pCreateString("0x"), pCreateString("0X") };
+        if (spec.prefix_zero) {
+            u32 zeros = spec.zero_justification_count;
+            spec.zero_justification_count = 0;
+            info.count += PrintJustified(info.stream, spec, str[uppercase]) + 1;
+            spec.justification_count = 0; 
+            spec.zero_justification_count = zeros;
+            PrintJustified( info.stream, spec, (String){ (u8 *)buf, count } );
+        } else {
+            info.count += PrintJustified(info.stream, spec, str[uppercase]) + 1;
+            info.count += count;
+            StreamWrite( info.stream, (String){ (u8 *)buf, count } );
+        }
+    }
+    else {
+        info.count += PrintJustified(info.stream, spec, (String){ (u8 *)buf, count }) + 1;
+    }
+    return info;
+    
+}
+
+pPrintfInfo pHandleFloat(pPrintfInfo info, pFormattingSpecification spec) {
+#warning pHandleFloat just passes it into printf so it has not been implemented and might never be
+    (void)spec;
+    const char *restrict begin = info.fmt; 
+    while (*begin != '%') begin--;
+
+    usize size = info.fmt - begin + 1;
+    char buf[size];
+    memcpy(buf, begin, size);
+    buf[size] = '\0';
+    info.count += vprintf(buf, info.list);
+    return info;
+}
+
+pPrintfInfo pHandlePointer(pPrintfInfo info, pFormattingSpecification spec) {
+#if defined(PSTD_32)
+    spec.length = PFL_DEFAULT;
+#elif defined(PSTD_64)
+    spec.length = PFL_LL;
+#else
+#error neither 32 or 64 bit!
+#endif
+
+    spec.alternative_form = true; 
+
+    void *ptr = va_arg(info.list, void *);
+    if (!ptr) {
+        static const String null = pCreateString("nullptr");
+        StreamWrite(info.stream, null);
+        info.count += null.length;
+        return info;
+    }
+    return pHandleHexadecimalInt(info, spec, (usize)ptr, false, false);
+}
+
+pPrintfInfo pHandleCharatersWritten(pPrintfInfo info, pFormattingSpecification spec) {
+    if ( expect( spec.length == PFL_DEFAULT, 1) ) {
+        s32 *count = va_arg(info.list, s32*);
+        *count = info.count;
+    } else {
+        switch(spec.length) {
+            case PFL_HH: {  u8  *count = va_arg(info.list, u8 *); *count = info.count; } break;  
+            case PFL_H:  {  u16 *count = va_arg(info.list, u16*); *count = info.count; } break; 
+            case PFL_L:  {  u32 *count = va_arg(info.list, u32*); *count = info.count; } break; 
+            case PFL_LL: {  u64 *count = va_arg(info.list, u64*); *count = info.count; } break; 
+            case PFL_J:  {  u64 *count = va_arg(info.list, u64*); *count = info.count; } break; 
+            case PFL_Z:  {  u64 *count = va_arg(info.list, u64*); *count = info.count; } break; 
+            case PFL_T:  {  u64 *count = va_arg(info.list, u64*); *count = info.count; } break; 
+            case PFL_DEFAULT: case PFL_128:
+            default: break;
+        }
+    }
+    return info;
+}
+
 u32 GetUnicodeLength(const char *chr) {
-    if ((chr[0] & 0xf8) == 0xf0)
+#define UNICODE_MASK 0xf8 
+#define UNICODE_4_BYTES 0xf0
+#define UNICODE_3_BYTES 0xe0
+#define UNICODE_2_BYTES 0xc0
+    if ((chr[0] & UNICODE_MASK) == UNICODE_4_BYTES)
          return 4;
-    else if ((chr[0] & 0xf0) == 0xe0)
+    else if ((chr[0] & UNICODE_4_BYTES) == UNICODE_3_BYTES)
          return 3;
-    else if ((chr[0] & 0xe0) == 0xc0)
+    else if ((chr[0] & UNICODE_3_BYTES) == UNICODE_2_BYTES)
          return 2;
     else return 1;
+#undef UNICODE_MASK
+#undef UNICODE_4_BYTES
+#undef UNICODE_3_BYTES
+#undef UNICODE_2_BYTES
 }
 
 
@@ -1085,7 +1083,7 @@ u32 GetUnicodeLength(const char *chr) {
 //                            ||                                   ||                            //
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-u32 pSignedIntToString(char *buf, s64 num, u32 radix, char radixarray[], const char (*pow2array)[2], const char (*pow3array)[3]) {
+u32 pSignedIntToString(char *buf, s64 num, u32 radix, const char radixarray[], const char (*pow2array)[2], const char (*pow3array)[3]) {
     if (num < 0) {
         *buf++ = '-';
         num = llabs(num);
@@ -1093,7 +1091,7 @@ u32 pSignedIntToString(char *buf, s64 num, u32 radix, char radixarray[], const c
     return pUnsignedIntToString(buf, (u64)num, radix, radixarray, pow2array, pow3array) + 1; 
 }
 
-u32 pUnsignedIntToString(char *buf, u64 num, u32 radix, char radixarray[], const char (*pow2array)[2], const char (*pow3array)[3])  {
+u32 pUnsignedIntToString(char *buf, u64 num, u32 radix, const char radixarray[], const char (*pow2array)[2], const char (*pow3array)[3])  {
     u64 pow3 = radix * radix * radix;
     u64 pow2 = radix * radix;
     u32 printnum = 0;
@@ -1173,22 +1171,22 @@ u32 pUnsignedIntToString(char *buf, u64 num, u32 radix, char radixarray[], const
 }
 
 u32 pSignedDecimalToString(char *buf, s64 num) {
-    return pSignedIntToString(buf, num, 10, (char *)pMod10, pMod100, pMod1000);
+    return pSignedIntToString(buf, num, BASE_10, (char *)pMod10, pMod100, pMod1000);
 }
 u32 pUnsignedDecimalToString(char *buf, u64 num) {
-    return pUnsignedIntToString(buf, num, 10, (char *)pMod10, pMod100, pMod1000);
+    return pUnsignedIntToString(buf, num, BASE_10, (char *)pMod10, pMod100, pMod1000);
 }
 u32 pSignedHexToString(char *buf, s64 num) {
-    return pSignedIntToString(buf, num, 16, (char *)pMod16, pMod256, pMod4096);
+    return pSignedIntToString(buf, num, BASE_16, (char *)pMod16, pMod256, pMod4096);
 }
 u32 pUnsignedHexToString(char *buf, u64 num) {
-    return pUnsignedIntToString(buf, num, 16, (char *)pMod16, pMod256, pMod4096);
+    return pUnsignedIntToString(buf, num, BASE_16, (char *)pMod16, pMod256, pMod4096);
 }
 u32 pSignedOctalToString(char *buf, s64 num) {
-    return pSignedIntToString(buf, num, 8, (char *)pMod8, pMod64, pMod512);
+    return pSignedIntToString(buf, num, BASE_8, (char *)pMod8, pMod64, pMod512);
 }
 u32 pUnsignedOctalToString(char *buf, u64 num) {
-    return pUnsignedIntToString(buf, num, 8, (char *)pMod8, pMod64, pMod512);
+    return pUnsignedIntToString(buf, num, BASE_8, (char *)pMod8, pMod64, pMod512);
 }
 
 

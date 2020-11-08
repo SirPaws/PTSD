@@ -122,12 +122,14 @@ void pDynArrayByteGrow(DynArray *, usize bytes);
 void pDynArrayGrow(DynArray *, usize datasize, usize count);
 void pDynArrayFree(DynArray *);
 
+PSTD_MAYBE_UNUSED
 static void pMaybeByteGrowDynArray(DynArray *array, usize bytes) {
     if (array->size + bytes > array->endofstorage) {\
         pDynArrayByteGrow(array, bytes);\
     }
 }
 
+PSTD_MAYBE_UNUSED
 static void pMaybeGrowDynArray(DynArray *array, usize datasize) {
     if (array->size + datasize > array->endofstorage) {\
         pDynArrayGrow((DynArray *)array, \

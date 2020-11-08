@@ -78,11 +78,17 @@
 
 #if PSTD_C 
 typedef enum bool{ false, true } bool;
-#define MAYBE_UNUSED __attribute__((unused))
+
+#if __STDC_VERSION__ == 202000L  // this will probably break
+#define PSTD_MAYBE_UNUSED [[maybe_unused]]
+#else
+#define PSTD_MAYBE_UNUSED __attribute__((unused))
+#endif
+
 #define EXTERNAL extern
 #else
 #define EXTERNAL extern "C"
-#define MAYBE_UNUSED [[maybe_unused]]
+#define PSTD_MAYBE_UNUSED [[maybe_unused]]
 #endif
 
 
@@ -102,16 +108,14 @@ typedef double      f64;
 typedef ptrdiff_t isize;
 typedef size_t    usize;
 
-#define CONSTPTR * const
-
 // compare number to range
-MAYBE_UNUSED
+PSTD_MAYBE_UNUSED
 static bool pCmpRange(s32 num, s32 start, s32 end) {
     return num > start && num < end;
 }
 
 // compare number to range inclusive
-MAYBE_UNUSED
+PSTD_MAYBE_UNUSED
 static bool pCmpRangeI(s32 num, s32 start, s32 end) {
     return (num >= start) && (num <= end);
 }

@@ -16,9 +16,10 @@ struct StringSpan {
     u8 *begin, *end;
 };
 
-bool pStringCmp(const String rhs, const String lhs);
-String pStringCopy(const String str);
+bool pStringCmp(String rhs, String lhs);
+String pStringCopy(String str);
 
+PSTD_MAYBE_UNUSED
 static String pString(u8 *c_str, usize length) {
     return (String){ c_str, length };
 }

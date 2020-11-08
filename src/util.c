@@ -33,9 +33,11 @@ static const long long PSTD_EPOCH = 0x19DB1DED53E8000LL;
 
 pTimePoint pSystemTime(void) {
 #if defined(_WIN32) || defined(_WIN64)
+#define COMBINE(high, low) (((s64)(high) << 32) | (s64)(low))
     FILETIME ft;
     GetSystemTimePreciseAsFileTime(&ft);
-    return (((s64)(ft.dwHighDateTime)) << 32) + (s64)(ft.dwLowDateTime) - PSTD_EPOCH;
+    return COMBINE(ft.dwHighDateTime,ft.dwLowDateTime) - PSTD_EPOCH;
+#undef COMBINE
 #else
     return 0;
 #endif

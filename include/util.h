@@ -15,11 +15,11 @@ void array_grow(struct GenericArray *arr, u64 size);
 #define pCreateArrayType(name, datatype)    \
     struct name {                           \
         usize count;                        \
-        datatype *data;                     \
+        datatype *data; /*NOLINT*/          \
     }
 
 #define pArrayGenPushBack(name, array_type, datatype)           \
-void name(array_type *arr, datatype data){                      \
+void name(array_type *arr, datatype data){ /*NOLINT*/           \
     array_grow((struct GenericArray  *)arr, sizeof(datatype));  \
     arr->data[arr->count - 1] = data;                           \
 } 
@@ -68,22 +68,38 @@ pTimePoint pGetTick(enum pClockType);
         u8: pGetTimeSecondsllu, u16: pGetTimeSecondsllu, u32: pGetTimeSecondsllu, u64: pGetTimeSecondsllu\
     )(_Generic(timepoint, pTimePoint: pGetTimePointFromTimePoint)(timepoint))
 
+#define PSTD_TIME_MILI    1000000
+#define PSTD_TIME_SECONDS 1000000000
+
+PSTD_MAYBE_UNUSED
 static inline pTimePoint pGetTimePointFromTimePoint(pTimePoint point) { return point; }
 
+PSTD_MAYBE_UNUSED
 static inline f64 pGetTimeNanod(pTimePoint timepoint)   { return (f64) timepoint; }
+PSTD_MAYBE_UNUSED
 static inline f32 pGetTimeNanof(pTimePoint timepoint)   { return (f32) timepoint; }
+PSTD_MAYBE_UNUSED
 static inline s64 pGetTimeNanolls(pTimePoint timepoint) { return (s64) timepoint; }
+PSTD_MAYBE_UNUSED
 static inline u64 pGetTimeNanollu(pTimePoint timepoint) { return (u64) timepoint; }
 
-static inline f64 pGetTimeMilid(pTimePoint timepoint)   { return (f64)timepoint  / (f64) 1000000; }
-static inline f32 pGetTimeMilif(pTimePoint timepoint)   { return (f32)timepoint  / (f32) 1000000; }
-static inline s64 pGetTimeMilills(pTimePoint timepoint) { return (s64)timepoint  / (s64) 1000000; }
-static inline u64 pGetTimeMilillu(pTimePoint timepoint) { return (u64)timepoint  / (u64) 1000000; }
+PSTD_MAYBE_UNUSED
+static inline f64 pGetTimeMilid(pTimePoint timepoint)   { return (f64)timepoint / (f64) PSTD_TIME_MILI; }
+PSTD_MAYBE_UNUSED
+static inline f32 pGetTimeMilif(pTimePoint timepoint)   { return (f32)timepoint / (f32) PSTD_TIME_MILI; }
+PSTD_MAYBE_UNUSED
+static inline s64 pGetTimeMilills(pTimePoint timepoint) { return (s64)timepoint / (s64) PSTD_TIME_MILI; }
+PSTD_MAYBE_UNUSED
+static inline u64 pGetTimeMilillu(pTimePoint timepoint) { return (u64)timepoint / (u64) PSTD_TIME_MILI; }
 
-static inline f64 pGetTimeSecondsd(pTimePoint timepoint)   { return (f64)timepoint  / (f64) 1000000000; }
-static inline f32 pGetTimeSecondsf(pTimePoint timepoint)   { return (f32)timepoint  / (f32) 1000000000; }
-static inline s64 pGetTimeSecondslls(pTimePoint timepoint) { return (s64)timepoint  / (s64) 1000000000; }
-static inline u64 pGetTimeSecondsllu(pTimePoint timepoint) { return (u64)timepoint  / (u64) 1000000000; }
+PSTD_MAYBE_UNUSED
+static inline f64 pGetTimeSecondsd(pTimePoint timepoint)   { return (f64)timepoint  / (f64) PSTD_TIME_SECONDS; }
+PSTD_MAYBE_UNUSED
+static inline f32 pGetTimeSecondsf(pTimePoint timepoint)   { return (f32)timepoint  / (f32) PSTD_TIME_SECONDS; }
+PSTD_MAYBE_UNUSED
+static inline s64 pGetTimeSecondslls(pTimePoint timepoint) { return (s64)timepoint  / (s64) PSTD_TIME_SECONDS; }
+PSTD_MAYBE_UNUSED
+static inline u64 pGetTimeSecondsllu(pTimePoint timepoint) { return (u64)timepoint  / (u64) PSTD_TIME_SECONDS; }
 
 
 

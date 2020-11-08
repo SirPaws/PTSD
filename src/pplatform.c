@@ -36,19 +36,22 @@ pHandle *pGetSTDInHandle(void) {
 #endif
 }
 
-
 pFileStat pGetFileStat(const char *file) {
     pFileStat result;
 #if defined(PSTD_WINDOWS)
+#define WIN32_COMBINE_HIGH_LOW( high, low ) ((u64)(high) << 31 | (low)) 
     WIN32_FILE_ATTRIBUTE_DATA data;
     result.exists   = GetFileAttributesEx(file, GetFileExInfoStandard, &data);
-    result.filesize = ((u64)data.nFileSizeHigh << 31) | data.nFileSizeLow;
-    result.creationtime = ((u64)data.ftCreationTime.dwHighDateTime << 31) 
-                        | data.ftCreationTime.dwLowDateTime;
-    result.accesstime   = ((u64)data.ftLastAccessTime.dwHighDateTime << 31) 
-                        | data.ftLastAccessTime.dwLowDateTime;
-    result.writetime    = ((u64)data.ftLastWriteTime.dwHighDateTime << 31) 
-                        | data.ftLastWriteTime.dwLowDateTime;
+
+    result.filesize = WIN32_COMBINE_HIGH_LOW(data.nFileSizeHigh, data.nFileSizeLow);
+
+    result.creationtime = WIN32_COMBINE_HIGH_LOW(data.ftCreationTime.dwHighDateTime, 
+            data.ftCreationTime.dwLowDateTime);
+    result.accesstime   = WIN32_COMBINE_HIGH_LOW(data.ftLastAccessTime.dwHighDateTime,
+            data.ftLastAccessTime.dwLowDateTime);
+    result.writetime    = WIN32_COMBINE_HIGH_LOW(data.ftLastWriteTime.dwHighDateTime, 
+            data.ftLastWriteTime.dwLowDateTime);
+#undef WIN32_COMBINE_HIGH_LOW
 #else
     struct stat data;
     s32 statret = stat(file, &data);

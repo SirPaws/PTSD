@@ -75,6 +75,7 @@ static inline u32 pVPrintf(char *restrict fmt, va_list list ) {
     return pVBPrintf(pGetStream(), fmt, list);
 }
 
+PSTD_MAYBE_UNUSED
 static inline u32 pPrintf(char *restrict fmt, ...) {
     va_list list;
     va_start(list, fmt);
@@ -89,8 +90,8 @@ void StreamWriteChar(GenericStream *stream, char chr);
 
 // pSigned**ToString appends + or - to the start of buffer then calls pUnsigned**ToString
 
-u32 pSignedIntToString(char *buf, s64 num, u32 radix, char radixarray[], const char (*pow2array)[2], const char (*pow3array)[3]);
-u32 pUnsignedIntToString(char *buf, u64 num, u32 radix, char radixarray[], const char (*pow2array)[2], const char (*pow3array)[3]);
+u32 pSignedIntToString(char *buf, s64 num, u32 radix,   const char radixarray[], const char (*pow2array)[2], const char (*pow3array)[3]);
+u32 pUnsignedIntToString(char *buf, u64 num, u32 radix, const char radixarray[], const char (*pow2array)[2], const char (*pow3array)[3]);
 
 u32 pSignedDecimalToString(char *buf, s64 num);
 u32 pUnsignedDecimalToString(char *buf, u64 num);
@@ -115,6 +116,7 @@ u32 pDtoa(char *buf, f64);
 // eof: (if null it's ignored) set to true if the stream is at the end 
 void StreamRead(GenericStream *stream, void *buf, usize size);
 
+PSTD_MAYBE_UNUSED
 static inline void pRead(void *buf, usize size) {
     StreamRead(pGetStream(), buf, size);
 }

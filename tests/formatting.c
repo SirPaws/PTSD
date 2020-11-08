@@ -1,5 +1,8 @@
 #include "pio.h"
 #include "allocator.h"
+#include "util.h"
+#include <stdlib.h>
+#include <stdio.h>
 
 pPrintfInfo callback(pPrintfInfo info) {
     int arrcount = va_arg(info.list, int);
@@ -64,6 +67,15 @@ int main(void) {
     pPrintf("\t'%0hhb'\n", test);
     pPrintf("\t'%10b'\n",  test);
     pPrintf("\t'%Lb'\n", 0b101010101LL);
+    
+    float f = 0.15625f;
+
+    pPrintf("TEMP:\n");
+    pPrintf("\t'%0b'\n", *(int*)&f);
+    pPrintf("\t'%f'\n", 0.15625f); 
+    f *= -1;
+    pPrintf("\t'%0b'\n", *(int*)&f);
+    pPrintf("\t'%f'\n", -0.15625f);
 
     pPrintf("CONST CHAR *:\n");
     pPrintf("\t%s\n", "hello world!");
@@ -93,6 +105,30 @@ int main(void) {
     pPrintf("\tnow we print a positive signed integer '%5i'\n", 5394);
     pPrintf("\tnow we print a positive signed integer '%+i'\n", 5394);
     pPrintf("\tnow we print an unsigned integer '%u'\n", 5394);
+
+    pPrintf("\t'%u'\n", 1020);
+    pPrintf("\t'%u'\n", 2785);
+    pPrintf("\t'%u'\n", 6802);
+    pPrintf("\t'%u'\n", 4021);
+
+    pPrintf("\t'%u'\n", 10020);
+    pPrintf("\t'%u'\n", 20785);
+    pPrintf("\t'%u'\n", 60802);
+    pPrintf("\t'%u'\n", 40021);
+
+    pPrintf("\t'%u'\n", 1834000);
+    pPrintf("\t'%u'\n", 5688812);
+    pPrintf("\t'%u'\n", 5881047);
+    pPrintf("\t'%u'\n", 4062392);
+
+    pPrintf("\tlet's do %u random numbers\n", 10);
+    for (int i = 0; i < 10; i++) {
+        srand(pGetTick(PSTD_HIGH_RESOLUTION_CLOCK)); 
+        int num = rand();
+        pPrintf("\t\t% 2u: ( pPrintf: %5u, ", i,  num);
+        printf("printf: %5u )\n", num);
+    }
+
     pPrintf("\tnow we print an unsigned long long integer '%llu'\n", 53945772LL);
 
 

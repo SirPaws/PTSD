@@ -101,7 +101,8 @@ void *pMemExpand(void *dst, void *src, usize dstsize, usize srcsize) {
             }
         }
         if (srcptr + dstsize > (u8 *)src + srcsize) {
-            u8 *begin = srcptr, *end = (u8 *)src + srcsize;  
+            u8 *begin = srcptr; 
+            u8 *end = (u8 *)src + srcsize;  
             memcpy(dstptr + offset, srcptr, end - begin);
             srcptr = src; dstsize -= end - begin;
             offset += end - begin;
