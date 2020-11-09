@@ -7,8 +7,8 @@
 
 typedef struct String String;
 struct String {
-	u8 *c_str;
     usize length;
+	u8 *c_str;
 };
 
 typedef struct StringSpan StringSpan;
@@ -21,8 +21,15 @@ String pStringCopy(String str);
 
 PSTD_MAYBE_UNUSED
 static String pString(u8 *c_str, usize length) {
-    return (String){ c_str, length };
+    return (String){ length, c_str };
 }
+
+// reallocates str 
+String pStringAppendCharacter(String *str, u8 character);
+String pStringAppendString(String *str, String string);
+#define pStringAppend(str, value) \
+    _Generic((value), String: pStringAppendString, default: pStringAppendCharacter)(str, value) 
+
 // void pStringStreamPush(struct StringStream *ss, const char *str);
 // void pStringStreamPushf(struct StringStream *ss, const char *fmt, ...);
 #endif // PSTD_PSTRING_HEADER

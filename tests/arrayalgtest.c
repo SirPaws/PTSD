@@ -122,7 +122,7 @@ pPrintfInfo callback(pPrintfInfo info) {
         u8 *printbuf = buf;
         if (array.data[i] > 0) printbuf++; count--;
 
-        StreamWrite(info.stream, (String){ printbuf, count });
+        StreamWrite(info.stream, pString( printbuf, count ));
         info.count += count;
         if (i != array.size - 1)
             StreamWrite(info.stream, pCreateString(", ")), info.count += 2;

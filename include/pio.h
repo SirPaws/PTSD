@@ -124,6 +124,43 @@ void StreamWriteChar(GenericStream *stream, char chr);
 #define StreamWriteString(stream, str) StreamWriteString(CAST_STREAM(stream), str)
 #define StreamWriteChar(stream, chr) StreamWriteChar(CAST_STREAM(stream), chr)
 
+// size: how many bytes to read from stream
+// eof: (if null it's ignored) set to true if the stream is at the end 
+void StreamRead(GenericStream *stream, void *buf, usize size);
+#define StreamRead(stream, buf, str) StreamRead(CAST_STREAM(stream), buf, str)
+
+PSTD_MAYBE_UNUSED
+static inline void pRead(void *buf, usize size) {
+    StreamRead(pGetStream(), buf, size);
+}
+
+// line needs to be freed
+String StreamReadLine(GenericStream *stream);
+#define StreamReadLine(stream) StreamReadLine(CAST_STREAM(stream))
+
+PSTD_MAYBE_UNUSED
+static inline String pReadLine(void) {
+    return StreamReadLine(pGetStream());
+}
+
+
+// move the stream pointer forwards or backwards
+// size is how many bytes to move the stream pointer
+//
+// so if the stream pointer points here
+// example text that the stream holds
+// ----------------^
+// 
+// and you wan't to move it back 3 bytes
+// you would do StreamMove(stream, -3)
+// and now the pointer points here instead
+// example text that the stream holds
+// -------------^
+//
+//
+void StreamMove(GenericStream *stream, isize size);
+#define StreamMove(stream, size) StreamMove(CAST_STREAM(stream), size)
+
 // pSigned**ToString appends + or - to the start of buffer then calls pUnsigned**ToString
 
 u32 pSignedIntToString(char *buf, s64 num, u32 radix,   const char radixarray[], const char (*pow2array)[2], const char (*pow3array)[3]);
@@ -147,34 +184,6 @@ u32 pDtoa(char *buf, f64);
 
 
 
-
-// size: how many bytes to read from stream
-// eof: (if null it's ignored) set to true if the stream is at the end 
-void StreamRead(GenericStream *stream, void *buf, usize size);
-#define StreamRead(stream, buf, str) StreamRead(CAST_STREAM(stream), buf, str)
-
-PSTD_MAYBE_UNUSED
-static inline void pRead(void *buf, usize size) {
-    StreamRead(pGetStream(), buf, size);
-}
-
-
-// move the stream pointer forwards or backwards
-// size is how many bytes to move the stream pointer
-//
-// so if the stream pointer points here
-// example text that the stream holds
-// ----------------^
-// 
-// and you wan't to move it back 3 bytes
-// you would do StreamMove(stream, -3)
-// and now the pointer points here instead
-// example text that the stream holds
-// -------------^
-//
-//
-void StreamMove(GenericStream *stream, isize size);
-#define StreamMove(stream, size) StreamMove(CAST_STREAM(stream), size)
 
 
 

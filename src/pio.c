@@ -7,6 +7,7 @@
 #undef StreamWriteString
 #undef StreamWriteChar
 #undef StreamRead
+#undef StreamReadLine
 #undef StreamMove
 
 #include "pplatform.h"
@@ -163,10 +164,7 @@ String pStreamToBufferString(GenericStream *stream) {
 
     if (stream->type == STRING_STREAM) {
         StringStream *sstream = (void *)stream;
-        return (String) { 
-            (u8*)sstream->buffer.data,
-            sstream->buffer.size,
-        };
+        return pString((u8*)sstream->buffer.data, sstream->buffer.size);
     } else {
         FileStream *fstream = (void *)stream; 
         if (fstream->buffer.length == 0) {
@@ -218,6 +216,50 @@ void StreamRead(GenericStream *stream, void *buf, usize size) {
         memcpy(buf, buffer.data + sstream->cursor, size);
     }
 }
+String StreamReadLine(GenericStream *stream) {
+    assert(stream);
+    assert(stream->flags & STREAM_INPUT);
+
+    if (expect(stream->type == STANDARD_STREAM, 1) || stream->type == FILE_STREAM) {
+        StdStream *stdstream = (void *)stream;
+        // this should probably have a comment explaning why we do this
+        pHandle *handle = stream->type == STANDARD_STREAM ? stdstream->stdin_handle : stdstream->stdout_handle;  
+    
+        static const usize BUFFER_SIZE = 512;
+        pCreateDynArray(, u8) line = {0};
+        line.data = pZeroAllocateBuffer(BUFFER_SIZE);
+        line.endofstorage = BUFFER_SIZE;
+        u8 chr;
+        while (pFileRead(handle, pString(&chr, 1))) {
+           if (chr == '\n') {
+               pPushBack(&line, chr);
+               void *tmp = pReallocateBuffer(line.data, line.size);
+               line.data = (assert(tmp), tmp);
+               return pString(line.data, line.size);
+           }
+           pPushBack(&line, chr);
+        }
+        if (line.size) {
+            void* tmp = pReallocateBuffer(line.data, line.size);
+            line.data = (assert(tmp), tmp);
+        }
+        return pString(line.data, line.size);
+    } else {
+        StringStream *sstream = (void *)stream;
+        usize begin = sstream->cursor;
+        usize end   = sstream->cursor;
+        usize buf_end = sstream->buffer.size;
+        u8 *str = (u8*)sstream->buffer.data;
+        while (end < buf_end) {
+           if (str[end] == '\n') {
+               break;
+           }
+           end++;
+        }
+        if (end - begin == 0) return (String){0};
+        return pStringCopy(pString(str + begin, end - begin));
+    }
+}
 
 void StreamWriteString(GenericStream *stream, String str) {
     assert(stream);
@@ -240,7 +282,7 @@ void StreamWriteChar(GenericStream *stream, char chr) {
 
     if (expect(stream->type == STANDARD_STREAM, 1) || stream->type == FILE_STREAM) {
         FileStream *fstream = (FileStream *)stream;
-        pFileWrite(fstream->handle, (String){ (u8*)&chr, 1 });
+        pFileWrite(fstream->handle, pString( (u8*)&chr, 1 ));
     } else {
         StringStream *sstream = (StringStream *)stream;
         struct StringStreamBuffer *buffer = &sstream->buffer;
@@ -315,7 +357,7 @@ u32 pVBPrintf(GenericStream *stream, char *restrict fmt, va_list list) {
         if (expect(*fmt != '%', 1)) {
             char *restrict fmt_next = fmt;
             while (IsCharacters(*fmt_next, 2, (char[2]){ '%', '\0'}) == false) fmt_next++;
-            StreamWrite(stream, (String){ (u8 *)fmt, (usize)(fmt_next - fmt)});
+            StreamWrite(stream, pString( (u8 *)fmt, (usize)(fmt_next - fmt)));
             printcount += fmt_next - fmt;
             fmt = fmt_next;
         }
@@ -377,7 +419,7 @@ u32 pVBPrintf(GenericStream *stream, char *restrict fmt, va_list list) {
                 case 'a': case 'A':
                 case 'g': case 'G': tmp = pHandleFloat(pinfo, jinfo); break;
 
-                case 'u': case 'o':
+
                 case 'x': case 'X':
                 case 'i': case 'd':  tmp = pHandleInt(pinfo, jinfo, *fmt_next); break;
                 case 'p': tmp = pHandlePointer(pinfo, jinfo); break;
@@ -421,13 +463,13 @@ u64 PrintJustified(GenericStream *stream, pFormattingSpecification spec, String 
         if (zero_count  > 0)  memset(zeros,  '0', zero_count);
 
         if (expect(!spec.right_justified, 1)) {
-            if (space_count > 0) StreamWrite(stream, (String){ spaces, space_count });
-            if (zero_count > 0)  StreamWrite(stream, (String){ zeros, zero_count });
+            if (space_count > 0) StreamWrite(stream, pString( spaces, space_count ));
+            if (zero_count > 0)  StreamWrite(stream, pString( zeros, zero_count ));
             StreamWrite(stream, string);
         } else {
-            if (zero_count > 0)  StreamWrite(stream, (String){ zeros, zero_count });
+            if (zero_count > 0)  StreamWrite(stream, pString( zeros, zero_count ));
             StreamWrite(stream, string);
-            if (space_count > 0) StreamWrite(stream, (String){ spaces, space_count });
+            if (space_count > 0) StreamWrite(stream, pString( spaces, space_count ));
         }
         pFreeBuffer(spaces);
         pFreeBuffer(zeros);
@@ -456,7 +498,7 @@ void GetRGB(char *restrict* fmtptr, String RGB[3]) {
         // this allows %Cfg( 255 , 255 , 255 )
         while( IsRGBWhitespace(*end) ) begin++, end++;
         while( *end >= '0' && *end <= '9') end++;
-        RGB[n++] = (String){ begin, (usize)(end - begin) }; 
+        RGB[n++] = pString( begin, (usize)(end - begin) ); 
         while( IsRGBWhitespace(*end) ) end++;
 
         fmt = (char *)end;
@@ -583,7 +625,7 @@ pPrintfInfo pHandleChar(pPrintfInfo info, bool wide) {
     } else {
         char *character = va_arg(info.list, char *);
         u32 len = GetUnicodeLength(character);
-        StreamWrite(info.stream, (String){ (u8 *)character, len});
+        StreamWrite(info.stream, pString( (u8 *)character, len));
         info.count += len;
     }
     return info;
@@ -593,7 +635,7 @@ pPrintfInfo pHandleString(pPrintfInfo info, pFormattingSpecification spec, bool 
     String str;
     if (cstring){
         char *c_str = va_arg(info.list, char *);
-        str = (String){ .c_str = (u8 *)c_str, .length = strlen(c_str) };
+        str = pString((u8 *)c_str, strlen(c_str) );
     } else { 
         str = va_arg(info.list, String); 
     }
@@ -896,7 +938,7 @@ pPrintfInfo pHandleSignedInt(pPrintfInfo info, pFormattingSpecification spec, s6
     count = pSignedDecimalToString(buf, num);
     char *printbuf = buf;
     if (num > 0 && !always_print_sign) { printbuf++; count--; }
-    info.count += PrintJustified(info.stream, spec, (String){ (u8 *)printbuf, count });
+    info.count += PrintJustified(info.stream, spec, pString( (u8 *)printbuf, count ));
     return info;
 }
 
@@ -908,7 +950,7 @@ pPrintfInfo pHandleUnsignedInt(pPrintfInfo info, pFormattingSpecification spec, 
     if (always_print_sign)
         StreamWrite(info.stream, '+');
 
-    info.count += PrintJustified(info.stream, spec, (String){ (u8 *)buf, count }) + 1;
+    info.count += PrintJustified(info.stream, spec, pString( (u8 *)buf, count )) + 1;
     return info;
 }
 pPrintfInfo pHandleOctalInt(pPrintfInfo info,pFormattingSpecification spec, s64 num, bool always_print_sign) {
@@ -927,15 +969,15 @@ pPrintfInfo pHandleOctalInt(pPrintfInfo info,pFormattingSpecification spec, s64 
             info.count += PrintJustified(info.stream, spec, str) + 1;
             spec.justification_count = 0; 
             spec.zero_justification_count = zeros;
-            PrintJustified( info.stream, spec, (String){ (u8 *)printbuf, count } );
+            PrintJustified( info.stream, spec, pString( (u8 *)printbuf, count ) );
         } else {
             info.count += PrintJustified(info.stream, spec, str) + 1;
             info.count += count;
-            StreamWrite( info.stream, (String){ (u8 *)printbuf, count } );
+            StreamWrite( info.stream, pString( (u8 *)printbuf, count ) );
         }
     }
     else {
-        info.count += PrintJustified(info.stream, spec, (String){ (u8 *)printbuf, count }) + 1;
+        info.count += PrintJustified(info.stream, spec, pString( (u8 *)printbuf, count )) + 1;
     }
     return info;
 }
@@ -962,15 +1004,15 @@ pPrintfInfo pHandleHexadecimalInt(pPrintfInfo info,pFormattingSpecification spec
             info.count += PrintJustified(info.stream, spec, str[uppercase]) + 1;
             spec.justification_count = 0; 
             spec.zero_justification_count = zeros;
-            PrintJustified( info.stream, spec, (String){ (u8 *)buf, count } );
+            PrintJustified( info.stream, spec, pString( (u8 *)buf, count ) );
         } else {
             info.count += PrintJustified(info.stream, spec, str[uppercase]) + 1;
             info.count += count;
-            StreamWrite( info.stream, (String){ (u8 *)buf, count } );
+            StreamWrite( info.stream, pString( (u8 *)buf, count ) );
         }
     }
     else {
-        info.count += PrintJustified(info.stream, spec, (String){ (u8 *)buf, count }) + 1;
+        info.count += PrintJustified(info.stream, spec, pString( (u8 *)buf, count )) + 1;
     }
     return info;
     

@@ -79,7 +79,7 @@ if ($BuildTests) {
             -BuildVersion $build_version                           `
             -Build EXECUTABLE                                      `
             -IncludeDirectories $incdirs                           `
-            -LibaryDirectories  $libdirs                           `
+            -LibraryDirectories  $libdirs                           `
             -Libraries          $libs                              `
             -ExtraArgs $cargs                                      `
             -Files $test_files                                     `

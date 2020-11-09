@@ -114,7 +114,9 @@ bool pFileWrite(pHandle *handle, String buf) {
 
 bool pFileRead(pHandle *handle, String buf) {
 #if defined(PSTD_WINDOWS)
-    return ReadFile(handle, buf.c_str, buf.length, NULL, NULL);
+    DWORD bytes_read = 0;
+    ReadFile(handle, buf.c_str, buf.length, &bytes_read, NULL);
+    return bytes_read != 0;
 #else
     s32 result = read((u64)(void*)handle, buf.c_str, buf.length);
     return result == -1 ? false : true;

@@ -4,8 +4,8 @@
 
 #define pCreateDynArray(name, datatype) \
     struct name {           \
-        usize size;         \
         usize endofstorage; \
+        usize size;         \
         datatype *data;     \
     }
 
@@ -17,16 +17,14 @@
 #define MACRO_ELIF(cond)    : (cond) ?
 #define MACRO_ELSE          :
 
-#define _MACRO_NAME(name)
-
 #define pCreateStaticDynArray(type, value) (type){ countof(value), countof(value), value }
 
 
-#define pPushBack(array, value) ({                              \
-    pMaybeGrowDynArray((DynArray *)(array), sizeof(value));     \
-    __auto_type pPushBack_ret = (array)->data + (array)->size++;\
-    *pPushBack_ret = (value);                                   \
-    pPushBack_ret;                                              \
+#define pPushBack(array, value) ({                                      \
+    pMaybeGrowDynArray((DynArray *)(array), sizeof(__typeof(value)));   \
+    __auto_type pPushBack_ret = (array)->data + (array)->size++;        \
+    *pPushBack_ret = (value);                                           \
+    pPushBack_ret;                                                      \
 })
 
 #define pPushBytes(array, value, bytes) ({                      \
@@ -40,33 +38,66 @@
 #define pBegin(array) ({ (array)->data; })
 #define pEnd(array) ({ (array)->data + (array)->size; })
 
-#define pInsert(array, position, value) ({                                            \
-    pMaybeGrowDynArray((DynArray *)(array), sizeof(value));                           \
-    usize pInsert_offset = position - pBegin(array);                                          \
-    MACRO_IF(pInsert_offset >= (array)->size)                                                 \
-        NULL                                                                          \
-    MACRO_ELSE ({                                                                     \
-        /* first we extract all elements after the place where we want              */\
-        /* to insert and then we shift them one element forward                     */\
-        /* here is an example we wan't to insert 6 at the place pointed to below    */\
-        /* [1, 2, 3, 4]                                                             */\
-        /*     ^                                                                    */\
-        /* we make a new array that holds [2, 3, 4]                                 */\
-        /* we insert that into the array                                            */\
-        /* [1, 2, 2, 3, 4]                                                          */\
-        /* then we insert the value                                                 */\
-        /* [1, 6, 2, 3, 4]                                                          */\
-        usize pInsert_elems = (array)->size - pInsert_offset;                                         \
-        void *pInsert_tmp = pAllocateBuffer(sizeof(value) * pInsert_elems);                           \
-        memcpy(pInsert_tmp, (array)->data + pInsert_offset, pInsert_elems * sizeof(value));                   \
-        memcpy((array)->data + pInsert_offset + 1, pInsert_tmp, pInsert_elems * sizeof(value));               \
-        pFreeBuffer(pInsert_tmp);                                                             \
-                                                                                      \
-        (array)->size++;                                                              \
-        (array)->data[pInsert_offset] = value;                                                \
-        (array)->data + pInsert_offset;                                                       \
-    });                                                                               \
+#define pInsert(array, position, value) ({                                                      \
+    usize pInsert_size = sizeof(__typeof(value));                                               \
+    usize pInsert_offset = (position) - pBegin(array);                                          \
+    __typeof(value) *result = NULL;                                                             \
+    if (pInsert_offset >= (array)->size) {}                                                     \
+    else {                                                                                      \
+        pMaybeGrowDynArray((DynArray *)(array), pInsert_size);                                  \
+        /* first we extract all elements after the place where we want                        */\
+        /* to insert and then we shift them one element forward                               */\
+        /* here is an example we wan't to insert 6 at the place pointed to below              */\
+        /* [1, 2, 3, 4]                                                                       */\
+        /*     ^                                                                              */\
+        /* we make a new array that holds [2, 3, 4]                                           */\
+        /* we insert that into the array                                                      */\
+        /* [1, 2, 2, 3, 4]                                                                    */\
+        /* then we insert the value                                                           */\
+        /* [1, 6, 2, 3, 4]                                                                    */\
+        usize pInsert_elems = (array)->size - pInsert_offset;                                   \
+        void *pInsert_tmp = pAllocateBuffer(pInsert_size * pInsert_elems);                      \
+        memcpy(pInsert_tmp, (array)->data + pInsert_offset, pInsert_elems * pInsert_size);      \
+        memcpy((array)->data + pInsert_offset + 1, pInsert_tmp, pInsert_elems * pInsert_size);  \
+        pFreeBuffer(pInsert_tmp);                                                               \
+                                                                                                \
+        (array)->size++;                                                                        \
+        (array)->data[pInsert_offset] = value;                                                  \
+        result = (array)->data + pInsert_offset;                                                \
+    }                                                                                           \
+    result;                                                                                     \
 })
+
+#define pMakeHole(array, position, num_bytes) ({                                                \
+    usize pMakeHole_size = sizeof(__typeof((array)->data[0]));                                  \
+    usize pMakeHole_offset = (position) - pBegin(array);                                        \
+    __typeof((array)->data[0]) *pMakeHole_result = NULL;                                        \
+    if (pMakeHole_offset >= (array)->size) {}                                                   \
+    else {                                                                                      \
+        pMaybeByteGrowDynArray((DynArray *)(array), num_bytes);                                      \
+        /* first we extract all elements after the place where we want                        */\
+        /* to insert and then we shift them one element forward                               */\
+        /* here is an example we wan't to insert 6 at the place pointed to below              */\
+        /* [1, 2, 3, 4]                                                                       */\
+        /*     ^                                                                              */\
+        /* we make a new array that holds [2, 3, 4]                                           */\
+        /* we insert that into the array                                                      */\
+        /* [1, 2, 2, 3, 4]                                                                    */\
+        /* then we insert the value                                                           */\
+        /* [1, 6, 2, 3, 4]                                                                    */\
+        usize pMakeHole_elems = (array)->size - pMakeHole_offset;                               \
+        void *pMakeHole_tmp = pAllocateBuffer(pMakeHole_size * pMakeHole_elems);                  \
+        memcpy(pMakeHole_tmp, (array)->data + pMakeHole_offset,                                 \
+                pMakeHole_elems * pMakeHole_size);                                              \
+        memcpy((array)->data + pMakeHole_offset + num_bytes, pMakeHole_tmp,                          \
+                pMakeHole_elems * pMakeHole_size);                                              \
+        pFreeBuffer(pMakeHole_tmp);                                                             \
+                                                                                                \
+        pMakeHole_result = (array)->data + pMakeHole_offset;                                    \
+    }                                                                                           \
+    pMakeHole_result;                                                                           \
+})
+
 
 #define pPopBack(array) ({                                              \
             MACRO_IF((array)->size == 0) (typeof((array)->data[0])){ 0 }\
@@ -112,8 +143,8 @@
 
 typedef struct DynArray DynArray;
 struct DynArray {
-    usize size;
     usize endofstorage;
+    usize size;
     void *data;
 };
 

@@ -145,7 +145,7 @@ New-Module 'PowershellBuild' {
 
         [string[]] $ExtraArgs,
         [string[]] $IncludeDirectories,
-        [string[]] $LibaryDirectories,
+        [string[]] $LibraryDirectories,
         [string[]] $Libraries,
 
     # Path To All project files
@@ -235,7 +235,7 @@ New-Module 'PowershellBuild' {
             if (($Build -eq [Build]::STATIC_LIB) -or ($Build -eq [Build]::DYNAMIC_LIB)) {
                 Invoke-Expression "$Archiver $linkfiles"
             } else {
-                foreach ( $libdir in $LibaryDirectories ) {
+                foreach ( $libdir in $LibraryDirectories ) {
                     $ExecutableLinker = "$ExecutableLinker -L$libdir"
                 }
             
