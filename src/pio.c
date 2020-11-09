@@ -1,4 +1,14 @@
 #include "pio.h"
+#undef pSetStream
+#undef pFreeStream
+#undef pStreamToBufferString
+#undef pVBPrintf
+#undef pBPrintf
+#undef StreamWriteString
+#undef StreamWriteChar
+#undef StreamRead
+#undef StreamMove
+
 #include "pplatform.h"
 #include "pstring.h"
 #if defined(PSTD_WINDOWS)
@@ -15,8 +25,6 @@
 #define BASE_8   8
 #define BASE_16 16
 
-typedef pCreateDynArray(StringStreamBuffer, char) StringStreamBuffer;
-
 struct AdvancedUserFormat {
     String format;
     FormatCallbackAdv *callback;
@@ -29,35 +37,6 @@ struct UserFormat {
 
 typedef pCreateDynArray(AdvUserCallbacks, struct AdvancedUserFormat) AdvUserCallbacks; 
 typedef pCreateDynArray(UserCallbacks,    struct UserFormat) UserCallbacks; 
-
-struct StringStream {
-    enum StreamType  type;
-    u32 flags;
-    StringStreamBuffer buffer;
-    usize cursor;
-    // maybe more if not we just expose stringstream
-};
-
-struct FileStream {
-    enum StreamType  type;
-    u32 flags;
-    pHandle *handle;
-    usize size;
-    String buffer;
-};
-
-struct StdStream {
-    enum StreamType  type;
-    u32 flags;
-    pHandle *stdout_handle;
-    pHandle *stdin_handle;
-};
-
-struct GenericStream {
-    enum StreamType  type;
-    u32 flags;
-    void *data;
-};
 
 struct BinaryStringReturn {
     u8 *buffer;
@@ -235,7 +214,7 @@ void StreamRead(GenericStream *stream, void *buf, usize size) {
         if (sstream->cursor + size >= sstream->buffer.size) {
             memset(buf, 0, size); return;
         }
-        StringStreamBuffer buffer = sstream->buffer;
+        struct StringStreamBuffer buffer = sstream->buffer;
         memcpy(buf, buffer.data + sstream->cursor, size);
     }
 }
@@ -249,7 +228,7 @@ void StreamWriteString(GenericStream *stream, String str) {
         pFileWrite(fstream->handle, str);
     } else {
         StringStream *sstream = (StringStream *)stream;
-        StringStreamBuffer *buffer = &sstream->buffer;
+        struct StringStreamBuffer *buffer = &sstream->buffer;
         pPushBytes(buffer, str.c_str, str.length);
         sstream->cursor += str.length;
     }
@@ -264,7 +243,7 @@ void StreamWriteChar(GenericStream *stream, char chr) {
         pFileWrite(fstream->handle, (String){ (u8*)&chr, 1 });
     } else {
         StringStream *sstream = (StringStream *)stream;
-        StringStreamBuffer *buffer = &sstream->buffer;
+        struct StringStreamBuffer *buffer = &sstream->buffer;
         pMaybeByteGrowDynArray((DynArray*)buffer, 1);
         *(buffer->data + sstream->cursor) = chr;
         sstream->cursor++;

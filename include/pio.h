@@ -3,30 +3,22 @@
 #define PSTD_PIO_HEADER
 
 #include "pstring.h"
+#include "dynarray.h"
+#include "pplatform.h"
 #pragma clang diagnostic ignored "-Wclass-varargs"
 
-typedef struct FileStream    FileStream;
-typedef struct StdStream     StdStream;
-typedef struct StringStream  StringStream;
-typedef struct GenericStream GenericStream;
+#define CAST_STREAM(stream)                      \
+    _Generic((stream),                           \
+        GenericStream *:(GenericStream*)(stream),\
+        StdStream *:    (GenericStream*)(stream),\
+        FileStream *:   (GenericStream*)(stream),\
+        StringStream *: (GenericStream*)(stream) \
+    )
 
-typedef struct FormatCallbackTuple FormatCallbackTuple;
-
-// extra_args is a pointer to the character after %CB
-// this is done so a formattingCallback can have extra arguments
-// end_pos should be the character after the last formatting char
-//                  for example %CBfb 
-// end_pos should point to ----------^ 
-typedef FormatCallbackTuple FormatCallBack(GenericStream *stream, const char *restrict extra_args, va_list list); 
 
 enum StreamFlags {
     STREAM_OUTPUT = 0b01,
     STREAM_INPUT  = 0b10,
-};
-
-struct FormatCallbackTuple {
-    va_list list;
-    const char *restrict end_pos;
 };
 
 enum StreamType {
@@ -37,6 +29,39 @@ enum StreamType {
 
 // TODO: CreateFile dwShareMode
 // TODO: CreateFile lpSecurityAttributes 
+
+typedef struct StringStream  StringStream;
+struct StringStream {
+    enum StreamType  type;
+    u32 flags;
+    pCreateDynArray(StringStreamBuffer, char) buffer;
+    usize cursor;
+    // maybe more if not we just expose stringstream
+};
+
+typedef struct FileStream FileStream;
+struct FileStream {
+    enum StreamType type;
+    u32 flags;
+    pHandle *handle;
+    usize size;
+    String buffer;
+};
+
+typedef struct StdStream StdStream;
+struct StdStream {
+    enum StreamType type;
+    u32 flags;
+    pHandle *stdout_handle;
+    pHandle *stdin_handle;
+};
+
+typedef struct GenericStream GenericStream;
+struct GenericStream {
+    enum StreamType type;
+    u32 flags;
+    void *data;
+};
 
 typedef struct StreamInfo StreamInfo;
 struct StreamInfo {
@@ -52,14 +77,19 @@ struct StreamInfo {
 };
 
 GenericStream *pSetStream(GenericStream *stream);
+#define pSetStream(stream) pSetStream(CAST_STREAM(stream))
 GenericStream *pGetStream(void);
+
 
 GenericStream *pInitStream(StreamInfo info);
 void pFreeStream(GenericStream *stream);
+#define pFreeStream(stream) pFreeStream(CAST_STREAM(stream))
 
 String pStreamToBufferString(GenericStream *stream);
+#define pStreamToBufferString(stream) pStreamToBufferString(CAST_STREAM(stream))
 
 u32 pVBPrintf(GenericStream *stream, char *restrict fmt, va_list list);
+#define pVBPrintf(stream, fmt, list) pVBPrintf(CAST_STREAM(stream), fmt, list)
 
 [[maybe_unused]]
 static u32 pBPrintf(GenericStream *stream, char *restrict fmt, ...) {
@@ -69,6 +99,7 @@ static u32 pBPrintf(GenericStream *stream, char *restrict fmt, ...) {
     va_end(list);
     return result;
 }
+#define pBPrintf(stream, fmt, ...) pBPrintf(CAST_STREAM(stream), fmt, __VA_ARGS__)
 
 
 static inline u32 pVPrintf(char *restrict fmt, va_list list ) {
@@ -86,7 +117,12 @@ static inline u32 pPrintf(char *restrict fmt, ...) {
 
 void StreamWriteString(GenericStream *stream, String str);
 void StreamWriteChar(GenericStream *stream, char chr);
-#define StreamWrite(stream, ...) _Generic(__VA_ARGS__, int: StreamWriteChar, char: StreamWriteChar, String: StreamWriteString)(stream, __VA_ARGS__)
+#define StreamWrite(stream, ...) _Generic(__VA_ARGS__, int: StreamWriteChar, \
+    char: StreamWriteChar, String: StreamWriteString)(CAST_STREAM(stream), __VA_ARGS__)
+
+
+#define StreamWriteString(stream, str) StreamWriteString(CAST_STREAM(stream), str)
+#define StreamWriteChar(stream, chr) StreamWriteChar(CAST_STREAM(stream), chr)
 
 // pSigned**ToString appends + or - to the start of buffer then calls pUnsigned**ToString
 
@@ -115,6 +151,7 @@ u32 pDtoa(char *buf, f64);
 // size: how many bytes to read from stream
 // eof: (if null it's ignored) set to true if the stream is at the end 
 void StreamRead(GenericStream *stream, void *buf, usize size);
+#define StreamRead(stream, buf, str) StreamRead(CAST_STREAM(stream), buf, str)
 
 PSTD_MAYBE_UNUSED
 static inline void pRead(void *buf, usize size) {
@@ -137,6 +174,7 @@ static inline void pRead(void *buf, usize size) {
 //
 //
 void StreamMove(GenericStream *stream, isize size);
+#define StreamMove(stream, size) StreamMove(CAST_STREAM(stream), size)
 
 
 

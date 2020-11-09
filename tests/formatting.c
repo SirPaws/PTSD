@@ -39,10 +39,10 @@ int main(void) {
     FileStream *fstream = (void *)pInitStream(fstream_info);
     if (fstream) {
         char arr[23];
-        StreamRead((void *)fstream, arr, 23);
+        StreamRead(fstream, arr, 23);
         String read_from_file = { (u8 *)arr, 23 };
         pPrintf("read this from a file: {\n%S\n}\n", read_from_file);
-        pFreeStream((void *)fstream);
+        pFreeStream(fstream);
         
         StreamInfo sstream_info = {
             .type  = STRING_STREAM,
@@ -52,11 +52,11 @@ int main(void) {
 
         StringStream *sstream = (void *)pInitStream(sstream_info); 
         {
-            StreamWriteString((GenericStream *)sstream, read_from_file);
-            String sstream_string = pStreamToBufferString((GenericStream *)sstream);
+            StreamWriteString(sstream, read_from_file);
+            String sstream_string = pStreamToBufferString(sstream);
             pPrintf("string stream holds {\n%S\n}\n", sstream_string);
         }
-        pFreeStream((void *)sstream);
+        pFreeStream(sstream);
     }
     
     String str = pCreateString("hello");

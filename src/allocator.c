@@ -4,7 +4,7 @@ extern void *pCurrentAllocatorUserData;
 
 void *pDefaultAllocator(void *block, usize size, usize count, enum AllocatorType type, void *userdata);
 
-void *pDefaultAllocator(void *block, usize size, usize count, enum AllocatorType type, MAYBE_UNUSED void *userdata) {
+void *pDefaultAllocator(void *block, usize size, usize count, enum AllocatorType type, PSTD_MAYBE_UNUSED void *userdata) {
     switch (type) {
     case MALLOC:     return malloc(size);
     case ZALLOC: { 

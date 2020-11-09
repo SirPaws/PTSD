@@ -5,21 +5,21 @@
 typedef pCreateVectorStruct(iVector, int) iVector;
 
 
-static FormatCallbackTuple VectorFormat(GenericStream *stream, char *restrict extra_args, va_list list) {
-    iVector *vector = va_arg(list, iVector *);
-    StreamWrite(stream, '[');
+pPrintfInfo VectorFormat(pPrintfInfo info) {
+    iVector *vector = va_arg(info.list, iVector *);
+    StreamWrite(info.stream, '['); info.count++;
     for (int *it = pVectorBegin((void *)vector); it != pVectorEnd((void *)vector); it++){
         char buf[20];
         u32 count = pSignedDecimalToString(buf, *it);
         if (*it >= 0)
-             StreamWrite(stream, (String){ (u8 *)buf + 1, count - 1});
-        else StreamWrite(stream, (String){ (u8 *)buf, count});
+             StreamWrite(info.stream, (String){ (u8 *)buf + 1, count - 1}), info.count += count-1;
+        else StreamWrite(info.stream, (String){ (u8 *)buf, count}), info.count += count;
 
         if (it == (int *)pVectorEnd((void *)vector) - 1)
-            StreamWrite(stream, ']');
-        else StreamWriteString(stream, pCreateString(", "));
+             StreamWrite(info.stream, ']'), info.count++;
+        else StreamWriteString(info.stream, pCreateString(", ")), info.count += 2;
     }
-    return (FormatCallbackTuple){ list, extra_args }; 
+    return info; 
 }
 
 
@@ -31,9 +31,12 @@ int main(void) {
     usize count = pVectorSize((void *)vector);
     printf("vector holds %llu elements\n", count);
     
+    pFormatPush("V", VectorFormat);
+
     int *third = pVectorInsert((void *)&vector, second, &(int){-63});
-    pPrintf("the vector holds %CB\n", VectorFormat, vector);
+    pPrintf("the vector holds %V\n", vector);
     pVectorErase((void *)vector, third);
+    pFormatPop("V");
 
     for (int *it = pVectorBegin((void *)vector); it != pVectorEnd((void *)vector); it++){
         printf("%p holds %i\n", (void *)it, *it);
