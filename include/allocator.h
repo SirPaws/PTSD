@@ -26,18 +26,23 @@ void pSetGlobalAllocator(struct AllocatorInfo info);
 
 
 // just a malloc with the currently bound allocator
-__declspec(allocator)
-void *pAllocateBuffer(usize size);
+__declspec(allocator) 
+void *pAllocateBuffer(usize size) 
+    __attribute__((malloc)) __attribute__((alloc_size(1)));
 
 // zero allocate malloc
-void *pZeroAllocateBuffer(usize size);
+__declspec(allocator)
+void *pZeroAllocateBuffer(usize size)
+    __attribute__((malloc)) __attribute__((alloc_size(1)));
 
 // just a realloc with the currently bound allocator
 __declspec(allocator)
-void *pReallocateBuffer(void *buffer, usize size);
+void *pReallocateBuffer(void *buffer, usize size)
+    __attribute__((malloc)) __attribute__((alloc_size(2)));
 // just a calloc with the currently bound allocator
 __declspec(allocator)
-void *pAllocateArray(usize count, usize size);
+void *pAllocateArray(usize count, usize size)
+    __attribute__((malloc)) __attribute__((alloc_size(1, 2)));
 // just a free with the currently bound allocator
 void *pFreeBuffer(void *buffer);
 

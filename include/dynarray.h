@@ -1,6 +1,7 @@
 #pragma once
 #ifndef PSTD_DYNARRAY_HEADER
 #include "general.h"
+#include "allocator.h"
 
 #define pCreateDynArray(name, datatype) \
     struct name {           \
@@ -17,7 +18,7 @@
 #define MACRO_ELIF(cond)    : (cond) ?
 #define MACRO_ELSE          :
 
-#define pCreateStaticDynArray(type, value) (type){ countof(value), countof(value), value }
+#define pCreateStaticDynArray(type, value) (type){ sizeof(value), countof(value), value }
 
 
 #define pPushBack(array, value) ({                                      \
@@ -149,23 +150,45 @@ struct DynArray {
 };
 
 // how many elements we should add
-void pDynArrayByteGrow(DynArray *, usize bytes);
-void pDynArrayGrow(DynArray *, usize datasize, usize count);
-void pDynArrayFree(DynArray *);
+static void pDynArrayByteGrow(DynArray *, usize bytes);
+static void pDynArrayGrow(DynArray *, usize datasize, usize count);
+static void pDynArrayFree(DynArray *);
 
 PSTD_MAYBE_UNUSED
 static void pMaybeByteGrowDynArray(DynArray *array, usize bytes) {
-    if (array->size + bytes > array->endofstorage) {\
-        pDynArrayByteGrow(array, bytes);\
+    if (array->size + bytes > array->endofstorage) {             \
+        pDynArrayByteGrow(array, bytes);                         \
     }
 }
 
 PSTD_MAYBE_UNUSED
 static void pMaybeGrowDynArray(DynArray *array, usize datasize) {
-    if (array->size + datasize > array->endofstorage) {\
-        pDynArrayGrow((DynArray *)array, \
-                datasize, P_DYNARRAY_GROWTH_COUNT);\
+    if ((array->size + 1) * datasize > array->endofstorage) {   \
+        pDynArrayGrow((DynArray *)array,                        \
+                datasize, P_DYNARRAY_GROWTH_COUNT);             \
     }
 }
+
+static void pDynArrayByteGrow(DynArray *array, usize bytes) {
+    if (!bytes || !array) return;
+    void *tmp = pReallocateBuffer(array->data, array->endofstorage + bytes);
+    assert(tmp);
+    array->data = tmp;
+    array->endofstorage += bytes;
+}
+static void pDynArrayGrow(DynArray *array, usize datasize, usize count) {
+    if (!count || !array || !datasize) return;
+    void *tmp = pReallocateBuffer(array->data, datasize * (array->endofstorage + count));
+    assert(tmp);
+    array->data = tmp;
+    array->endofstorage += count;
+}
+
+static void pDynArrayFree(DynArray *array) {
+    pFreeBuffer(array->data);
+    memset(array, 0, sizeof *array);
+}
+
+
 #endif // PSTD_DYNARRAY_HEADER
 
