@@ -169,6 +169,7 @@ static void pMaybeGrowDynArray(DynArray *array, usize datasize) {
     }
 }
 
+PSTD_MAYBE_UNUSED
 static void pDynArrayByteGrow(DynArray *array, usize bytes) {
     if (!bytes || !array) return;
     void *tmp = pReallocateBuffer(array->data, array->endofstorage + bytes);
@@ -176,6 +177,8 @@ static void pDynArrayByteGrow(DynArray *array, usize bytes) {
     array->data = tmp;
     array->endofstorage += bytes;
 }
+
+PSTD_MAYBE_UNUSED
 static void pDynArrayGrow(DynArray *array, usize datasize, usize count) {
     if (!count || !array || !datasize) return;
     void *tmp = pReallocateBuffer(array->data, datasize * (array->endofstorage + count));
@@ -184,6 +187,7 @@ static void pDynArrayGrow(DynArray *array, usize datasize, usize count) {
     array->endofstorage += count;
 }
 
+PSTD_MAYBE_UNUSED
 static void pDynArrayFree(DynArray *array) {
     pFreeBuffer(array->data);
     memset(array, 0, sizeof *array);
