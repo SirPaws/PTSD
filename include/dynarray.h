@@ -1,20 +1,24 @@
 #pragma once
 #ifndef PSTD_DYNARRAY_HEADER
-#include "general.h"
-#include "allocator.h"
-
 #ifndef DYNARRAY_STANDALONE
 #   include "general.h"
 #   include "allocator.h"
 #else
+#   if defined(_WIN32) || defined(_WIN64)
+#       define PSTD_WINDOWS
+#   elif defined(__linux__) || defined(__unix__)
+#       define PSTD_LINUX
+#   elif defined(__APPLE__)
+#       define PSTD_MACOS
+#   endif
+#   if __STDC_VERSION__ == 202000L  // this will probably break
+#       define PSTD_MAYBE_UNUSED [[maybe_unused]]
+#   else
+#       define PSTD_MAYBE_UNUSED __attribute__((unused))
+#   endif
 #   if !defined(DYNARRAY_NO_TYPES)
 #       include <stddef.h>
 #       include <stdint.h>
-#       if __STDC_VERSION__ == 202000L  // this will probably break
-#           define PSTD_MAYBE_UNUSED [[maybe_unused]]
-#       else
-#           define PSTD_MAYBE_UNUSED __attribute__((unused))
-#       endif
         typedef int8_t  s8;
         typedef int16_t s16;
         typedef int32_t s32;
@@ -30,7 +34,14 @@
         
         typedef ptrdiff_t isize;
         typedef size_t    usize;
-#   endif
+
+        typedef struct String String;
+        struct String { usize length; u8 *c_str; };
+
+#       if !defined(PPLATFORM_NO_BOOL)
+            typedef enum bool { false, true } bool;
+#       endif
+#   endif 
 #   ifndef pZeroAllocateBuffer
 #       define pZeroAllocateBuffer(size) ({                 \
             void *pZeroAllocateBuffer_tmp = malloc(size);   \
@@ -44,6 +55,9 @@
 #   ifndef pAllocateBuffer
 #      define pAllocateBuffer malloc
 #   endif
+#   ifndef pFreeBuffer
+#      define pFreeBuffer free
+#   endif
 #endif
 
 
@@ -56,7 +70,7 @@
     struct name {                       \
         usize endofstorage;             \
         usize size;                     \
-        datatype *data;   /*NOLINT*/    \
+        __typeof(datatype) *data;       \
     }
 #define pCreateStaticDynArray(type, value) (type){ sizeof(value), countof(value), value }
 
@@ -260,15 +274,10 @@ static void pDynArrayGrow(DynArray *array, usize datasize, usize count) {
     array->data = tmp;
     array->endofstorage += count;
 }
-<<<<<<< HEAD
-=======
 
 PSTD_MAYBE_UNUSED
 static void pDynArrayFree(DynArray *array) {
     pFreeBuffer(array->data);
     memset(array, 0, sizeof *array);
 }
-
-
->>>>>>> fe319f0348d5a49199d970ba5754bf8305bf40f8
 #endif // PSTD_DYNARRAY_HEADER

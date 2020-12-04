@@ -89,7 +89,7 @@ bool pSeek(pHandle *, isize size, enum pSeekMode mode);
 #endif // PPLATFORM_HEADER
 
 #ifdef PPLATFORM_HEADER_ONLY
-#include "pplatform.c"
+#include "../src/pplatform.c"
 #endif
 
 
