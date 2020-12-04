@@ -12,15 +12,6 @@
 #include <stdarg.h>
 #include <assert.h>
 
-#pragma clang diagnostic ignored "-Wc++98-compat"
-#pragma clang diagnostic ignored "-Wc99-compat"
-#pragma clang diagnostic ignored "-Wformat-nonliteral"
-#pragma clang diagnostic ignored "-Wvla"
-#pragma clang diagnostic ignored "-Wunused-macros"
-
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wkeyword-macro"
-
 #define countof(array) sizeof(array)/sizeof(array[0])
 #define typeof __typeof
 #define auto __auto_type
@@ -28,9 +19,6 @@
 
 // maybe have this
 // typedef const void *const readonly_ptr;
-
-#pragma clang diagnostic pop
-
 
 #if defined(_WIN32) || defined(_WIN64)
 #define PSTD_WINDOWS

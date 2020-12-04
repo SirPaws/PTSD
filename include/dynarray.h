@@ -3,23 +3,91 @@
 #include "general.h"
 #include "allocator.h"
 
-#define pCreateDynArray(name, datatype) \
-    struct name {           \
-        usize endofstorage; \
-        usize size;         \
-        datatype *data;     \
-    }
+#ifndef DYNARRAY_STANDALONE
+#   include "general.h"
+#   include "allocator.h"
+#else
+#   if !defined(DYNARRAY_NO_TYPES)
+#       include <stddef.h>
+#       include <stdint.h>
+#       if __STDC_VERSION__ == 202000L  // this will probably break
+#           define PSTD_MAYBE_UNUSED [[maybe_unused]]
+#       else
+#           define PSTD_MAYBE_UNUSED __attribute__((unused))
+#       endif
+        typedef int8_t  s8;
+        typedef int16_t s16;
+        typedef int32_t s32;
+        typedef int64_t s64;
+        
+        typedef uint8_t  u8;
+        typedef uint16_t u16;
+        typedef uint32_t u32;
+        typedef uint64_t u64;
+        
+        typedef float       f32;
+        typedef double      f64;
+        
+        typedef ptrdiff_t isize;
+        typedef size_t    usize;
+#   endif
+#   ifndef pZeroAllocateBuffer
+#       define pZeroAllocateBuffer(size) ({                 \
+            void *pZeroAllocateBuffer_tmp = malloc(size);   \
+            memset(pZeroAllocateBuffer_tmp, 0, (size));     \
+            pZeroAllocateBuffer_tmp;                        \
+        })
+#   endif
+#   ifndef pReallocateBuffer
+#       define pReallocateBuffer realloc
+#   endif
+#   ifndef pAllocateBuffer
+#      define pAllocateBuffer malloc
+#   endif
+#endif
+
+
 
 #ifndef P_DYNARRAY_GROWTH_COUNT
 #define P_DYNARRAY_GROWTH_COUNT 2
 #endif
 
-#define MACRO_IF(cond)        (cond) ?
-#define MACRO_ELIF(cond)    : (cond) ?
-#define MACRO_ELSE          :
-
+#define pCreateDynArray(name, datatype) \
+    struct name {                       \
+        usize endofstorage;             \
+        usize size;                     \
+        datatype *data;   /*NOLINT*/    \
+    }
 #define pCreateStaticDynArray(type, value) (type){ sizeof(value), countof(value), value }
 
+#define pSize(array)   ((array)->size) 
+#define pLength(array) ((array)->size)
+#define pLen(array)    ((array)->size)
+#define pSizeof(value) (sizeof(__typeof(value)))
+
+#define pFreeDynArray(array) ({             \
+        pFreeBuffer((array)->data);         \
+        memset((array), 0, sizeof *(array));\
+    })
+
+#define pSetCapacity(array, count) ({                                               \
+    if (!(array)->data) {                                                           \
+        __typeof(*(array)) pSetCapacity_array = {                                   \
+            .endofstorage = pSizeof((array)->data[0]) * (count),                    \
+            .data         = pZeroAllocateBuffer(pSizeof((array)->data[0]) * (count))\
+        };                                                                          \
+        *(array) = pSetCapacity_array;                                              \
+    } else {                                                                        \
+        void *pSetCapacity_tmp = pReallocateBuffer((array)->data,                   \
+                (pSizeof((array)->data[0]) * (count)));                             \
+        (array)->data = pSetCapacity_tmp;                                           \
+    }                                                                               \
+    (array);                                                                        \
+})
+#define pSetCap     pSetCapacity
+#define pSetCount   pSetCapacity
+#define pSetSize    pSetCapacity
+#define pSetLength  pSetCapacity
 
 #define pPushBack(array, value) ({                                      \
     pMaybeGrowDynArray((DynArray *)(array), sizeof(__typeof(value)));   \
@@ -75,7 +143,7 @@
     __typeof((array)->data[0]) *pMakeHole_result = NULL;                                        \
     if (pMakeHole_offset >= (array)->size) {}                                                   \
     else {                                                                                      \
-        pMaybeByteGrowDynArray((DynArray *)(array), num_bytes);                                      \
+        pMaybeByteGrowDynArray((DynArray *)(array), num_bytes);                                 \
         /* first we extract all elements after the place where we want                        */\
         /* to insert and then we shift them one element forward                               */\
         /* here is an example we wan't to insert 6 at the place pointed to below              */\
@@ -87,10 +155,10 @@
         /* then we insert the value                                                           */\
         /* [1, 6, 2, 3, 4]                                                                    */\
         usize pMakeHole_elems = (array)->size - pMakeHole_offset;                               \
-        void *pMakeHole_tmp = pAllocateBuffer(pMakeHole_size * pMakeHole_elems);                  \
+        void *pMakeHole_tmp = pAllocateBuffer(pMakeHole_size * pMakeHole_elems);                \
         memcpy(pMakeHole_tmp, (array)->data + pMakeHole_offset,                                 \
                 pMakeHole_elems * pMakeHole_size);                                              \
-        memcpy((array)->data + pMakeHole_offset + num_bytes, pMakeHole_tmp,                          \
+        memcpy((array)->data + pMakeHole_offset + (num_bytes), pMakeHole_tmp,                   \
                 pMakeHole_elems * pMakeHole_size);                                              \
         pFreeBuffer(pMakeHole_tmp);                                                             \
                                                                                                 \
@@ -100,34 +168,39 @@
 })
 
 
-#define pPopBack(array) ({                                              \
-            MACRO_IF((array)->size == 0) (typeof((array)->data[0])){ 0 }\
-            MACRO_ELSE ({   (array)->data[((array)->size--) - 1];  });        \
-        })
+#define pPopBack(array) ({                                      \
+    __typeof((array)->data[0]) pPopBack_result = {0};           \
+    if ((array)->size == 0) { }                                 \
+    else {                                                      \
+        pPopBack_result = (array)->data[((array)->size--) - 1]; \
+    }                                                           \
+    pPopBack_result;                                            \
+})
 
-#define pRemove(array, position) ({                                                                         \
-    usize pRemove_offset = position - pBegin(array);                                                        \
-    MACRO_IF(pRemove_offset >= (array)->size)                                                               \
-        (__typeof((array)->data[0])){ 0 }                                                                   \
-    MACRO_ELIF(pRemove_offset == (array)->size - 1) ({                                                      \
-        (array)->size--;                                                                                    \
-        (array)->data[pRemove_offset];                                                                      \
-    }) MACRO_ELSE ({                                                                                        \
-        __auto_type pRemove_ret = (array)->data[pRemove_offset];                                            \
-        usize pRemove_elems = (array)->size - pRemove_offset;                                               \
-        void *pRemove_tmp = pAllocateBuffer(sizeof((array)->data[0]) * pRemove_elems);                      \
-        memcpy(pRemove_tmp, (array)->data + pRemove_offset + 1, pRemove_elems * sizeof((array)->data[0]));  \
-        memcpy((array)->data + pRemove_offset, pRemove_tmp, pRemove_elems * sizeof((array)->data[0]));      \
-        pFreeBuffer(pRemove_tmp);                                                                           \
-                                                                                                            \
-        (array)->size--;                                                                                    \
-        pRemove_ret;                                                                                        \
-    });                                                                                                     \
+#define pRemove(array, position) ({                                                     \
+    __typeof((array)->data[0]) pRemove_result = {0};                                    \
+    usize pRemove_offset = (position) - pBegin(array);                                  \
+    if (pRemove_offset >= (array)->size) {}                                             \
+    else if (pRemove_offset == (array)->size - 1) {                                     \
+        (array)->size--;                                                                \
+        pRemove_result = (array)->data[pRemove_offset];                                 \
+    } else {                                                                            \
+        pRemove_result = (array)->data[pRemove_offset];                                 \
+        usize pRemove_elems = (array)->size - pRemove_offset;                           \
+        void *pRemove_tmp = pAllocateBuffer(pSizeof((array)->data[0]) * pRemove_elems); \
+        memcpy(pRemove_tmp, (array)->data + pRemove_offset + 1,                         \
+                pRemove_elems * pSizeof((array)->data[0]));                             \
+        memcpy((array)->data + pRemove_offset, pRemove_tmp,                             \
+                pRemove_elems * pSizeof((array)->data[0]));                             \
+        pFreeBuffer(pRemove_tmp);                                                       \
+        (array)->size--;                                                                \
+    }                                                                                   \
+    pRemove_result;                                                                     \
 })
 
 // arr:  another dynamic array
 #define pCopyDynArray(arr) ({                                                           \
-        type pCopyDynArray_tmp = { 0 };                                                 \
+        __typeof(arr) pCopyDynArray_tmp = { 0 };                                        \
         pCopyDynArray_tmp.data = pAllocateBuffer( (arr).size );                         \
         memcpy(pCopyDynArray_tmp.data, (arr).data, sizeof(*(arr).data) * (arr).size);   \
         pCopyDynArray_tmp.size = pCopyDynArray_tmp.endofstorage = (arr).size;           \
@@ -135,12 +208,14 @@
 
 // type: the type of array we want
 // arr:  a static array
-#define pCopyArray(type, arr) ({                                            \
-        type pCopyArray_tmp = { 0 };                                        \
-        pCopyArray_tmp.data = pAllocateBuffer( sizeof(arr) );               \
-        memcpy(pCopyArray_tmp.data, (arr), sizeof(arr));                    \
-        pCopyArray_tmp.size = pCopyArray_tmp.endofstorage = countof(arr);   \
-        pCopyArray_tmp;})
+#define pCopyArray(type, arr) ({                                \
+        type pCopyArray_tmp = { 0 };                            \
+        pCopyArray_tmp.data = pAllocateBuffer( sizeof(arr) );   \
+        memcpy(pCopyArray_tmp.data, (arr), sizeof(arr));        \
+        pCopyArray_tmp.size = countof(arr);                     \
+        pCopyArray_tmp.endofstorage = sizeof(arr);              \
+        pCopyArray_tmp;                                         \
+})
 
 typedef struct DynArray DynArray;
 struct DynArray {
@@ -150,9 +225,8 @@ struct DynArray {
 };
 
 // how many elements we should add
-static void pDynArrayByteGrow(DynArray *, usize bytes);
-static void pDynArrayGrow(DynArray *, usize datasize, usize count);
-static void pDynArrayFree(DynArray *);
+static void pDynArrayByteGrow(DynArray *array, usize bytes);
+static void pDynArrayGrow(DynArray *array, usize datasize, usize count);
 
 PSTD_MAYBE_UNUSED
 static void pMaybeByteGrowDynArray(DynArray *array, usize bytes) {
@@ -172,23 +246,15 @@ static void pMaybeGrowDynArray(DynArray *array, usize datasize) {
 static void pDynArrayByteGrow(DynArray *array, usize bytes) {
     if (!bytes || !array) return;
     void *tmp = pReallocateBuffer(array->data, array->endofstorage + bytes);
-    assert(tmp);
+    // assert(tmp);
     array->data = tmp;
     array->endofstorage += bytes;
 }
 static void pDynArrayGrow(DynArray *array, usize datasize, usize count) {
     if (!count || !array || !datasize) return;
     void *tmp = pReallocateBuffer(array->data, datasize * (array->endofstorage + count));
-    assert(tmp);
+    // assert(tmp);
     array->data = tmp;
     array->endofstorage += count;
 }
-
-static void pDynArrayFree(DynArray *array) {
-    pFreeBuffer(array->data);
-    memset(array, 0, sizeof *array);
-}
-
-
 #endif // PSTD_DYNARRAY_HEADER
-

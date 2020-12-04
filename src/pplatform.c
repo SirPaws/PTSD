@@ -1,4 +1,6 @@
+#if !defined(PPLATFORM_HEADER_ONLY)
 #include "pplatform.h"
+#endif
 
 #if defined(PSTD_WINDOWS)
 #include <Windows.h>
@@ -9,7 +11,6 @@
 #elif defined(__APPLE__)
 #error support for mac has to been implemented
 #endif
-
 
 pHandle *pNullHandle(void) {
 #if defined(PSTD_WINDOWS)

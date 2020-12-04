@@ -419,7 +419,7 @@ u32 pVBPrintf(GenericStream *stream, char *restrict fmt, va_list list) {
                 case 'a': case 'A':
                 case 'g': case 'G': tmp = pHandleFloat(pinfo, jinfo); break;
 
-
+                case 'u':
                 case 'x': case 'X':
                 case 'i': case 'd':  tmp = pHandleInt(pinfo, jinfo, *fmt_next); break;
                 case 'p': tmp = pHandlePointer(pinfo, jinfo); break;
@@ -937,7 +937,7 @@ pPrintfInfo pHandleSignedInt(pPrintfInfo info, pFormattingSpecification spec, s6
 
     count = pSignedDecimalToString(buf, num);
     char *printbuf = buf;
-    if (num > 0 && !always_print_sign) { printbuf++; count--; }
+    if (num && num > 0 && !always_print_sign) { printbuf++; count--; }
     info.count += PrintJustified(info.stream, spec, pString( (u8 *)printbuf, count ));
     return info;
 }
@@ -1094,7 +1094,7 @@ u32 GetUnicodeLength(const char *chr) {
 
 
 
-#include "table.c"
+#include "table.c" //NOLINT
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //                            ||                                   ||                            //
@@ -1104,15 +1104,22 @@ u32 GetUnicodeLength(const char *chr) {
 //                            ||                                   ||                            //
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-u32 pSignedIntToString(char *buf, s64 num, u32 radix, const char radixarray[], const char (*pow2array)[2], const char (*pow3array)[3]) {
-    if (num < 0) {
-        *buf++ = '-';
-        num = llabs(num);
-    } else *buf++ = '+';
-    return pUnsignedIntToString(buf, (u64)num, radix, radixarray, pow2array, pow3array) + 1; 
+u32 pSignedIntToString(char *buf, s64 num, u32 radix, 
+        const char radixarray[], const char (*pow2array)[2], const char (*pow3array)[3]) 
+{
+    if (num) {
+        if (num < 0) {
+            *buf++ = '-';
+            num = llabs(num);
+        } else *buf++ = '+';
+    }
+    return pUnsignedIntToString(buf, (u64)num, radix, radixarray, pow2array, pow3array) 
+        + ( num ? 1 : 0 ); 
 }
 
-u32 pUnsignedIntToString(char *buf, u64 num, u32 radix, const char radixarray[], const char (*pow2array)[2], const char (*pow3array)[3])  {
+u32 pUnsignedIntToString(char *buf, u64 num, u32 radix, 
+        const char radixarray[], const char (*pow2array)[2], const char (*pow3array)[3])
+{
     u64 pow3 = radix * radix * radix;
     u64 pow2 = radix * radix;
     u32 printnum = 0;

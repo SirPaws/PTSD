@@ -5,7 +5,6 @@
 #include "pstring.h"
 #include "dynarray.h"
 #include "pplatform.h"
-#pragma clang diagnostic ignored "-Wclass-varargs"
 
 #define CAST_STREAM(stream)                      \
     _Generic((stream),                           \
@@ -99,8 +98,7 @@ static u32 pBPrintf(GenericStream *stream, char *restrict fmt, ...) {
     va_end(list);
     return result;
 }
-#define pBPrintf(stream, fmt, ...) pBPrintf(CAST_STREAM(stream), fmt, __VA_ARGS__)
-
+#define pBPrintf(stream, fmt, ...) pBPrintf(CAST_STREAM(stream), fmt, ## __VA_ARGS__)
 
 static inline u32 pVPrintf(char *restrict fmt, va_list list ) {
     return pVBPrintf(pGetStream(), fmt, list);
