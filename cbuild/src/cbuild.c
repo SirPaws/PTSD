@@ -15,6 +15,8 @@
 
 #if defined(PSTD_WINDOWS)
 #include <direct.h>
+#else
+#include <errno.h>
 #endif
 
 struct dynString {
@@ -63,8 +65,8 @@ void buildFree(BuildContext *ctx) {
 
 void buildSetDefaults(BuildContext *ctx) {
 #define initArray(array, count) \
-    array.endofstorage = sizeof(char*) * (count);\
-    array.data = calloc(array.endofstorage, 1)\
+    (array).endofstorage = sizeof(char*) * (count);\
+    (array).data = calloc((array).endofstorage, 1)\
 
     initArray(ctx->flags, 10);
     initArray(ctx->includes, 10);
@@ -73,8 +75,8 @@ void buildSetDefaults(BuildContext *ctx) {
     initArray(ctx->files, 50);
 #undef initArray
 
-    ctx->int_dir = ".\\bin\\int";
-    ctx->out_dir = ".\\bin";
+    ctx->int_dir = "./bin/int";
+    ctx->out_dir = "./bin";
     ctx->working_dir = ".";
     ctx->out_name = "out";
 }
@@ -130,7 +132,12 @@ void constructCompileCommands(BuildContext *ctx) {
 
     pHandle *compile_commands = pFileCreate((char*)"compile_commands.json", 
             P_READ_ACCESS|P_WRITE_ACCESS);
-    char buf[4096];
+
+#if defined(PSTD_WINDOW)
+    char buf[MAX_PATH_LEN];
+#else
+    char *buf = NULL;
+#endif
     char *filepart = NULL;
 
 #define createString(str) ((String){ .length = sizeof(str) - 1, (u8*)str }) 
@@ -139,15 +146,20 @@ void constructCompileCommands(BuildContext *ctx) {
 
     char **last_file = ctx->files.data + ctx->files.size - 1;
     pForEach(&ctx->files) {
+#if defined(PSTD_WINDOWS)
         GetFullPathName(*it, 4096, buf, NULL);
+#else
+        buf = realpath(*it, NULL);
+#endif
         String fullpath = {
             .length = strlen(buf),
         };
         fullpath.c_str = malloc(fullpath.length + 1);
         memcpy(fullpath.c_str, buf, fullpath.length);
 
-
-
+#if !defined(PSTD_WINDOWS)
+        free(buf);
+#endif
 
         maybeConvertBackslash(fullpath);
         usize len = strlen(*it);
@@ -355,7 +367,11 @@ void handlePreviousDir(u8 **pos) {
     *pos = begin;
 }
 
-
+#if defined(PSTD_WINDOWS)
+#define mkdir _mkdir
+#else
+#define mkdir(path) mkdir((path), 0777);
+#endif
 
 bool makeDirectoryRecursive(String path) {
     u8 *buf = malloc(path.length + 1);
@@ -377,7 +393,7 @@ bool makeDirectoryRecursive(String path) {
 
         char tmp = buf[end - path_begin];
         buf[end - path_begin] = '\0';
-        _mkdir((char*)buf);
+        mkdir((char*)buf);
         if (errno == ENOENT) {
             return false;
         }
@@ -406,6 +422,7 @@ u8 *getFileExtensionAndName(u8 *path, usize length, u8 **extension) {
     else return file + 1;
 }
 
+
 void execute(BuildContext *ctx) {
 
     String intermediate = {
@@ -418,7 +435,11 @@ void execute(BuildContext *ctx) {
         .c_str  = (u8*)ctx->out_dir
     };
 
+#if defined(PSTD_WINDOWS)
     SetCurrentDirectory(ctx->working_dir);
+#else
+    chdir(ctx->working_dir);
+#endif
     if (!makeDirectoryRecursive(intermediate)) {
         puts("could not create intermediate directory");
         exit(-1);

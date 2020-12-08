@@ -29,7 +29,7 @@ typedef enum bool { false, true } bool;
 typedef struct String String;
 struct String { usize length; u8 *c_str; };
 
-#define countof(array) sizeof(array)/sizeof((array)[0])
+#define countof(array) (sizeof(array)/sizeof((array)[0]))
 #if __STDC_VERSION__ == 202000L  // this will probably break
 #define CBUILD_MAYBE_UNUSED [[maybe_unused]]
 #else

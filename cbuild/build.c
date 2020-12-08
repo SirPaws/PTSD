@@ -27,7 +27,8 @@ char *cargs[] = {
     "-Wextra",
     "-Wno-gnu-binary-literal",
     "-std=gnu2x",
-    "-fno-ms-compatibility"
+    "-fno-ms-compatibility",
+    "-fdeclspec",
 }; 
 
 int main(void) {

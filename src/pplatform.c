@@ -138,7 +138,7 @@ bool pSeek(pHandle *handle, isize size, enum pSeekMode mode) {
     DWORD result = SetFilePointer(handle, size, 0, wmode);
     return result != INVALID_SET_FILE_POINTER;
 #else
-    DWORD wmode;
+    u32 wmode;
     switch (mode) {
     case P_SEEK_SET: wmode = SEEK_SET; break;
     case P_SEEK_END: wmode = SEEK_END; break;
