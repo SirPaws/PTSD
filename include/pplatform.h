@@ -86,6 +86,10 @@ enum pSeekMode {
 
 bool pSeek(pHandle *, isize size, enum pSeekMode mode);
 
+// if the system supports colored output we enable it
+// if it doesn't this function will do nothing
+bool pEnableConsoleColorOutput(void);
+
 #endif // PPLATFORM_HEADER
 
 #ifdef PPLATFORM_HEADER_ONLY

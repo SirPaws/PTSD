@@ -38,7 +38,7 @@
         typedef struct String String;
         struct String { usize length; u8 *c_str; };
 
-#       if !defined(PPLATFORM_NO_BOOL)
+#       if !defined(DYNARRAY_NO_BOOL)
             typedef enum bool { false, true } bool;
 #       endif
 #   endif 

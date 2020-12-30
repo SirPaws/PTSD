@@ -20,6 +20,13 @@ pHandle *pNullHandle(void) {
 #endif
 }
 
+bool pEnableConsoleColorOutput(void) {
+#if defined(PSTD_WINDOWS)
+    BOOL result = SetConsoleMode(GetModuleHandle(NULL), ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+    return result != 0;
+#else
+#endif
+}
 
 pHandle *pGetSTDOutHandle(void) {
 #if defined(PSTD_WINDOWS)

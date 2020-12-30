@@ -133,7 +133,7 @@ void constructCompileCommands(BuildContext *ctx) {
     pHandle *compile_commands = pFileCreate((char*)"compile_commands.json", 
             P_READ_ACCESS|P_WRITE_ACCESS);
 
-#if defined(PSTD_WINDOW)
+#if defined(PSTD_WINDOWS)
     char buf[MAX_PATH_LEN];
 #else
     char *buf = NULL;
