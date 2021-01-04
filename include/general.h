@@ -29,6 +29,10 @@
 #warning this has been written with support for linux and windows! It might not work on mac
 #endif
 
+#if defined(_MSC_FULL_VER) && !defined(__clang__)
+#error MVSC COMPILER NOT SUPPORTED!
+#endif
+
 
 #if _WIN32 || _WIN64
 #   if _WIN64

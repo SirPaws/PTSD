@@ -63,6 +63,10 @@
 #   endif
 #endif
 
+#if defined(_MSC_FULL_VER) && !defined(__clang__)
+#error MVSC COMPILER NOT SUPPORTED!
+#endif
+
 
 
 #ifndef P_STRECHY_BUFFER_GROWTH_COUNT
@@ -138,7 +142,7 @@
     usize pInsert_size = pSizeof( value );                                                      \
     usize pInsert_offset = (position) - pBegin(array);                                          \
     __typeof(value) *pInsert_result = NULL;                                                     \
-    if (pInsert_offset >= pInsert_array->size) {}                                               \
+    if (pInsert_array->size && pInsert_offset >= pInsert_array->size) {}                        \
     else {                                                                                      \
         pMaybeGrowStrechyBuffer(&(array), pInsert_size);                                        \
         /* first we extract all elements after the place where we want                        */\
@@ -152,12 +156,15 @@
         /* then we insert the value                                                           */\
         /* [1, 6, 2, 3, 4]                                                                    */\
         usize pInsert_elems = pInsert_array->size - pInsert_offset;                             \
-        void *pInsert_tmp = pAllocateBuffer(pInsert_size * pInsert_elems);                      \
-        memcpy(pInsert_tmp, (array) + pInsert_offset,                                           \
-                pInsert_elems * pInsert_size);                                                  \
-        memcpy((array) + pInsert_offset + 1, pInsert_tmp,                                       \
-                pInsert_elems * pInsert_size);                                                  \
-        pFreeBuffer(pInsert_tmp);                                                               \
+        if (pInsert_elems) {                                                                    \
+            void *pInsert_tmp = pAllocateBuffer(pInsert_size * pInsert_elems);                  \
+            memmove((array) + pInsert_offset + 1, (array) + pInsert_offset, pInsert_elems * pInsert_size);                    \
+            /* memcpy(pInsert_tmp, (array) + pInsert_offset, */        \
+            /*         pInsert_elems * pInsert_size);                                      */        \
+            /* memcpy((array) + pInsert_offset + 1, pInsert_tmp,                           */        \
+            /*         pInsert_elems * pInsert_size);                                      */        \
+            /* pFreeBuffer(pInsert_tmp);                                                   */        \
+        }                                                                                       \
                                                                                                 \
         pInsert_array->size++;                                                                  \
         (array)[pInsert_offset] = value;                                                        \

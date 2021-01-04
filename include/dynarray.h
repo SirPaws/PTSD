@@ -60,6 +60,10 @@
 #   endif
 #endif
 
+#if defined(_MSC_FULL_VER) && !defined(__clang__)
+#error MVSC COMPILER NOT SUPPORTED!
+#endif
+
 
 
 #ifndef P_DYNARRAY_GROWTH_COUNT
