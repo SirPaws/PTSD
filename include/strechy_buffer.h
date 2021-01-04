@@ -2,7 +2,7 @@
 #ifndef PSTD_STRECHY_BUFFER_HEADER
 
 #if !(defined(_MSC_FULL_VER) && !defined(__clang__)) // not an msvc compiler
-#define GNU_COMPAT
+#define PSTD_GNU_COMPATIBLE
 #else
 #define PSTD_MSVC
 #endif
@@ -61,7 +61,7 @@ typedef enum bool{ false, true } bool;
 #   ifndef pFreeBuffer
 #      define pFreeBuffer free
 #   endif
-#   if defined(GNU_COMPAT)
+#   if defined(PSTD_GNU_COMPATIBLE)
 #   ifndef pZeroAllocateBuffer
 #       define pZeroAllocateBuffer(size) ({                 \
             void *pZeroAllocateBuffer_tmp = malloc(size);   \
@@ -83,7 +83,7 @@ typedef enum bool{ false, true } bool;
 #define P_STRECHY_BUFFER_GROWTH_COUNT 2
 #endif
 
-#if !(defined(_MSC_FULL_VER) && !defined(__clang__)) // not an msvc compiler
+#if defined(PSTD_GNU_COMPATIBLE) // not an msvc compiler
 
 #define pSizeof(value) (sizeof(__typeof(value)))
 
