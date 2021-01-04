@@ -3,7 +3,12 @@
 #define PSTD_PIO_HEADER
 
 #include "pstring.h"
-#include "dynarray.h"
+#define pCreateDynArray(name, datatype) \
+    struct name {                       \
+        usize endofstorage;             \
+        usize size;                     \
+        __typeof(datatype) *data;       \
+    }
 #include "pplatform.h"
 
 #define CAST_STREAM(stream)                      \

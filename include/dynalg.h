@@ -1,5 +1,4 @@
 #pragma once
-#include "dynarray.h"
 #include "pmacroutil.h"
 
 #define pForEach(array, ...)     pForEach_(array, ## __VA_ARGS__)(array, ## __VA_ARGS__)

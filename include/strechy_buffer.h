@@ -69,15 +69,25 @@
 #define P_STRECHY_BUFFER_GROWTH_COUNT 2
 #endif
 
-#define pGetMeta(array) ({                                                                      \
-            StrechyBufferMeta *pGetMeta_meta = pGetArrayMetaData((array), sizeof((array)[0]));  \
-            (array) = (void*)(pGetMeta_meta + 1);                                               \
-            pGetMeta_meta;                                                                      \
+#define pSizeof(value) (sizeof(__typeof(value)))
+
+#define pGetMeta(array) ({                                              \
+            StrechyBufferMeta *pGetMeta_meta =                          \
+                pGetArrayMetaData((array), pSizeof((array)[0]), false); \
+            (array) = (void*)(pGetMeta_meta + 1);                       \
+            pGetMeta_meta;                                              \
         })
+
+#define pGetMetaOrCreate(array) ({                                  \
+            StrechyBufferMeta *pGetMeta_meta =                      \
+            pGetArrayMetaData((array), pSizeof((array)[0]), true);  \
+            (array) = (void*)(pGetMeta_meta + 1);                   \
+            pGetMeta_meta;                                          \
+        })
+
 #define pSize(array)   (pGetMeta(array)->size) 
 #define pLength(array) (pGetMeta(array)->size)
 #define pLen(array)    (pGetMeta(array)->size)
-#define pSizeof(value) (sizeof(__typeof(value)))
 
 #define pFreeStrechyBuffer(array) pFreeBuffer(pGetMeta(array))
 #define pSetCapacity(array, count) ({                                               \
@@ -87,7 +97,7 @@
         pSetCapacity_meta->endofstorage = (pSizeof((array)[0]) * (count));          \
         (array) = (void*)(pSetCapacity_meta + 1);                                   \
     } else {                                                                        \
-        __auto_type pSetCapacity_meta = pGetMeta(array);                   \
+        __auto_type pSetCapacity_meta = pGetMeta(array);                            \
         void *pSetCapacity_tmp = pReallocateBuffer(pSetCapacity_meta,               \
                 (pSizeof((array)[0]) * (count)) + sizeof(StrechyBufferMeta));       \
         pSetCapacity_meta = pSetCapacity_tmp;                                       \
@@ -104,7 +114,7 @@
 #define pReserve    pSetCapacity
 
 #define pPushBack(array, value) ({                                 \
-    pGetMeta(array);                                               \
+    pGetMetaOrCreate(array);                                       \
     pMaybeGrowStrechyBuffer(&(array), pSizeof((array)[0]));        \
     __auto_type pPushBack_ret = (array) + pSize(array)++;          \
     *pPushBack_ret = (value);                                      \
@@ -112,8 +122,8 @@
 })
 
 #define pPushBytes(array, value, bytes) ({                          \
-    __auto_type pPushBytes_array = pGetMeta(array);        \
-    pMaybeByteGrowStrechyBuffer(&(array), (bytes)); \
+    __auto_type pPushBytes_array = pGetMetaOrCreate(array);         \
+    pMaybeByteGrowStrechyBuffer(&(array), (bytes));                 \
     memcpy((array) + (array)->size, (value), (bytes));              \
     __auto_type pPushBack_ret = (array) + ((array)->size);          \
     (array)->size += (bytes);                                       \
@@ -124,13 +134,13 @@
 #define pEnd(array) ({ (array) + pSize(array); })
 
 #define pInsert(array, position, value) ({                                                      \
-    __auto_type pInsert_array = pGetMeta(array);                                       \
+    __auto_type pInsert_array = pGetMetaOrCreate(array);                                        \
     usize pInsert_size = pSizeof( value );                                                      \
     usize pInsert_offset = (position) - pBegin(array);                                          \
     __typeof(value) *pInsert_result = NULL;                                                     \
     if (pInsert_offset >= pInsert_array->size) {}                                               \
     else {                                                                                      \
-        pMaybeGrowStrechyBuffer(&(array), pInsert_size);                                   \
+        pMaybeGrowStrechyBuffer(&(array), pInsert_size);                                        \
         /* first we extract all elements after the place where we want                        */\
         /* to insert and then we shift them one element forward                               */\
         /* here is an example we wan't to insert 6 at the place pointed to below              */\
@@ -189,25 +199,24 @@
 
 // arr:  another dynamic array
 #define pCopyStrechyBuffer(arr) ({\
-    __auto_type pCopyStrechyBuffer_array  = pGetMeta(array);                             \
-    usize pCopyStrechyBuffer_size = pSizeof((arr)[0]) * pCopyStrechyBuffer_array->size;           \
-    StrechyBufferMeta *pCopyStrechyBuffer_copy =                                                  \
-        pAllocateBuffer(sizeof(StrechyBufferMeta) * pCopyStrechyBuffer_size)                      \
-    pCopyStrechyBuffer_copy->endofstorage = pCopyStrechyBuffer_size;                              \
-    pCopyStrechyBuffer_copy->size = pCopyStrechyBuffer_array->size;                               \
-    memcpy((arr), pCopyStrechyBuffer_array + 1, pCopyStrechyBuffer_size;\
-    (__typeof((arr)[0])*)( pCopyStrechyBuffer_copy + 1);                                          \
+    __auto_type pCopyStrechyBuffer_array  = pGetMeta(array);                            \
+    usize pCopyStrechyBuffer_size = pSizeof((arr)[0]) * pCopyStrechyBuffer_array->size; \
+    StrechyBufferMeta *pCopyStrechyBuffer_copy =                                        \
+        pAllocateBuffer(sizeof(StrechyBufferMeta) * pCopyStrechyBuffer_size)            \
+    pCopyStrechyBuffer_copy->endofstorage = pCopyStrechyBuffer_size;                    \
+    pCopyStrechyBuffer_copy->size = pCopyStrechyBuffer_array->size;                     \
+    memcpy((arr), pCopyStrechyBuffer_array + 1, pCopyStrechyBuffer_size;                \
+    (__typeof((arr)[0])*)( pCopyStrechyBuffer_copy + 1);                                \
 })
 
 // type: the type of array we want
 // arr:  a static array
-#define pCopyArray(type, arr) ({                                                        \
-    StrechyBufferMeta *pCopyArray_tmp =                                                 \
-        pAllocateBuffer(sizeof(StrechyBufferMeta) + sizeof(arr) );                      \
-    memcpy(pCopyArray_tmp->data, (arr), sizeof(arr));                                   \
-    pCopyArray_tmp->size = countof(arr);                                                \
-    pCopyArray_tmp->endofstorage = sizeof(arr);                                         \
-    (type*)pCopyArray_tmp->data;                                                        \
+#define pCopyArray(type, arr) ({                    \
+    type pCopyArray_tmp = NULL;                     \
+    pReserve(pCopyArray_tmp, countof(arr));         \
+    memcpy(pCopyArray_tmp, (arr), sizeof(arr));     \
+    pGetMeta(pCopyArray_tmp)->size = countof(arr);  \
+    pCopyArray_tmp;                                 \
 })
 
 
@@ -266,9 +275,13 @@ static void pStrechyBufferGrow(void *array_ptr, usize datasize, usize count) {
     meta->endofstorage += datasize * count;
     *(u8**)array_ptr = (void*)(meta + 1); 
 }
-
-StrechyBufferMeta *pGetArrayMetaData(void *array, usize data_size) {
+StrechyBufferMeta *pGetArrayMetaData(void *array, usize data_size, bool create) {
     if (!array) {
+        if (!create){ // should probably just return NULL
+            static StrechyBufferMeta nil = {0};
+            nil = (StrechyBufferMeta){0};
+            return &nil;
+        }
         StrechyBufferMeta *meta = pZeroAllocateBuffer(sizeof(StrechyBufferMeta) + data_size);
         meta->endofstorage = data_size;
         meta->size = 0;
@@ -277,4 +290,12 @@ StrechyBufferMeta *pGetArrayMetaData(void *array, usize data_size) {
 
     return ((StrechyBufferMeta*)array) - 1;
 }
+
+#if !defined(NDEBUG)
+StrechyBufferMeta *_debug_GetMeta(void *array) { //NOLINT
+    StrechyBufferMeta *address = array;
+    return address - 1;
+}
+#endif
+
 #endif // PSTD_STRECHY_BUFFER_HEADER

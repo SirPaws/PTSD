@@ -11,3 +11,4 @@ tags
 *.o
 bin/**
 compile_commands.json
+*.lib
