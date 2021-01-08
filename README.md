@@ -19,7 +19,7 @@ llvm-lib /OUT:cbuild.lib cbuild.o
 
 ```bash
 # build script (if cd is project root)
-clang -Lcbuild -Icbuild .\cbuild\build.c -O build.exe
+clang -Lcbuild -Icbuild .\cbuild\build.c -o build.exe -lcbuild
 build.exe
 ```
 ### Linux
@@ -33,6 +33,6 @@ ar -cr libcbuild.a cbuild.o
 
 ```bash
 # build script (if cd is project root)
-clang -Lcbuild -Icbuild ./cbuild/build.c -O build
+clang -Lcbuild -Icbuild ./cbuild/build.c -o build -lcbuild
 ./build
 ```
