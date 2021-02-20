@@ -20,9 +20,9 @@ pHandle *pNullHandle(void) {
 #endif
 }
 
-bool pEnableConsoleColorOutput(void) {
+pBool pEnableConsoleColorOutput(void) {
 #if defined(PSTD_WINDOWS)
-    BOOL result = SetConsoleMode(GetModuleHandle(NULL), ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+    pBool result = SetConsoleMode(GetModuleHandle(NULL), ENABLE_VIRTUAL_TERMINAL_PROCESSING);
     return result != 0;
 #else
 #endif
@@ -111,7 +111,7 @@ void pFileClose(pHandle *handle) {
 #endif
 }
 
-bool pFileWrite(pHandle *handle, String buf) {
+pBool pFileWrite(pHandle *handle, String buf) {
 #if defined(PSTD_WINDOWS)
     return WriteFile(handle, buf.c_str, (u32)buf.length, NULL, NULL);
 #else
@@ -120,7 +120,7 @@ bool pFileWrite(pHandle *handle, String buf) {
 #endif
 }
 
-bool pFileRead(pHandle *handle, String buf) {
+pBool pFileRead(pHandle *handle, String buf) {
 #if defined(PSTD_WINDOWS)
     DWORD bytes_read = 0;
     ReadFile(handle, buf.c_str, buf.length, &bytes_read, NULL);
@@ -131,7 +131,7 @@ bool pFileRead(pHandle *handle, String buf) {
 #endif
 }
 
-bool pSeek(pHandle *handle, isize size, enum pSeekMode mode) {
+pBool pSeek(pHandle *handle, isize size, enum pSeekMode mode) {
 #if defined(PSTD_WINDOWS)
     
     DWORD wmode;

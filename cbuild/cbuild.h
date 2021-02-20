@@ -2,41 +2,169 @@
 #ifndef CBUILD_HEADER
 #define CBUILD
 
-#ifndef NO_DEFINE_TYPES
-#include <stddef.h>
+#include <stdlib.h>
+#include <string.h>
+
+#if defined(_WIN32) || defined(_WIN64)
+#    define CBUILD_WINDOWS
+#elif defined(__linux__) || defined(__unix__)
+#    define CBUILD_LINUX
+#elif defined(__APPLE__)
+#    define CBUILD_MACOS
+#else
+#   error platform not supported
+#endif
+
+#if !(defined(_MSC_FULL_VER) && !defined(__clang__)) // not an msvc compiler
+#define CBUILD_GNU_COMPATIBLE
+#else
+#define CBUILD_MSVC
+#define __builtin_expect(a, b) (a)
+#endif
+
+
+#if defined(__STDC_VERSION__)
+#   if __STDC_VERSION__ == 199901
+#      define CBUILD_C99 1
+#      define CBUILD_C89 1
+#   elif __STDC_VERSION__ == 201112
+#      define CBUILD_C11 1
+#      define CBUILD_C99 1
+#      define CBUILD_C89 1
+#   elif __STDC_VERSION__ == 201710
+#      define CBUILD_C18 1
+#      define CBUILD_C17 1
+#      define CBUILD_C11 1
+#      define CBUILD_C99 1
+#      define CBUILD_C89 1
+#   endif
+#elif defined(__STDC__)
+#       define CBUILD_C89 1
+#endif
+
+#if defined(__cplusplus) && !defined(CBUILD_I_KNOW_WHAT_IM_DOING)
+#if defined(CBUILD_MSVC)
+#pragma message pstd was written with c in mind so c++ might not work as intended. Please run your compiler in c mode
+#else
+#   warning pstd was written with c in mind so c++ might not work as intended. Please run your compiler in c mode
+#endif
+#endif
+
+#if defined(__STDC_NO_VLA__)
+#   define CBUILD_HAS_VLA 0
+#elif CBUILD_C11 && !defined(CBUILD_MSVC)
+#   define CBUILD_HAS_VLA 1
+#endif
+
+
+#if defined(__has_c_attribute)
+#   define CBUILD_HAS_ATTRIBUTE __has_c_attribute
+#   if __STDC_VERSION__ >= 201710 
+#       define CBUILD_C23 1
+#   endif 
+#else
+#   define CBUILD_HAS_ATTRIBUTE(x) 0
+#endif
+
+
+#if CBUILD_HAS_ATTRIBUTE(maybe_unused)
+#define CBUILD_UNUSED [[maybe_unused]]
+#elif defined(CBUILD_GNU_COMPATIBLE)
+#define CBUILD_UNUSED __attribute__((unused))
+#else
+#define CBUILD_UNUSED
+#endif
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <assert.h>
+
 #include <stdint.h>
+#include <stdlib.h>
 
-typedef int8_t  s8;
-typedef int16_t s16;
-typedef int32_t s32;
-typedef int64_t s64;
+#if _WIN32 || _WIN64
+    #if _WIN64
+        #define CBUILD_64
+    #else
+        #define CBUILD_32
+    #endif
+#elif __GNUC__
+    #if __x86_64__ || __ppc64__
+        #define CBUILD_64
+    #else
+        #define CBUILD_32
+    #endif
+#elif UINTPTR_MAX > UINT_MAX
+    #define CBUILD_64
+#else
+    #define CBUILD_32
+#endif
 
-typedef uint8_t  u8;
-typedef uint16_t u16;
-typedef uint32_t u32;
-typedef uint64_t u64;
+#ifndef countof
+#define countof(x) ((sizeof(x))/(sizeof((x)[0])))
+#endif 
 
-typedef float       f32;
-typedef double      f64;
+typedef int8_t    i8;
+typedef int16_t   i16;
+typedef int32_t   i32;
+typedef int64_t   i64;
+
+typedef int8_t    s8;
+typedef int16_t   s16;
+typedef int32_t   s32;
+typedef int64_t   s64;
+
+typedef uint8_t   u8;
+typedef uint16_t  u16;
+typedef uint32_t  u32;
+typedef uint64_t  u64;
 
 typedef ptrdiff_t isize;
+typedef ptrdiff_t ssize;
+
 typedef size_t    usize;
 
-#if !defined(NO_BOOL)
-typedef enum bool { false, true } bool;
+typedef float     f32;
+typedef double    f64;
+
+#if !defined(__cplusplus)
+typedef enum { false, true } pBool;
+#else
+enum pBool { pFalse, pTrue };
+#endif
+
+#ifndef pReallocateBuffer
+#    define pReallocateBuffer realloc
+#endif
+#ifndef pAllocateBuffer
+#   define pAllocateBuffer malloc
+#endif
+#ifndef pFreeBuffer
+#   define pFreeBuffer free
+#endif
+#if defined(CBUILD_GNU_COMPATIBLE)
+#ifndef pZeroAllocateBuffer
+#define pZeroAllocateBuffer(size) ({                \
+    void *pZeroAllocateBuffer_tmp = malloc(size);   \
+    memset(pZeroAllocateBuffer_tmp, 0, (size));     \
+    pZeroAllocateBuffer_tmp;                        \
+})
+#endif
+#else
+    static void* pZeroAllocateBuffer(usize size) {
+        void* pZeroAllocateBuffer_tmp = pAllocateBuffer(size);
+        assert(pZeroAllocateBuffer_tmp);
+        memset(pZeroAllocateBuffer_tmp, 0, (size));
+        return pZeroAllocateBuffer_tmp;
+    }
 #endif
 
 typedef struct String String;
-struct String { usize length; u8 *c_str; };
-
-#define countof(array) (sizeof(array)/sizeof((array)[0]))
-#if __STDC_VERSION__ == 202000L  // this will probably break
-#define CBUILD_MAYBE_UNUSED [[maybe_unused]]
-#else
-#define CBUILD_MAYBE_UNUSED __attribute__((unused))
-#endif
-
-#endif
+struct String {
+    usize length;
+	u8 *c_str;
+};
 
 enum BuildType {
     BUILD_NONE, 
@@ -72,6 +200,8 @@ enum BuildMode {
     MODE_RELEASE_WITH_DEBUG,
 };
 
+typedef char **StrechyCharBuffer;
+
 typedef struct BuildContext BuildContext;
 struct BuildContext {
     enum BuildType type; // DEFAULT: BUILD_NONE
@@ -80,11 +210,7 @@ struct BuildContext {
     char *int_dir;       // DEFAULT: .\bin\int
     char *out_dir;       // DEFAULT: .\bin
     char *out_name;      // DEFAULT: out
-    struct {
-        usize endofstorage;
-        usize size;
-        char **data;
-    } flags, includes, lib_dirs, libs, files;
+    StrechyCharBuffer flags, includes, lib_dirs, libs, files;
     // all these array are initialized to a number of elements
     // flags:       10 elements
     // includes:    10 elements 

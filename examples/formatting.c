@@ -1,5 +1,4 @@
 #include "pio.h"
-#include "allocator.h"
 #include "util.h"
 #include <stdlib.h>
 #include <stdio.h>
@@ -8,7 +7,7 @@ pPrintfInfo callback(pPrintfInfo info) {
     int arrcount = va_arg(info.list, int);
     int *arr     = va_arg(info.list, int*);
 
-    StreamWrite(info.stream, pCreateString("[ "));
+    pStreamWrite(info.stream, pCreateString("[ "));
     info.count += 2;
 
     u8 buf[20];
@@ -18,12 +17,12 @@ pPrintfInfo callback(pPrintfInfo info) {
         u8 *printbuf = buf;
         if (arr[i] > 0) printbuf++; count--;
 
-        StreamWrite(info.stream, pString(printbuf, count));
+        pStreamWrite(info.stream, pString(printbuf, count));
         info.count += count;
         if (i != arrcount - 1)
-            StreamWrite(info.stream, pCreateString(", ")), info.count += 2;
+            pStreamWrite(info.stream, pCreateString(", ")), info.count += 2;
     }
-    StreamWrite(info.stream, pCreateString("]"));
+    pStreamWrite(info.stream, pCreateString("]"));
     info.count++;
     return info;
 }
@@ -39,7 +38,7 @@ int main(void) {
     FileStream *fstream = (void *)pInitStream(fstream_info);
     if (fstream) {
         char arr[23];
-        StreamRead(fstream, arr, 23);
+        pStreamRead(fstream, arr, 23);
         String read_from_file = pString((u8 *)arr, 23);
         pPrintf("read this from a file: {\n%S\n}\n", read_from_file);
         pFreeStream(fstream);
@@ -52,7 +51,7 @@ int main(void) {
 
         StringStream *sstream = (void *)pInitStream(sstream_info); 
         {
-            StreamWriteString(sstream, read_from_file);
+            pStreamWriteString(sstream, read_from_file);
             String sstream_string = pStreamToBufferString(sstream);
             pPrintf("string stream holds {\n%S\n}\n", sstream_string);
         }
@@ -106,14 +105,14 @@ int main(void) {
     pPrintf("\tnow we print a positive signed integer '%+i'\n", 5394);
     pPrintf("\tnow we print an unsigned integer '%u'\n", 5394);
 
+    u32 buffer_length = 0;
     char buffer[30];
 #define STRINGIFY_(a) #a
 #define STRINGIFY(a) STRINGIFY_(a)
-#define BUF_TO_STRING pString((void*)buffer, strlen(buffer))
-#define TEST_DECIMAL_TO_STRING(num) pUnsignedDecimalToString(buffer, num); \
-    assert( pStringCmp(BUF_TO_STRING, pCreateString(STRINGIFY(num))) && \
-            "TEST FAILED: " STRINGIFY(num) " was not converted correctly")
-
+#define BUF_TO_STRING pString((void*)buffer, buffer_length)
+#define TEST_DECIMAL_TO_STRING(num) buffer_length = pUnsignedDecimalToString(buffer, num); \
+    if (!pStringCmp(BUF_TO_STRING, pCreateString(#num))) \
+        pPrintf("%Cfg(174, 0, 0)expected: "#num", got: %S\n%Cc", BUF_TO_STRING);
 
     TEST_DECIMAL_TO_STRING(1020);
     TEST_DECIMAL_TO_STRING(2785);
@@ -140,10 +139,6 @@ int main(void) {
     }
 
     pPrintf("\tnow we print an unsigned long long integer '%llu'\n", 53945772LL);
-
-
-
-
     
     pPrintf("CALLBACKS:\n");
     

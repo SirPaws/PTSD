@@ -4,11 +4,11 @@
 #undef pStreamToBufferString
 #undef pVBPrintf
 #undef pBPrintf
-#undef StreamWriteString
-#undef StreamWriteChar
-#undef StreamRead
-#undef StreamReadLine
-#undef StreamMove
+#undef pStreamWriteString
+#undef pStreamWriteChar
+#undef pStreamRead
+#undef pStreamReadLine
+#undef pStreamMove
 
 #include "pplatform.h"
 #include "pstring.h"
@@ -18,10 +18,8 @@
 
 #include <math.h>
 
-#include "allocator.h"
-#include "dynarray.h"
+#include "stretchy_buffer.h"
 
-#define Break ({ break; })
 #define BASE_10 10
 #define BASE_8   8
 #define BASE_16 16
@@ -36,17 +34,17 @@ struct UserFormat {
     FormatCallback *callback;
 };
 
-typedef pCreateDynArray(AdvUserCallbacks, struct AdvancedUserFormat) AdvUserCallbacks; 
-typedef pCreateDynArray(UserCallbacks,    struct UserFormat) UserCallbacks; 
+typedef STRETCHY(struct AdvancedUserFormat) AdvUserCallbacks; 
+typedef STRETCHY(struct UserFormat) UserCallbacks; 
 
 struct BinaryStringReturn {
     u8 *buffer;
     String str;
-    bool iszero;
+    pBool iszero;
 };
 
-static AdvUserCallbacks advcallbacks;
-static UserCallbacks callbacks;
+static AdvUserCallbacks advcallbacks = NULL;
+static UserCallbacks callbacks       = NULL;
 static StdStream *StandardStream = NULL;
 static u32 default_code_page = 0;
 static GenericStream *pcurrentstream;
@@ -89,7 +87,7 @@ GenericStream *pInitStream(StreamInfo info) {
         case STANDARD_STREAM: {
                 StdStream *std = pAllocateBuffer(sizeof *std);
                 memcpy(std, StandardStream, sizeof *std);
-                std->flags = (u32)info.flags; 
+                std->flags = info.flags; 
 
                 if ((info.flags & STREAM_INPUT) == 0)
                     std->stdin_handle = pNullHandle();
@@ -99,17 +97,17 @@ GenericStream *pInitStream(StreamInfo info) {
             }
         case FILE_STREAM: {
                 pFileStat stat = pGetFileStat(info.filename);
-                bool result = stat.exists;
+                pBool result = stat.exists;
                 u64 filesize = stat.filesize;
 
                 FileStream *fstream = NULL;
-                if (result == false){
+                if (result == false) {
                     if (info.createifnonexistent) {
                         fstream = pAllocateBuffer(sizeof *fstream);
                         memset(fstream, 0, sizeof *fstream);
                         fstream->type = FILE_STREAM;
                         fstream->flags = info.flags;
-                        fstream->handle = pFileCreate(info.filename, info.flags);
+                        fstream->handle = pFileCreate(info.filename, (pFileAccess)info.flags);
                         fstream->size   = 0;
                     }
                     else return NULL;
@@ -119,7 +117,7 @@ GenericStream *pInitStream(StreamInfo info) {
                     fstream->type = FILE_STREAM;
                     fstream->flags = info.flags;
                     fstream->size  = filesize;
-                    fstream->handle = pFileOpen(info.filename, info.flags);
+                    fstream->handle = pFileOpen(info.filename, (pFileAccess)info.flags);
                 }
                 if (info.createbuffer) {
                     pStreamToBufferString((void *)fstream);
@@ -134,6 +132,7 @@ GenericStream *pInitStream(StreamInfo info) {
                 sstream->flags = info.flags; 
                 return (void *)sstream;
             }
+        case CFILE_STREAM: return NULL;
     }
     return NULL;
 }
@@ -143,10 +142,14 @@ void pFreeStream(GenericStream *stream) {
     StdStream    *stdstream;
     FileStream   *fstream;
     StringStream *sstream;
+    cFileStream  *cstream;
     stdstream = (void *)stream;
     fstream   = (void *)stream;
     sstream   = (void *)stream;
+    cstream   = (void *)stream;
     switch(stream->type) {
+        case CFILE_STREAM:
+            fclose(cstream->file);
         case STANDARD_STREAM: break;
         case FILE_STREAM:
             pFileClose(fstream->handle);
@@ -154,7 +157,7 @@ void pFreeStream(GenericStream *stream) {
                 pFreeBuffer(fstream->buffer.c_str);
             break;
         case STRING_STREAM:
-            if (sstream->buffer.data) pFreeBuffer(sstream->buffer.data);
+            if (sstream->buffer) pFreeStretchyBuffer(sstream->buffer);
     }
     pFreeBuffer(stream);
 }
@@ -164,7 +167,7 @@ String pStreamToBufferString(GenericStream *stream) {
 
     if (stream->type == STRING_STREAM) {
         StringStream *sstream = (void *)stream;
-        return pString((u8*)sstream->buffer.data, sstream->buffer.size);
+        return pString((u8*)sstream->buffer, pSize(sstream->buffer));
     } else {
         FileStream *fstream = (void *)stream; 
         if (fstream->buffer.length == 0) {
@@ -179,7 +182,7 @@ String pStreamToBufferString(GenericStream *stream) {
 
 #define expect(x, value) __builtin_expect(x, value)
 
-void StreamMove(GenericStream *stream, isize size) {
+void pStreamMove(GenericStream *stream, isize size) {
     assert(stream);
 
     if (expect(stream->type == STANDARD_STREAM, 1) || stream->type == FILE_STREAM) {
@@ -191,13 +194,14 @@ void StreamMove(GenericStream *stream, isize size) {
     } else {
         StringStream *sstream = (void *)stream;
         
-        if (sstream->cursor + size >= sstream->buffer.size)
-            sstream->cursor = sstream->buffer.size - 1;
-        else if (sstream->cursor + size < 0) sstream->cursor = 0;
+        isize location = (isize)sstream->cursor + size; 
+        if (location < 0) sstream->cursor = 0;
+        else if ((usize)location >= pSize(sstream->buffer))
+            sstream->cursor = pSize(sstream->buffer) - 1;
     }
 }
 
-void StreamRead(GenericStream *stream, void *buf, usize size) {
+void pStreamRead(GenericStream *stream, void *buf, usize size) {
     assert(stream);
     assert(stream->flags & STREAM_INPUT);
 
@@ -205,18 +209,18 @@ void StreamRead(GenericStream *stream, void *buf, usize size) {
         StdStream *stdstream = (void *)stream;
         // this should probably have a comment explaning why we do this
         pHandle *handle = stream->type == STANDARD_STREAM ? stdstream->stdin_handle : stdstream->stdout_handle;  
-        bool result = pFileRead(handle, pString(buf, size));
+        pBool result = pFileRead(handle, pString(buf, size));
         if (result == false) memset(buf, 0, size);
     } else {
         StringStream *sstream = (void *)stream;
-        if (sstream->cursor + size >= sstream->buffer.size) {
+        if (sstream->cursor + size >= pSize(sstream->buffer)) {
             memset(buf, 0, size); return;
         }
-        struct StringStreamBuffer buffer = sstream->buffer;
-        memcpy(buf, buffer.data + sstream->cursor, size);
+        STRETCHY(char) buffer = sstream->buffer;
+        memcpy(buf, buffer + sstream->cursor, size);
     }
 }
-String StreamReadLine(GenericStream *stream) {
+String pStreamReadLine(GenericStream *stream) {
     assert(stream);
     assert(stream->flags & STREAM_INPUT);
 
@@ -226,30 +230,29 @@ String StreamReadLine(GenericStream *stream) {
         pHandle *handle = stream->type == STANDARD_STREAM ? stdstream->stdin_handle : stdstream->stdout_handle;  
     
         static const usize BUFFER_SIZE = 512;
-        pCreateDynArray(, u8) line = {0};
-        line.data = pZeroAllocateBuffer(BUFFER_SIZE);
-        line.endofstorage = BUFFER_SIZE;
+        STRETCHY(u8) line = NULL;
+        pReserve(line, BUFFER_SIZE);
         u8 chr;
         while (pFileRead(handle, pString(&chr, 1))) {
            if (chr == '\n') {
-               pPushBack(&line, chr);
-               void *tmp = pReallocateBuffer(line.data, line.size);
-               line.data = (assert(tmp), tmp);
-               return pString(line.data, line.size);
+               pPushBack(line, chr);
+               void *tmp = pSetCapacity(line, pSize(line));
+               line = (assert(tmp), tmp);
+               return pString(line, pSize(line));
            }
-           pPushBack(&line, chr);
+           pPushBack(line, chr);
         }
-        if (line.size) {
-            void* tmp = pReallocateBuffer(line.data, line.size);
-            line.data = (assert(tmp), tmp);
+        if (pSize(line)) {
+            void* tmp = pSetCapacity(line, pSize(line));
+            line = (assert(tmp), tmp);
         }
-        return pString(line.data, line.size);
+        return pString(line, pSize(line));
     } else {
         StringStream *sstream = (void *)stream;
         usize begin = sstream->cursor;
         usize end   = sstream->cursor;
-        usize buf_end = sstream->buffer.size;
-        u8 *str = (u8*)sstream->buffer.data;
+        usize buf_end = pSize(sstream->buffer);
+        u8 *str = (u8*)sstream->buffer;
         while (end < buf_end) {
            if (str[end] == '\n') {
                break;
@@ -261,38 +264,50 @@ String StreamReadLine(GenericStream *stream) {
     }
 }
 
-void StreamWriteString(GenericStream *stream, String str) {
+void pStreamWriteString(GenericStream *stream, String str) {
     assert(stream);
     assert(stream->flags & STREAM_OUTPUT);
 
     if (expect(stream->type == STANDARD_STREAM, 1) || stream->type == FILE_STREAM) {
         FileStream *fstream = (FileStream *)stream;
         pFileWrite(fstream->handle, str);
+    } else if (stream->type == CFILE_STREAM) {
+        for (usize i = 0; i < str.length; i++)
+            fputc(str.c_str[i], ((cFileStream*)stream)->file);
     } else {
         StringStream *sstream = (StringStream *)stream;
-        struct StringStreamBuffer *buffer = &sstream->buffer;
+        STRETCHY(char) *buffer = &sstream->buffer;
         pPushBytes(buffer, str.c_str, str.length);
         sstream->cursor += str.length;
     }
 }
 
-void StreamWriteChar(GenericStream *stream, char chr) {
+void pStreamWriteChar(GenericStream *stream, char chr) {
     assert(stream);
     assert(stream->flags & STREAM_OUTPUT);
 
     if (expect(stream->type == STANDARD_STREAM, 1) || stream->type == FILE_STREAM) {
         FileStream *fstream = (FileStream *)stream;
         pFileWrite(fstream->handle, pString( (u8*)&chr, 1 ));
+    } else if (stream->type == CFILE_STREAM) {
+        fputc(chr, ((cFileStream*)stream)->file);
     } else {
         StringStream *sstream = (StringStream *)stream;
-        struct StringStreamBuffer *buffer = &sstream->buffer;
-        pMaybeByteGrowDynArray((DynArray*)buffer, 1);
-        *(buffer->data + sstream->cursor) = chr;
+        STRETCHY(char) buffer = sstream->buffer;
+           
+        char *position = buffer + sstream->cursor;
+        pInsert(buffer, position, chr);
+
+        *(buffer + sstream->cursor) = chr;
         sstream->cursor++;
     }
 }
 
-static bool IsCharacters(int character, u32 count, const char tests[count]){
+#if defined(PSTD_GNU_COMPATIBLE)
+static pBool IsCharacters(int character, u32 count, const char tests[count]) {
+#else
+static pBool IsCharacters(int character, u32 count, const char tests[]){
+#endif
     for (u32 i = 0; i < count; i++) {
         if (character == tests[i]) return true;
     }
@@ -301,7 +316,7 @@ static bool IsCharacters(int character, u32 count, const char tests[count]){
 
 u64 PrintJustified(GenericStream *stream, pFormattingSpecification spec, String str);
 
-void GetRGB(char *restrict* fmt, String RGB[3]);
+void GetRGB(const char *restrict* fmt, String RGB[3]);
 u32  GetUnicodeLength(const char *chr);
 
 struct BinaryStringReturn MakeBinaryString(u64 bitcount, u64 num);
@@ -336,8 +351,8 @@ pPrintfInfo pHandleHash(pPrintfInfo info, pFormattingSpecification spec);
 pPrintfInfo pHandleDot(pPrintfInfo info, pFormattingSpecification spec);
 pPrintfInfo pHandleNumber(pPrintfInfo info, pFormattingSpecification spec);
 
-pPrintfInfo pHandleChar(pPrintfInfo info,   bool wide);
-pPrintfInfo pHandleString(pPrintfInfo info, pFormattingSpecification spec, bool cstr);
+pPrintfInfo pHandleChar(pPrintfInfo info,   pBool wide);
+pPrintfInfo pHandleString(pPrintfInfo info, pFormattingSpecification spec, pBool cstr);
 pPrintfInfo pHandleInt(pPrintfInfo info, pFormattingSpecification spec, char printtype);
 pPrintfInfo pHandleFloat(pPrintfInfo info, pFormattingSpecification spec);
 pPrintfInfo pHandlePointer(pPrintfInfo info, pFormattingSpecification spec);
@@ -350,26 +365,26 @@ pPrintfInfo pHandleBackgroundColor(pPrintfInfo info);
 pPrintfInfo pHandleForegroundColor(pPrintfInfo info);
 pPrintfInfo pHandleColorClear(pPrintfInfo info);
 
-u32 pVBPrintf(GenericStream *stream, char *restrict fmt, va_list list) {
+u32 pVBPrintf(GenericStream *stream, const char *restrict fmt, va_list list) {
     u32 printcount = 0;
 
     while(*fmt) {
         if (expect(*fmt != '%', 1)) {
-            char *restrict fmt_next = fmt;
+            const char *restrict fmt_next = fmt;
             while (IsCharacters(*fmt_next, 2, (char[2]){ '%', '\0'}) == false) fmt_next++;
-            StreamWrite(stream, pString( (u8 *)fmt, (usize)(fmt_next - fmt)));
+            pStreamWriteString(stream, pString( (u8 *)fmt, (usize)(fmt_next - fmt)));
             printcount += fmt_next - fmt;
             fmt = fmt_next;
         }
         else {
-            bool failed = false;
+            pBool failed = false;
             struct pFormattingSpecification jinfo = {
                 .right_justified = false,
                 .justification_count = 0,
                 .prefix_zero = false,
                 .length = PFL_DEFAULT,
             };
-            char* restrict fmt_next = fmt + 1;
+            const char* restrict fmt_next = fmt + 1;
             pPrintfInfo pinfo = {
                 .stream = stream,
                 .fmt = fmt_next,
@@ -380,16 +395,17 @@ u32 pVBPrintf(GenericStream *stream, char *restrict fmt, va_list list) {
 
 #define SetBitCount(n, increment) bitcount = n; bitcountset = true; fmt_next += increment
             pPrintfInfo tmp;
-            bool found_format = false;
-            for (usize i = 0; i < callbacks.size; i++) {
-                if (*fmt_next == callbacks.data[i].format.c_str[0]) {
+            pBool found_format = false;
+            for (usize i = 0; i < pSize(callbacks); i++) {
+                if ((u8)*fmt_next == callbacks[i].format.c_str[0]) {
                     found_format = true;
-                    String format = callbacks.data[i].format;
+                    String format = callbacks[i].format;
                     for (usize j = 1; j < format.length; j++)
-                        if (format.c_str[j] != fmt_next[j]) found_format = false, Break;
+                        if (format.c_str[j] != (u8)fmt_next[j]) { found_format = false; break; }
 
-                    if (found_format)
-                        tmp = callbacks.data[i].callback(pinfo), Break;
+                    if (found_format) {
+                        tmp = callbacks[i].callback(pinfo); break;
+                    }
                 }
             }
             if (!found_format) {
@@ -426,9 +442,9 @@ u32 pVBPrintf(GenericStream *stream, char *restrict fmt, va_list list) {
                 case 'b': tmp = pHandleBinary(pinfo, jinfo); break;
                 case 'c': tmp = pHandleChar(pinfo, false);   break;
                 case 'C': {
-                        if (memcmp(fmt_next, "Cc", 2) == 0)       tmp = pHandleColorClear(pinfo), Break;
-                        else if (memcmp(fmt_next, "Cbg", 3) == 0) tmp = pHandleBackgroundColor(pinfo), Break;
-                        else if (memcmp(fmt_next, "Cfg", 3) == 0) tmp = pHandleForegroundColor(pinfo), Break;
+                        if (memcmp(fmt_next, "Cc", 2) == 0)      { tmp = pHandleColorClear(pinfo); break; }
+                        else if (memcmp(fmt_next, "Cbg", 3) == 0){ tmp = pHandleBackgroundColor(pinfo); break; }
+                        else if (memcmp(fmt_next, "Cfg", 3) == 0){ tmp = pHandleForegroundColor(pinfo); break; }
                     }
                 default: {
                         tmp = pinfo;
@@ -437,7 +453,7 @@ u32 pVBPrintf(GenericStream *stream, char *restrict fmt, va_list list) {
                 }
             }
             if (failed) {
-                StreamWrite(stream, pString((u8*)fmt, tmp.fmt - fmt));
+                pStreamWriteString(stream, pString((u8*)fmt, tmp.fmt - fmt));
                 fmt = tmp.fmt + 1;
             }
             fmt = tmp.fmt + 1;
@@ -463,32 +479,32 @@ u64 PrintJustified(GenericStream *stream, pFormattingSpecification spec, String 
         if (zero_count  > 0)  memset(zeros,  '0', zero_count);
 
         if (expect(!spec.right_justified, 1)) {
-            if (space_count > 0) StreamWrite(stream, pString( spaces, space_count ));
-            if (zero_count > 0)  StreamWrite(stream, pString( zeros, zero_count ));
-            StreamWrite(stream, string);
+            if (space_count > 0) pStreamWriteString(stream, pString( spaces, space_count ));
+            if (zero_count > 0)  pStreamWriteString(stream, pString( zeros, zero_count ));
+            pStreamWriteString(stream, string);
         } else {
-            if (zero_count > 0)  StreamWrite(stream, pString( zeros, zero_count ));
-            StreamWrite(stream, string);
-            if (space_count > 0) StreamWrite(stream, pString( spaces, space_count ));
+            if (zero_count > 0)  pStreamWriteString(stream, pString( zeros, zero_count ));
+            pStreamWriteString(stream, string);
+            if (space_count > 0) pStreamWriteString(stream, pString( spaces, space_count ));
         }
         pFreeBuffer(spaces);
         pFreeBuffer(zeros);
         return string.length + (u64)test;
     } else {
-        StreamWrite(stream, string);
+        pStreamWriteString(stream, string);
         return string.length;
     }
 }
 
-static bool IsRGBWhitespace(char chr) {
+static pBool IsRGBWhitespace(char chr) {
      return chr == ' ' 
          || chr == '\t' 
          || chr == '\r' 
          || chr == '\n';
 }
 
-void GetRGB(char *restrict* fmtptr, String RGB[3]) {
-    char *restrict fmt = *fmtptr;
+void GetRGB(const char *restrict* fmtptr, String RGB[3]) {
+    const char *restrict fmt = *fmtptr;
     int n = 0;
     while(*fmt != ')') {
         if (n >= 3) break;
@@ -526,6 +542,8 @@ pPrintfInfo pHandleBinary(pPrintfInfo info, pFormattingSpecification spec) {
             long double ld;
         } conv;
         long double ld = va_arg(info.list, long double);
+        conv.high = 0;
+        conv.low  = 0;
         conv.ld = ld;
 
         struct BinaryStringReturn high = MakeBinaryString(numbits[PFL_LL], conv.high);
@@ -533,10 +551,10 @@ pPrintfInfo pHandleBinary(pPrintfInfo info, pFormattingSpecification spec) {
         if (spec.zero_justification_count == 0 && spec.prefix_zero) {
             spec.zero_justification_count = numbits[PFL_LL];
             info.count += PrintJustified(info.stream, spec, high.str);
-            StreamWriteString(info.stream, low.str);
+            pStreamWriteString(info.stream, low.str);
         } else {
             PrintJustified(info.stream, spec, high.str);
-            StreamWriteString(info.stream, low.str);
+            pStreamWriteString(info.stream, low.str);
         }
 
         info.count += low.str.length; 
@@ -577,15 +595,15 @@ pPrintfInfo pHandleBackgroundColor(pPrintfInfo info) {
     info.fmt += 3;
     if (*info.fmt != '(') return info;
     String header = pCreateString("\x1b[48;2;");
-    StreamWrite(info.stream, header);
+    pStreamWriteString(info.stream, header);
     String RGB[3];
     GetRGB(&info.fmt, RGB);
-    StreamWrite(info.stream, RGB[0]);
-    StreamWrite(info.stream, ';');
-    StreamWrite(info.stream, RGB[1]);
-    StreamWrite(info.stream, ';');
-    StreamWrite(info.stream, RGB[2]);
-    StreamWrite(info.stream, 'm');
+    pStreamWriteString(info.stream, RGB[0]);
+    pStreamWriteChar(info.stream, ';');
+    pStreamWriteString(info.stream, RGB[1]);
+    pStreamWriteChar(info.stream, ';');
+    pStreamWriteString(info.stream, RGB[2]);
+    pStreamWriteChar(info.stream, 'm');
     info.count += RGB[0].length 
                +  RGB[1].length 
                +  RGB[2].length
@@ -599,15 +617,15 @@ pPrintfInfo pHandleForegroundColor(pPrintfInfo info) {
     info.fmt += 3;
     if (*info.fmt != '(') return info;
     String header = pCreateString("\x1b[38;2;");
-    StreamWrite(info.stream, header);
+    pStreamWriteString(info.stream, header);
     String RGB[3];
     GetRGB(&info.fmt, RGB);
-    StreamWrite(info.stream, RGB[0]);
-    StreamWrite(info.stream, ';');
-    StreamWrite(info.stream, RGB[1]);
-    StreamWrite(info.stream, ';');
-    StreamWrite(info.stream, RGB[2]);
-    StreamWrite(info.stream, 'm');
+    pStreamWriteString(info.stream, RGB[0]);
+    pStreamWriteChar(info.stream, ';');
+    pStreamWriteString(info.stream, RGB[1]);
+    pStreamWriteChar(info.stream, ';');
+    pStreamWriteString(info.stream, RGB[2]);
+    pStreamWriteChar(info.stream, 'm');
     info.count += RGB[0].length 
                +  RGB[1].length 
                +  RGB[2].length
@@ -617,21 +635,21 @@ pPrintfInfo pHandleForegroundColor(pPrintfInfo info) {
     return info;
 }
 
-pPrintfInfo pHandleChar(pPrintfInfo info, bool wide) {
+pPrintfInfo pHandleChar(pPrintfInfo info, pBool wide) {
     if (expect(wide == false, 1)){
         int character = va_arg(info.list, int);
-        StreamWrite(info.stream, (char)character);
+        pStreamWriteChar(info.stream, (char)character);
         info.count++;
     } else {
         char *character = va_arg(info.list, char *);
         u32 len = GetUnicodeLength(character);
-        StreamWrite(info.stream, pString( (u8 *)character, len));
+        pStreamWriteString(info.stream, pString( (u8 *)character, len));
         info.count += len;
     }
     return info;
 }
 
-pPrintfInfo pHandleString(pPrintfInfo info, pFormattingSpecification spec, bool cstring) {
+pPrintfInfo pHandleString(pPrintfInfo info, pFormattingSpecification spec, pBool cstring) {
     String str;
     if (cstring){
         char *c_str = va_arg(info.list, char *);
@@ -646,7 +664,7 @@ pPrintfInfo pHandleString(pPrintfInfo info, pFormattingSpecification spec, bool 
 
 pPrintfInfo pHandleColorClear(pPrintfInfo info) {
     String reset = pCreateString("\x1b[0m");
-    StreamWrite(info.stream, reset);
+    pStreamWriteString(info.stream, reset);
     info.fmt++;
     info.count += reset.length; 
     return info;
@@ -682,7 +700,7 @@ pPrintfInfo pHandleNumber(pPrintfInfo info, pFormattingSpecification spec) {
         spec.justification_count = strtoul(begin, &end, BASE_10);
     else {
         spec.justification_count = va_arg(info.list, int);
-        end = info.fmt+1;
+        end = (char*)info.fmt+1;
     }
     // maybe fmt_next = ++end; not sure tbh
     info.fmt = end; 
@@ -712,15 +730,15 @@ pPrintfInfo pHandleNumber(pPrintfInfo info, pFormattingSpecification spec) {
 }
 
 pPrintfInfo pHandleDot(pPrintfInfo info, pFormattingSpecification spec) { 
-    char *restrict begin = info.fmt + 1;
+    const char *restrict begin = info.fmt + 1;
     char *end;
     if (*begin >= '1' && *begin <= '9')
         spec.zero_justification_count = strtoul(begin, &end, BASE_10);
     else if (*begin == '*'){
         spec.zero_justification_count = va_arg(info.list, int);
-        end = begin+1;
+        end = (char*)begin+1;
     } 
-    else end = info.fmt; 
+    else end = (char*)info.fmt; 
     // maybe fmt_next = ++end; not sure tbh
     info.fmt = end; 
     spec.prefix_zero = true; 
@@ -750,15 +768,15 @@ pPrintfInfo pHandleDot(pPrintfInfo info, pFormattingSpecification spec) {
 }
 
 pPrintfInfo pHandleZero(pPrintfInfo info, pFormattingSpecification spec) { 
-    char *restrict begin = info.fmt + 1;
+    const char *restrict begin = info.fmt + 1;
     char *end;
     if (*begin >= '1' && *begin <= '9')
         spec.zero_justification_count = strtoul(begin, &end, BASE_10);
     else if (*begin == '*'){
         spec.zero_justification_count = va_arg(info.list, int);
-        end = begin+1;
+        end = (char*)begin+1;
     } 
-    else end = info.fmt + 1; 
+    else end = (char*)info.fmt + 1; 
     // maybe fmt_next = ++end; not sure tbh
     info.fmt = end; 
     spec.prefix_zero = true; 
@@ -811,7 +829,7 @@ pPrintfInfo pHandleSpace(pPrintfInfo info, pFormattingSpecification spec) {
 }
 
 pPrintfInfo pHandleLength(pPrintfInfo info, pFormattingSpecification spec) { 
-    char *fmt = info.fmt;
+    const char *fmt = info.fmt;
 
     switch(*info.fmt) {
     case 'h': spec.length = (*(fmt + 1) == 'h') ? (info.fmt++, PFL_HH) : PFL_H; break;
@@ -895,10 +913,10 @@ pPrintfInfo pHandleMinus(pPrintfInfo info, pFormattingSpecification spec) {
 }
 
 
-pPrintfInfo pHandleSignedInt(pPrintfInfo info, pFormattingSpecification spec, s64 num, bool always_print_sign);
-pPrintfInfo pHandleOctalInt(pPrintfInfo info, pFormattingSpecification spec, s64 num, bool always_print_sign);
-pPrintfInfo pHandleHexadecimalInt(pPrintfInfo info, pFormattingSpecification spec, u64 num, bool always_print_sign, bool uppercase);
-pPrintfInfo pHandleUnsignedInt(pPrintfInfo info, pFormattingSpecification spec, u64 num, bool always_print_sign);
+pPrintfInfo pHandleSignedInt(pPrintfInfo info, pFormattingSpecification spec, s64 num, pBool always_print_sign);
+pPrintfInfo pHandleOctalInt(pPrintfInfo info, pFormattingSpecification spec, s64 num, pBool always_print_sign);
+pPrintfInfo pHandleHexadecimalInt(pPrintfInfo info, pFormattingSpecification spec, u64 num, pBool always_print_sign, pBool uppercase);
+pPrintfInfo pHandleUnsignedInt(pPrintfInfo info, pFormattingSpecification spec, u64 num, pBool always_print_sign);
 
 pPrintfInfo pHandleInt(pPrintfInfo info, pFormattingSpecification spec, char printtype) {
     u64 num = 0;
@@ -931,7 +949,7 @@ pPrintfInfo pHandleInt(pPrintfInfo info, pFormattingSpecification spec, char pri
 
 #define STRING_BUFFER_SIZE 25
 
-pPrintfInfo pHandleSignedInt(pPrintfInfo info, pFormattingSpecification spec, s64 num, bool always_print_sign) {
+pPrintfInfo pHandleSignedInt(pPrintfInfo info, pFormattingSpecification spec, s64 num, pBool always_print_sign) {
     u32 count;
     char buf[STRING_BUFFER_SIZE];
 
@@ -942,18 +960,18 @@ pPrintfInfo pHandleSignedInt(pPrintfInfo info, pFormattingSpecification spec, s6
     return info;
 }
 
-pPrintfInfo pHandleUnsignedInt(pPrintfInfo info, pFormattingSpecification spec, u64 num, bool always_print_sign) {
+pPrintfInfo pHandleUnsignedInt(pPrintfInfo info, pFormattingSpecification spec, u64 num, pBool always_print_sign) {
     u32 count;
     char buf[STRING_BUFFER_SIZE];
     count = pUnsignedDecimalToString(buf, num);
     
     if (always_print_sign)
-        StreamWrite(info.stream, '+');
+        pStreamWriteChar(info.stream, '+');
 
     info.count += PrintJustified(info.stream, spec, pString( (u8 *)buf, count )) + 1;
     return info;
 }
-pPrintfInfo pHandleOctalInt(pPrintfInfo info,pFormattingSpecification spec, s64 num, bool always_print_sign) {
+pPrintfInfo pHandleOctalInt(pPrintfInfo info,pFormattingSpecification spec, s64 num, pBool always_print_sign) {
     u32 count;
     char buf[STRING_BUFFER_SIZE];
     count = pSignedOctalToString(buf, num);
@@ -973,7 +991,7 @@ pPrintfInfo pHandleOctalInt(pPrintfInfo info,pFormattingSpecification spec, s64 
         } else {
             info.count += PrintJustified(info.stream, spec, str) + 1;
             info.count += count;
-            StreamWrite( info.stream, pString( (u8 *)printbuf, count ) );
+            pStreamWriteString( info.stream, pString( (u8 *)printbuf, count ) );
         }
     }
     else {
@@ -982,7 +1000,7 @@ pPrintfInfo pHandleOctalInt(pPrintfInfo info,pFormattingSpecification spec, s64 
     return info;
 }
 
-pPrintfInfo pHandleHexadecimalInt(pPrintfInfo info,pFormattingSpecification spec, u64 num, bool always_print_sign, bool uppercase) {
+pPrintfInfo pHandleHexadecimalInt(pPrintfInfo info,pFormattingSpecification spec, u64 num, pBool always_print_sign, pBool uppercase) {
     u32 count;
     char buf[STRING_BUFFER_SIZE];
     count = pUnsignedHexToString(buf, num);
@@ -994,7 +1012,7 @@ pPrintfInfo pHandleHexadecimalInt(pPrintfInfo info,pFormattingSpecification spec
     }
 
     if (always_print_sign)
-        StreamWrite(info.stream, '+');
+        pStreamWriteChar(info.stream, '+');
 
     if (spec.alternative_form && num != 0) {
         String str[2] = { pCreateString("0x"), pCreateString("0X") };
@@ -1008,7 +1026,7 @@ pPrintfInfo pHandleHexadecimalInt(pPrintfInfo info,pFormattingSpecification spec
         } else {
             info.count += PrintJustified(info.stream, spec, str[uppercase]) + 1;
             info.count += count;
-            StreamWrite( info.stream, pString( (u8 *)buf, count ) );
+            pStreamWriteString( info.stream, pString( (u8 *)buf, count ) );
         }
     }
     else {
@@ -1019,16 +1037,36 @@ pPrintfInfo pHandleHexadecimalInt(pPrintfInfo info,pFormattingSpecification spec
 }
 
 pPrintfInfo pHandleFloat(pPrintfInfo info, pFormattingSpecification spec) {
-#warning pHandleFloat just passes it into printf so it has not been implemented and might never be
     (void)spec;
     const char *restrict begin = info.fmt; 
     while (*begin != '%') begin--;
-
     usize size = info.fmt - begin + 1;
-    char buf[size];
+#if defined(PSTD_GNU_COMPATIBLE)
+    char buf[size + 1];
+#else
+    char *buf = pAllocateBuffer(size + 1);
+#endif
     memcpy(buf, begin, size);
     buf[size] = '\0';
-    info.count += vprintf(buf, info.list);
+#if defined(PSTD_GNU_COMPATIBLE)
+#else
+    pFreeBuffer(buf);
+#endif
+
+    usize count = 0;
+    count = vsnprintf(NULL, 0, buf, info.list);
+#if defined(PSTD_GNU_COMPATIBLE)
+    char out[count + 1];
+#else
+    char* out = pAllocateBuffer(count + 1);
+#endif
+    
+    info.count += vsnprintf(out, count, buf, info.list);
+    pStreamWriteString(info.stream, pString((u8*)out, count - 1));
+#if defined(PSTD_GNU_COMPATIBLE)
+#else
+    pFreeBuffer(out);
+#endif
     return info;
 }
 
@@ -1045,8 +1083,8 @@ pPrintfInfo pHandlePointer(pPrintfInfo info, pFormattingSpecification spec) {
 
     void *ptr = va_arg(info.list, void *);
     if (!ptr) {
-        static const String null = pCreateString("nullptr");
-        StreamWrite(info.stream, null);
+        const String null = (String){.c_str = (u8*)"nullptr",.length = sizeof("nullptr") - 1};
+        pStreamWriteString(info.stream, null);
         info.count += null.length;
         return info;
     }
@@ -1129,9 +1167,9 @@ u32 pUnsignedIntToString(char *buf, u64 num, u32 radix,
             register u32 mod = num % pow3;
             num = num / pow3;
             if (mod < radix){
-                ptr[0] = '0';
+                ptr[0] = radixarray[mod];
                 ptr[1] = '0';
-                ptr[2] = radixarray[mod];
+                ptr[2] = '0';
                 ptr += 3;
                 printnum += 3;
             }
@@ -1221,41 +1259,41 @@ u32 pUnsignedOctalToString(char *buf, u64 num) {
 
 
 void pFormatPushImpl(String fmt, FormatCallback *callback) {
-    if (callbacks.size) {
-        for (usize i = 0; i < callbacks.size; i++)
-            if (pStringCmp(fmt, callbacks.data[i].format))
+    if (pSize(callbacks)) {
+        for (usize i = 0; i < pSize(callbacks); i++)
+            if (pStringCmp(fmt, callbacks[i].format))
                 return;
     }
     struct UserFormat usercb = { fmt, callback };
-    pPushBack(&callbacks, usercb);
+    pPushBack(callbacks, usercb);
 }
 
 void pFormatPushAdvImpl(String fmt, FormatCallbackAdv *callback) {
-    if (advcallbacks.size) {
-        for (usize i = 0; i < advcallbacks.size; i++)
-            if (pStringCmp(fmt, advcallbacks.data[i].format))
+    if (pSize(advcallbacks)) {
+        for (usize i = 0; i < pSize(advcallbacks); i++)
+            if (pStringCmp(fmt, advcallbacks[i].format))
                 return;
     }
     struct AdvancedUserFormat usercb = { fmt, callback };
-    pPushBack(&advcallbacks, usercb);
+    pPushBack(advcallbacks, usercb);
 }
 
 void pFormatPopImpl(String fmt) {
     struct UserFormat *remove = NULL;
-    for (usize i = 0; i < callbacks.size; i++)
-        if (pStringCmp(fmt, callbacks.data[i].format))
-            remove = callbacks.data + i;
+    for (usize i = 0; i < pSize(callbacks); i++)
+        if (pStringCmp(fmt, callbacks[i].format))
+            remove = callbacks + i;
     
-    if (remove) pRemove(&callbacks, remove);
+    if (remove) pRemove(callbacks, remove);
 }
 
 void pFormatPopAdvImpl(String fmt) {
     struct AdvancedUserFormat *remove = NULL;
-    for (usize i = 0; i < advcallbacks.size; i++)
-        if (pStringCmp(fmt, advcallbacks.data[i].format))
-            remove = advcallbacks.data + i;
+    for (usize i = 0; i < pSize(advcallbacks); i++)
+        if (pStringCmp(fmt, advcallbacks[i].format))
+            remove = advcallbacks + i;
     
-    if (remove) pRemove(&advcallbacks, remove);
+    if (remove) pRemove(advcallbacks, remove);
 }
 
 

@@ -1,5 +1,5 @@
 ---
-Checks:          'clang-diagnostic-*,clang-analyzer-*,-*,clang-analyzer-*,-clang-analyzer-security*,bugprone-*,misc-*,cert-*,performance-*,readability-*,-readability-braces-around-statements,-readability-else-after-return'
+Checks:          '-readability-function-cognitive-complexity,clang-diagnostic-*,clang-analyzer-*,clang-diagnostic-*,clang-analyzer-*,-*,clang-analyzer-*,-clang-analyzer-security*,bugprone-*,misc-*,cert-*,performance-*,readability-*,-readability-braces-around-statements,-readability-else-after-return'
 WarningsAsErrors: ''
 HeaderFilterRegex: ''
 AnalyzeTemporaryDtors: false

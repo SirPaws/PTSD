@@ -1,25 +1,22 @@
 #include "cbuild.h"
+// #pragma comment(lib, "cbuild/cbuild.lib")
 
 char *include_directories[] = {
     "include", "src"
 };
 char *files[] = {
-    "include/allocator.h",
+    "include/dynalg.h",
     "include/dynarray.h",
     "include/general.h",
-    "include/phashmap.h",
     "include/pio.h",
-    "include/pstring.h",
-    "include/util.h",
-    "include/vector.h",
     "include/pplatform.h",
-    "src/allocator.c",
-    "src/phashmap.c",
+    "include/pstring.h",
+    "include/stretchy_buffer.h",
+    "include/util.h",
     "src/pio.c",
+    "src/pplatform.c",
     "src/pstring.c",
     "src/util.c",
-    "src/vector.c",
-    "src/pplatform.c"
 };
 
 char *cargs[] = {
