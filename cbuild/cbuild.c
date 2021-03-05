@@ -696,6 +696,7 @@ void buildSetDefaults(BuildContext *ctx) {
     ctx->out_dir = ".\\bin";
     ctx->working_dir = ".";
     ctx->out_name = "out";
+    ctx->compiler = CLANG;
 }
 
 void setBuildType(BuildContext *ctx, enum BuildType type) {
@@ -705,6 +706,11 @@ void setBuildType(BuildContext *ctx, enum BuildType type) {
 void setBuildMode(BuildContext *ctx, enum BuildMode mode) {
     ctx->mode = mode;
 }
+
+void setCompiler(BuildContext *ctx, enum Compiler compiler) {
+    ctx->compiler = compiler;
+}
+
 void setWorkingDir(BuildContext *ctx, char *path) {
     ctx->working_dir = path;  
 }
@@ -721,7 +727,19 @@ void setOutputName(BuildContext *ctx, char *name) {
 void constructCompileCommands(BuildContext *ctx) {
 #define pPushStr(array, str) pPushBytes((array), (str), sizeof(str) - 1)
     u8 *command = NULL;
-    pPushStr(command, "clang ");
+    switch (ctx->compiler) {
+    case CLANG: pPushStr(command, "clang "); break;
+    case GCC:   pPushStr(command, "gcc "); break;
+    case EMCC:  pPushStr(command, 
+                    "clang "
+                    "-nostdinc -nostdlib "
+                    "-isystem C:/Users/Jacob/AppData/Local/emsdk/upstream/emscripten/system/include "
+                    "-isystem C:/Users/Jacob/AppData/Local/emsdk/upstream/emscripten/system/include/libc/ "
+                    "-isystem C:/Users/Jacob/AppData/Local/emsdk/upstream/emscripten/system/lib/libc/musl/arch/emscripten "
+                    "-D__EMSCRIPTEN__ "
+                ); break;
+    case MSVC:  printf("msvc is not supported yet!"); return;
+    }
 
     pForEach(ctx->flags, flag) {
         usize len = strlen(*flag);
@@ -968,7 +986,12 @@ void execute(BuildContext *ctx) { // NOLINT
 
 #define pPushStr(array, str) pPushBytes((array), (str), sizeof(str) - 1)
     u8 *command = NULL;
-    pPushStr(command, "clang ");
+    switch (ctx->compiler) {
+    case CLANG: pPushStr(command, "clang "); break;
+    case GCC:   pPushStr(command, "gcc "); break;
+    case MSVC:  printf("msvc is not supported yet!"); return;
+    case EMCC:  pPushStr(command, "emcc "); break;
+    }
 
     pForEach(ctx->flags, flag) {
         usize len = strlen(*flag);
@@ -995,7 +1018,14 @@ void execute(BuildContext *ctx) { // NOLINT
         char archiver[] = "ar rcs lib";
         char extension[] = ".a";
 
-        char dll_archiver[] = "clang -shared -o";
+        char dll_archiver[17];
+        switch (ctx->compiler) {
+        case CLANG: dll_archiver = "clang -shared -o"; break;
+        case GCC:   dll_archiver = "gcc   -shared -o"; break;
+        case EMCC:  dll_archiver = "emcc  -shared -o"; break;
+        case MSVC:  printf("msvc is not supported yet!"); return;
+        }
+
         char dll_extension[] = ".so";
 #endif
 

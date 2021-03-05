@@ -200,10 +200,19 @@ enum BuildMode {
     MODE_RELEASE_WITH_DEBUG,
 };
 
+enum Compiler {
+    CLANG,
+    GCC,
+    MSVC,
+    EMCC,
+};
+
+
 typedef char **StrechyCharBuffer;
 
 typedef struct BuildContext BuildContext;
 struct BuildContext {
+    enum Compiler  compiler;
     enum BuildType type; // DEFAULT: BUILD_NONE
     enum BuildMode mode; // DEFAULT: MODE_NONE
     char *working_dir;   // DEFAULT: .
@@ -231,6 +240,8 @@ void execute(BuildContext *);
 
 void setBuildType(BuildContext *, enum BuildType);
 void setBuildMode(BuildContext *, enum BuildMode);
+void setCompiler(BuildContext *, enum Compiler);
+
 void setWorkingDir(BuildContext *, char *path);
 void setIntemidiaryDir(BuildContext *, char *path);
 void setOutputDir(BuildContext *, char *path);

@@ -1,10 +1,12 @@
 #include "util.h"
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(PSTD_WINDOWS)
 #include <Windows.h>
+#elif defined(PSTD_LINUX) || defined(PSTD_WASM)
+#include <time.h>
 #endif
 
 void *pGetPlatformHandle(void) {
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(PSTD_WINDOWS)
     void *handle = GetStdHandle(STD_OUTPUT_HANDLE);
     unsigned int mode;
     GetConsoleMode(handle, (unsigned long *)&mode);
@@ -18,23 +20,25 @@ void *pGetPlatformHandle(void) {
 
 
 // ported from _Xtime_get_ticks: https://github.com/microsoft/STL/blob/master/stl/src/xtime.cpp
-static const long long PSTD_EPOCH = 0x19DB1DED53E8000LL; 
 
 pTimePoint pSystemTime(void) {
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(PSTD_WINDOWS)
 #define COMBINE(high, low) (((s64)(high) << 32) | (s64)(low))
+    static const long long PSTD_EPOCH = 0x19DB1DED53E8000LL; 
     FILETIME ft;
     GetSystemTimePreciseAsFileTime(&ft);
     return COMBINE(ft.dwHighDateTime,ft.dwLowDateTime) - PSTD_EPOCH;
 #undef COMBINE
 #else
-    return 0;
+    struct timespec tp;
+    clock_gettime(CLOCK_REALTIME, &tp);
+    return tp.tv_sec * PSTD_TIME_SECONDS + tp.tv_nsec;
 #endif
 }
 // these clocks are taken from MSVC-STL
 // can be found here https://github.com/microsoft/STL
 pTimePoint pGetTick(enum pClockType type) {
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(PSTD_WINDOWS)
     if (__builtin_expect(type != PSTD_SYSTEM_CLOCK, 1)) {
         const s64 _Freq; QueryPerformanceFrequency((void *)&_Freq); // doesn't change after system boot
         const s64 _Ctr;  QueryPerformanceCounter((void*)&_Ctr);
@@ -48,6 +52,16 @@ pTimePoint pGetTick(enum pClockType type) {
         return _Whole + _Part;
     } else {
         return pSystemTime();
+    }
+#elif defined(PSTD_LINUX) || defined(PSTD_WASM)
+    struct timespec tp; 
+    switch (type) {
+    case PSTD_STEADY_CLOCK: {
+            clock_gettime(CLOCK_MONOTONIC, &tp);
+            return tp.tv_sec * PSTD_TIME_SECONDS + tp.tv_nsec;
+        }
+    case PSTD_SYSTEM_CLOCK:
+    case PSTD_HIGH_RESOLUTION_CLOCK: return pSystemTime();
     }
 #else
     return 0;

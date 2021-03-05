@@ -2,7 +2,13 @@
 #include "pplatform.h"
 #endif
 
-#if defined(PSTD_WINDOWS)
+
+#if defined(PSTD_WASM)
+#include <emscripten.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#elif defined(PSTD_WINDOWS)
 #include <Windows.h>
 #elif defined(PSTD_LINUX)
 #include <unistd.h>
@@ -10,7 +16,8 @@
 #include <fcntl.h>
 #elif defined(__APPLE__)
 #error support for mac has to been implemented
-#endif
+#endif 
+
 
 pHandle *pNullHandle(void) {
 #if defined(PSTD_WINDOWS)
@@ -25,6 +32,7 @@ pBool pEnableConsoleColorOutput(void) {
     pBool result = SetConsoleMode(GetModuleHandle(NULL), ENABLE_VIRTUAL_TERMINAL_PROCESSING);
     return result != 0;
 #else
+    return true; // don't know if it's enabled but we assume it is
 #endif
 }
 
@@ -60,7 +68,7 @@ pFileStat pGetFileStat(const char *file) {
     result.writetime    = WIN32_COMBINE_HIGH_LOW(data.ftLastWriteTime.dwHighDateTime, 
             data.ftLastWriteTime.dwLowDateTime);
 #undef WIN32_COMBINE_HIGH_LOW
-#else
+#elif  defined(PSTD_LINUX) || defined(PSTD_WASM)
     struct stat data;
     s32 statret = stat(file, &data);
     result.exists = statret == -1 ? false : true; 
@@ -79,10 +87,15 @@ pHandle *pFileOpen(const char *filename, pFileAccess access) {
     file_access |= access & P_WRITE_ACCESS ? GENERIC_WRITE : 0;
     return CreateFile(filename, file_access, 0, 
             NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-#else
+#elif  defined(PSTD_LINUX)
     int file_access;
     file_access = access & P_READ_ACCESS  ? O_RDONLY : 0;
     file_access = access & P_WRITE_ACCESS ? (access ? O_RDWR : O_WRONLY ) : 0;
+    return (void*)(u64)open(filename, file_access);
+#elif  defined(PSTD_WASM)
+    int file_access = -1;
+    file_access = access & P_READ_ACCESS  ? O_RDONLY : -1;
+    file_access = access & P_WRITE_ACCESS ? ((!access) ? O_RDWR : O_WRONLY ) : -1;
     return (void*)(u64)open(filename, file_access);
 #endif
 }
@@ -93,10 +106,16 @@ pHandle *pFileCreate(const char *filename, pFileAccess access) {
     file_access |= access & P_WRITE_ACCESS ? GENERIC_WRITE : 0;
     return CreateFile(filename, file_access, 0, 
             NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-#else
+#elif  defined(PSTD_LINUX)
     int file_access;
     file_access = access & P_READ_ACCESS  ? O_RDONLY : 0;
     file_access = access & P_WRITE_ACCESS ? (access ? O_RDWR : O_WRONLY ) : 0;
+    file_access|= O_CREAT;
+    return (void*)(u64)open(filename, file_access);
+#elif  defined(PSTD_WASM)
+    int file_access;
+    file_access = access & P_READ_ACCESS  ? O_RDONLY : -1;
+    file_access = access & P_WRITE_ACCESS ? ((!access) ? O_RDWR : O_WRONLY ) : -1;
     file_access|= O_CREAT;
     return (void*)(u64)open(filename, file_access);
 #endif
@@ -105,7 +124,7 @@ pHandle *pFileCreate(const char *filename, pFileAccess access) {
 void pFileClose(pHandle *handle) {
 #if defined(PSTD_WINDOWS)
     CloseHandle(handle);
-#else
+#elif  defined(PSTD_LINUX) || defined(PSTD_WASM)
     u32 fh = (u32)((void *)handle);
     close(fh);
 #endif
@@ -114,7 +133,7 @@ void pFileClose(pHandle *handle) {
 pBool pFileWrite(pHandle *handle, String buf) {
 #if defined(PSTD_WINDOWS)
     return WriteFile(handle, buf.c_str, (u32)buf.length, NULL, NULL);
-#else
+#elif  defined(PSTD_LINUX) || defined(PSTD_WASM)
     s32 result = write((u64)(void*)handle, buf.c_str, (u32)buf.length);
     return result == -1 ? false : true;
 #endif
@@ -125,7 +144,7 @@ pBool pFileRead(pHandle *handle, String buf) {
     DWORD bytes_read = 0;
     ReadFile(handle, buf.c_str, buf.length, &bytes_read, NULL);
     return bytes_read != 0;
-#else
+#elif  defined(PSTD_LINUX) || defined(PSTD_WASM)
     s32 result = read((u64)(void*)handle, buf.c_str, buf.length);
     return result == -1 ? false : true;
 #endif
@@ -144,7 +163,7 @@ pBool pSeek(pHandle *handle, isize size, enum pSeekMode mode) {
 
     DWORD result = SetFilePointer(handle, size, 0, wmode);
     return result != INVALID_SET_FILE_POINTER;
-#else
+#elif  defined(PSTD_LINUX) || defined(PSTD_WASM)
     u32 wmode;
     switch (mode) {
     case P_SEEK_SET: wmode = SEEK_SET; break;

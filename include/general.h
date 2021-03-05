@@ -2,7 +2,9 @@
 #pragma once
 #ifndef PSTD_GENERAL_HEADER
 #define PSTD_GENERAL_HEADER
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(__EMSCRIPTEN__)
+#   define PSTD_WASM
+#elif defined(_WIN32) || defined(_WIN64)
 #    define PSTD_WINDOWS
 #elif defined(__linux__) || defined(__unix__)
 #    define PSTD_LINUX

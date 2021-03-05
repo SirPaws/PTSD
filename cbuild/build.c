@@ -28,9 +28,13 @@ char *cargs[] = {
     "-fdeclspec",
 }; 
 
-int main(void) {
+int main(int argc, char *argv[argc]) {
     BuildContext ctx = {0};
     buildSetDefaults(&ctx);
+    for (int i = 0; i < argc; i++) {
+        if (strcmp(argv[i], "-emcc") == 0)
+            setCompiler(&ctx, EMCC);
+    }
 
     setOutputName(&ctx, "pstd");
     setBuildType(&ctx, STATIC_LIB|UNITY_BUILD);

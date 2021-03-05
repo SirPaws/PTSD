@@ -17,6 +17,7 @@
 #endif
 
 #include <math.h>
+#include <ctype.h>
 
 #include "stretchy_buffer.h"
 
@@ -48,6 +49,11 @@ static UserCallbacks callbacks       = NULL;
 static StdStream *StandardStream = NULL;
 static u32 default_code_page = 0;
 static GenericStream *pcurrentstream;
+static pBool color_output = true;
+
+#if defined(PSTD_WINDOWS)
+static u32 console_mode = 0;
+#endif
 
 GenericStream *pSetStream(GenericStream *stream) {
     assert(stream);
@@ -62,6 +68,16 @@ void InitializeStdStream(void) {
     // this is so we can print unicode characters on windows
     default_code_page = GetConsoleOutputCP();
     SetConsoleOutputCP(CP_UTF8);
+    GetConsoleMode(GetStdHandle(STD_OUTPUT_HANDLE), (LPDWORD)&console_mode);
+
+    u32 mode_output = console_mode | ENABLE_PROCESSED_OUTPUT | ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+
+    BOOL did_succeed = SetConsoleMode(GetStdHandle(STD_OUTPUT_HANDLE), mode_output);
+    if (!did_succeed) {
+        color_output = false;
+    }
+#elif defined(PSTD_WASM)
+    color_output = false;
 #endif
     const StdStream template = { 
         .type          = STANDARD_STREAM,
@@ -79,6 +95,7 @@ void DestroyStdStream(void) {
     free(StandardStream);
 #if defined(PSTD_WINDOWS)
     SetConsoleOutputCP(default_code_page);
+    SetConsoleMode(GetStdHandle(STD_OUTPUT_HANDLE), console_mode);
 #endif
 }
 
@@ -592,45 +609,50 @@ pPrintfInfo pHandleBinary(pPrintfInfo info, pFormattingSpecification spec) {
 }
 
 pPrintfInfo pHandleBackgroundColor(pPrintfInfo info) {
-    info.fmt += 3;
-    if (*info.fmt != '(') return info;
-    String header = pCreateString("\x1b[48;2;");
-    pStreamWriteString(info.stream, header);
-    String RGB[3];
-    GetRGB(&info.fmt, RGB);
-    pStreamWriteString(info.stream, RGB[0]);
-    pStreamWriteChar(info.stream, ';');
-    pStreamWriteString(info.stream, RGB[1]);
-    pStreamWriteChar(info.stream, ';');
-    pStreamWriteString(info.stream, RGB[2]);
-    pStreamWriteChar(info.stream, 'm');
-    info.count += RGB[0].length 
-               +  RGB[1].length 
-               +  RGB[2].length
-               +  header.length 
-               +  3;
-
+        info.fmt += 3;
+        if (*info.fmt != '(') return info;
+        
+        String RGB[3];
+        GetRGB(&info.fmt, RGB);
+    if (expect(color_output, 1)) {
+        String header = pCreateString("\x1b[48;2;");
+        pStreamWriteString(info.stream, header);
+        pStreamWriteString(info.stream, RGB[0]);
+        pStreamWriteChar(info.stream, ';');
+        pStreamWriteString(info.stream, RGB[1]);
+        pStreamWriteChar(info.stream, ';');
+        pStreamWriteString(info.stream, RGB[2]);
+        pStreamWriteChar(info.stream, 'm');
+        info.count += RGB[0].length 
+            +  RGB[1].length 
+            +  RGB[2].length
+            +  header.length 
+            +  3;
+    }
     return info;
 }
 
 pPrintfInfo pHandleForegroundColor(pPrintfInfo info) {
     info.fmt += 3;
     if (*info.fmt != '(') return info;
-    String header = pCreateString("\x1b[38;2;");
-    pStreamWriteString(info.stream, header);
     String RGB[3];
     GetRGB(&info.fmt, RGB);
-    pStreamWriteString(info.stream, RGB[0]);
-    pStreamWriteChar(info.stream, ';');
-    pStreamWriteString(info.stream, RGB[1]);
-    pStreamWriteChar(info.stream, ';');
-    pStreamWriteString(info.stream, RGB[2]);
-    pStreamWriteChar(info.stream, 'm');
-    info.count += RGB[0].length 
-               +  RGB[1].length 
-               +  RGB[2].length
-               +  header.length 
-               +  3;
+
+    if (expect(color_output, 1)) {
+        String header = pCreateString("\x1b[38;2;");
+        pStreamWriteString(info.stream, header);
+        pStreamWriteString(info.stream, RGB[0]);
+        pStreamWriteChar(info.stream, ';');
+        pStreamWriteString(info.stream, RGB[1]);
+        pStreamWriteChar(info.stream, ';');
+        pStreamWriteString(info.stream, RGB[2]);
+        pStreamWriteChar(info.stream, 'm');
+        info.count += RGB[0].length 
+            +  RGB[1].length 
+            +  RGB[2].length
+            +  header.length 
+            +  3;
+    }
 
     return info;
 }
@@ -664,9 +686,11 @@ pPrintfInfo pHandleString(pPrintfInfo info, pFormattingSpecification spec, pBool
 
 pPrintfInfo pHandleColorClear(pPrintfInfo info) {
     String reset = pCreateString("\x1b[0m");
-    pStreamWriteString(info.stream, reset);
+    if (expect(color_output, 1)) {
+        pStreamWriteString(info.stream, reset);
+        info.count += reset.length; 
+    }
     info.fmt++;
-    info.count += reset.length; 
     return info;
 }
 
