@@ -36,3 +36,5 @@ ar -cr libcbuild.a cbuild.o
 clang -Lcbuild -Icbuild ./cbuild/build.c -o build -lcbuild
 ./build
 ```
+### Mac
+HA HA HA HA HA HA HA HA HA HA HA 
