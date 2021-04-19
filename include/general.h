@@ -144,7 +144,12 @@ typedef float     f32;
 typedef double    f64;
 
 #if !defined(__cplusplus)
+#if defined(PSTD_C99)
+enum { false, true };
+typedef _Bool pBool;
+#else
 typedef enum { false, true } pBool;
+#endif
 #else
 enum pBool { pFalse, pTrue };
 #endif
