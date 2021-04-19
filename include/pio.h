@@ -17,7 +17,7 @@
 #define PSTD_PIO_DESTRUCTOR  __attribute__(( destructor ))
 #endif
 
-#define STRETCHY(x) x *
+#define stretchy 
 
 #if defined(PSTD_C11)
 #define CAST_STREAM(stream)                      \
@@ -54,7 +54,7 @@ typedef struct StringStream  StringStream;
 struct StringStream {
     enum StreamType  type;
     u32 flags;
-    STRETCHY(char) buffer; // strechy
+    char  *stretchy buffer;
     usize cursor;
     // maybe more if not we just expose stringstream
 };

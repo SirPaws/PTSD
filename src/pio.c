@@ -35,8 +35,8 @@ struct UserFormat {
     FormatCallback *callback;
 };
 
-typedef STRETCHY(struct AdvancedUserFormat) AdvUserCallbacks; 
-typedef STRETCHY(struct UserFormat) UserCallbacks; 
+typedef struct AdvancedUserFormat *stretchy AdvUserCallbacks; 
+typedef struct UserFormat *stretchy UserCallbacks; 
 
 struct BinaryStringReturn {
     u8 *buffer;
@@ -233,7 +233,7 @@ void pStreamRead(GenericStream *stream, void *buf, usize size) {
         if (sstream->cursor + size >= pSize(sstream->buffer)) {
             memset(buf, 0, size); return;
         }
-        STRETCHY(char) buffer = sstream->buffer;
+        char *stretchy buffer = sstream->buffer;
         memcpy(buf, buffer + sstream->cursor, size);
     }
 }
@@ -247,7 +247,7 @@ String pStreamReadLine(GenericStream *stream) {
         pHandle *handle = stream->type == STANDARD_STREAM ? stdstream->stdin_handle : stdstream->stdout_handle;  
     
         static const usize BUFFER_SIZE = 512;
-        STRETCHY(u8) line = NULL;
+        u8 *stretchy line = NULL;
         pReserve(line, BUFFER_SIZE);
         u8 chr;
         while (pFileRead(handle, pString(&chr, 1))) {
@@ -293,7 +293,7 @@ void pStreamWriteString(GenericStream *stream, String str) {
             fputc(str.c_str[i], ((cFileStream*)stream)->file);
     } else {
         StringStream *sstream = (StringStream *)stream;
-        STRETCHY(char) *buffer = &sstream->buffer;
+        char *stretchy buffer = sstream->buffer;
         pPushBytes(buffer, str.c_str, str.length);
         sstream->cursor += str.length;
     }
@@ -310,12 +310,11 @@ void pStreamWriteChar(GenericStream *stream, char chr) {
         fputc(chr, ((cFileStream*)stream)->file);
     } else {
         StringStream *sstream = (StringStream *)stream;
-        STRETCHY(char) buffer = sstream->buffer;
+        char *stretchy buffer = sstream->buffer;
            
         char *position = buffer + sstream->cursor;
         pInsert(buffer, position, chr);
-
-        *(buffer + sstream->cursor) = chr;
+        // *(buffer + sstream->cursor) = chr;
         sstream->cursor++;
     }
 }

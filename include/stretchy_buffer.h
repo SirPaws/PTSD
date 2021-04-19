@@ -179,6 +179,9 @@ enum pBool { pFalse, pTrue };
 #endif
 #endif
 
+// symbol to make it clear that a datatype is a stretchy buffer
+// ie.  `int *stretchy data;
+#define stretchy
 
 // sets the capacity of the current buffer to hold exactly 'count' elements
 #define pResize(array, count)      pSetCapacityImplementation(array, count)
