@@ -6,7 +6,10 @@
 #   include "general.h"
 #   include "pstring.h"
 #else
-#if defined(_WIN32) || defined(_WIN64)
+#define PSTD_GENERAL_VER 1
+#if defined(__EMSCRIPTEN__)
+#   define PSTD_WASM
+#elif defined(_WIN32) || defined(_WIN64)
 #    define PSTD_WINDOWS
 #elif defined(__linux__) || defined(__unix__)
 #    define PSTD_LINUX

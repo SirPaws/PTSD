@@ -1,12 +1,11 @@
-#ifndef PSTD_PSTRING_HEADER
-#define PSTD_PSTRING_HEADER
-#if !defined(PSTD_PSTRING_STANDALONE)
-#include "general.h"
+#pragma once
+#ifndef PSTD_SMART_MEMORY_HEADER
+
+#ifndef SMART_MEMORY_STANDALONE
+#   include "general.h"
 #else
 #define PSTD_GENERAL_VER 1
-#if defined(__EMSCRIPTEN__)
-#   define PSTD_WASM
-#elif defined(_WIN32) || defined(_WIN64)
+#if defined(_WIN32) || defined(_WIN64)
 #    define PSTD_WINDOWS
 #elif defined(__linux__) || defined(__unix__)
 #    define PSTD_LINUX
@@ -101,21 +100,21 @@
 #include <stdlib.h>
 
 #if _WIN32 || _WIN64
-    #if _WIN64
-        #define PSTD_64
-    #else
-        #define PSTD_32
-    #endif
-#elif __GNUC__
-    #if __x86_64__ || __ppc64__
-        #define PSTD_64
-    #else
-        #define PSTD_32
-    #endif
-#elif UINTPTR_MAX > UINT_MAX
+#if _WIN64
     #define PSTD_64
 #else
     #define PSTD_32
+#endif
+#elif __GNUC__
+#if __x86_64__ || __ppc64__
+    #define PSTD_64
+#else
+    #define PSTD_32
+#endif
+#elif UINTPTR_MAX > UINT_MAX
+#define PSTD_64
+#else
+#define PSTD_32
 #endif
 
 #ifndef countof
@@ -168,95 +167,128 @@ enum pBool { pFalse, pTrue };
 #if defined(PSTD_GNU_COMPATIBLE)
 #ifndef pZeroAllocateBuffer
 #define pZeroAllocateBuffer(size) ({                \
-    void *pZeroAllocateBuffer_tmp = malloc(size);   \
-    memset(pZeroAllocateBuffer_tmp, 0, (size));     \
-    pZeroAllocateBuffer_tmp;                        \
+void *pZeroAllocateBuffer_tmp = malloc(size);   \
+memset(pZeroAllocateBuffer_tmp, 0, (size));     \
+pZeroAllocateBuffer_tmp;                        \
 })
 #endif
 #else
 #ifndef pZeroAllocateBuffer
-    static void* pZeroAllocateBuffer(usize size) {
-        void* pZeroAllocateBuffer_tmp = pAllocateBuffer(size);
-        assert(pZeroAllocateBuffer_tmp);
-        memset(pZeroAllocateBuffer_tmp, 0, (size));
-        return pZeroAllocateBuffer_tmp;
-    }
+static void* pZeroAllocateBuffer(usize size) {
+    void* pZeroAllocateBuffer_tmp = pAllocateBuffer(size);
+    assert(pZeroAllocateBuffer_tmp);
+    memset(pZeroAllocateBuffer_tmp, 0, (size));
+    return pZeroAllocateBuffer_tmp;
+}
 #define pZeroAllocateBuffer pZeroAllocateBuffer
 #endif
 #endif
 #endif
 
-#define pCreateString(str) pString((u8 *)(str), sizeof((str)) - 1)
-#define pCreateStringConstant(str) ((String){.c_str = (u8 *)(str), .length = sizeof((str)) - 1})
+#if !defined(PSTD_GNU_COMPATIBLE)
+#error pstd smart memory is not supported in MSVC!
+#endif
 
-typedef struct String String;
-struct String {
-    usize length;
-	u8 *c_str;
-};
+typedef void pFreeFunction(void*);
 
-typedef struct StringSpan StringSpan;
-struct StringSpan {
-    u8 *begin, *end;
-};
+#define smart __attribute__((cleanup(pCleanupFunc)))
 
-pBool pStringCmp(String rhs, String lhs);
-String pStringCopy(String str);
+// if `dtor` is *NULL* no function is called
+
+void *pMove(void**); 
+#define pMove(ptr) pMove((void*)&(ptr))
+void *pRef(void**);
+#define pRef(ptr) pRef((void*)&(ptr))
+void *pCopy(void **);
+#define pCopy(ptr) pCopy((void*)&(ptr))
+
+void *pSmartAllocateBuffer(usize size, pFreeFunction *dtor);
+void *pSmartZeroAllocateBuffer(usize size, pFreeFunction *dtor);
+
+void *pSmartReallocateBuffer(void *, usize size);
+
+void pSmartFreeBuffer(void *);
 
 PSTD_UNUSED
-static String pString(u8 *c_str, usize length) {
-#if defined(__cplusplus)
-    return String{ length, c_str };
-#else
-    return (String){ length, c_str };
+static void pCleanupFunc(void *mem) {
+    pSmartFreeBuffer(*(void**)mem);
+}
+
+#define SMART_MEMORY_IMPLEMENTATION
+#if defined(SMART_MEMORY_IMPLEMENTATION)
+
+typedef struct pSmartMemoryHeader pSmartMemoryHeader;
+struct pSmartMemoryHeader {
+    usize use_count;
+    pFreeFunction *dtor;
+    usize size;
+};
+
+void *pSmartAllocateBuffer(usize size, pFreeFunction *dtor) {
+    pSmartMemoryHeader *sptr = pAllocateBuffer(sizeof(pSmartMemoryHeader) + size);
+    sptr->use_count = 0;
+    sptr->dtor      = dtor;
+    sptr->size      = size;
+    return (void*)(sptr + 1);
+}
+
+void *pSmartZeroAllocateBuffer(usize size, pFreeFunction *dtor) {
+    pSmartMemoryHeader *sptr = pZeroAllocateBuffer(sizeof(pSmartMemoryHeader) + size);
+    sptr->dtor      = dtor;
+    sptr->size      = size;
+    return sptr + 1;
+}
+
+void *pSmartReallocateBuffer(void *mem, usize size) {
+    if (!mem) return NULL;
+    pSmartMemoryHeader *sptr = ((pSmartMemoryHeader *)mem) - 1;
+    if (sptr->use_count != 0) return NULL;
+    void *new_mem = pReallocateBuffer(sptr, sizeof(pSmartMemoryHeader) + size);
+    if (!new_mem) return NULL;
+    sptr = new_mem;
+    sptr->size      = size;
+    return sptr + 1;
+}
+
+void pSmartFreeBuffer(void *mem) {
+    if (!mem) return;
+    pSmartMemoryHeader *sptr = ((pSmartMemoryHeader *)mem) - 1;
+    if (sptr->use_count != 0) return (void)--sptr->use_count;
+    if (sptr->dtor) sptr->dtor(mem);
+    pFreeBuffer(sptr);
+}
+
+#pragma push_macro("pMove")
+#pragma push_macro("pRef")
+#pragma push_macro("pCopy")
+#define pMove pMove
+#define pRef pRef
+#define pCopy pCopy
+
+void *pMove(void** mem_ptr) {
+    if (!*mem_ptr) return NULL;
+    void *result = *mem_ptr;
+    *mem_ptr = NULL;
+    return result;
+}
+
+void *pRef(void **mem_ptr) {
+    if (!*mem_ptr) return NULL;
+    pSmartMemoryHeader *sptr = ((pSmartMemoryHeader *)*mem_ptr) - 1;
+    sptr->use_count++;
+    return *mem_ptr;
+}
+
+void *pCopy(void **mem_ptr) {
+    if (!*mem_ptr) return NULL;
+    pSmartMemoryHeader *sptr = ((pSmartMemoryHeader *)*mem_ptr) - 1;
+    void *copy = pSmartAllocateBuffer(sptr->size, sptr->dtor);
+    return copy;
+}
+
+#pragma pop_macro("pCopy")
+#pragma pop_macro("pRef")
+#pragma pop_macro("pMove")
+
 #endif
-}
-
-// reallocates str 
-String pStringAppendCharacter(String *str, u8 character);
-String pStringAppendString(String *str, String string);
-
-#if PSTD_C11
-#define pStringAppend(str, value) \
-    _Generic((value), String: pStringAppendString, default: pStringAppendCharacter)(str, value) 
-#elif defined(__cplusplus)
-static String pStringAppend(String *str, u8 character) {
-    return pStringAppendCharacter(str, character);
-}
-
-static String pStringAppend(String *str, String string) {
-    return pStringAppendString(str, string);
-}
-#endif
-#endif // PSTD_PSTRING_HEADER
-
-#if defined(PSTD_PSTRING_IMPLEMENTATION) && !defined(PSTD_PSTRING_IMPLEMENTED)
-#define PSTD_PSTRING_IMPLEMENTED
-pBool pStringCmp(const struct String rhs, const struct String lhs) {
-	if (rhs.length != lhs.length) return false;
-	return (strncmp((const char *)rhs.c_str, (const char *)lhs.c_str, rhs.length) == 0);
-}
-
-struct String pStringCopy(const struct String str) {
-    char *dst = pAllocateBuffer(sizeof(char) * str.length);
-    struct String r = pString((u8 *)dst, str.length);
-    memcpy(dst, str.c_str, sizeof(char) * str.length);
-	return r;
-}
-
-String pStringAppendCharacter(String *str, u8 character) {
-    void *tmp = pReallocateBuffer(str->c_str, str->length + 1);
-    str->c_str = tmp;
-    str->c_str[str->length++] = character;
-    return *str;
-}
-
-String pStringAppendString(String *str, String string) {
-    void* tmp = pReallocateBuffer(str->c_str, str->length + string.length);
-    str->c_str = tmp;
-
-    memcpy(str->c_str + str->length, string.c_str, string.length);
-    str->length += string.length;
-    return *str;
-}
-#endif
+#endif // PSTD_STRETCHY_BUFFER_HEADER

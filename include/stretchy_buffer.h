@@ -4,7 +4,10 @@
 #ifndef STRETCHY_BUFFER_STANDALONE
 #   include "general.h"
 #else
-#if defined(_WIN32) || defined(_WIN64)
+#define PSTD_GENERAL_VER 1
+#if defined(__EMSCRIPTEN__)
+#   define PSTD_WASM
+#elif defined(_WIN32) || defined(_WIN64)
 #    define PSTD_WINDOWS
 #elif defined(__linux__) || defined(__unix__)
 #    define PSTD_LINUX
@@ -527,26 +530,28 @@ StretchyBufferMeta* _debug_GetMeta(void* array) { //NOLINT
 int msvc_not_implemented[-1];
 #endif
 
-#if defined(PSTD_FOR_MACRO)
+#if defined(PSTD_FOR_MACRO) && !defined(PSTD_GNU_COMPATIBLE)
+#elif defined(PSTD_FOR_MACRO)
 
 #define pHas2Args_(_0, a, b, _3, answer, _5, ...) answer
-#define pHas2Args(a, ...) pHas2Args_(0, a, ## __VA_ARGS__, 1, 1, 0, 1) 
-#define PSTD_CONCAT_( a, b ) a##b
-#define PSTD_CONCAT( a, b ) PSTD_CONCAT_( a, b )
-#define PSTD_STRINGIFY_(x) #x
-#define PSTD_STRINGIFY(x) PSTD_STRINGIFY_(x)
+#define pHas2Args(a, ...)                         pHas2Args_(0, a, ## __VA_ARGS__, 1, 1, 0, 1) 
+#define PSTD_CONCAT_( a, b )                      a##b
+#define PSTD_CONCAT( a, b )                       PSTD_CONCAT_( a, b )
+#define PSTD_STRINGIFY_(x)                        #x
+#define PSTD_STRINGIFY(x)                         PSTD_STRINGIFY_(x)
 
-#define pForEach1(array, name)  for( __auto_type name = pBegin(array); name != pEnd(array); name++)
+#define pForEach1(array, name) \
+    for( __auto_type name = pBegin(array); name != pEnd(array); name++)
 #define pForEach0(array)        pForEach1(array, it)
 #define pForEach__(array, args) PSTD_CONCAT(pForEach, args)
-#define pForEach_(array, ...)    pForEach__(array, pHas2Args( array, ## __VA_ARGS__ ))
+#define pForEach_(array, ...)   pForEach__(array, pHas2Args( array, ## __VA_ARGS__ ))
 
-#define pForEachI1(array, name)  for( __auto_type name = pEnd(array) - 1; name != pBegin(array) - 1; name++)
+#define pForEachI1(array, name) \
+    for( __auto_type name = pEnd(array) - 1; name != pBegin(array) - 1; name++)
 #define pForEachI0(array)        pForEachI1(array, it)
 #define pForEachI__(array, args) PSTD_CONCAT(pForEachR, args)
 #define pForEachI_(array, ...)   pForEachI__(array, pHas2Args( array, ## __VA_ARGS__ ))
 
-#elif defined(PSTD_FOR_MACRO) && !defined(PSTD_GNU_COMPATIBLE)
 #endif
 
 
