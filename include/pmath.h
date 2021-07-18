@@ -151,7 +151,7 @@ PSTD_UNUSED static inline f32 pSqrtRF32(f32 x) {
 }
 
 PSTD_UNUSED static inline f64 pSqrtRF64(f64 x) {
-   __m128 value  = _mm_set1_pd(x); 
+   __m128 value  = (__m128)_mm_set1_pd(x); 
    __m128 dest   = _mm_rsqrt_ss(value);
     return _mm_cvtsd_f64(dest);
 }
@@ -181,8 +181,6 @@ PSTD_UNUSED static inline i32 pSqrtRI32(i32 x) {
 #define element_type i32
 #define suffix       i
 #include "templates/matrix4x4.h"
-
-#define FN(x) ((__typeof(x))NULL)
 
 // negate
 #define pNegate(x)              \
@@ -842,7 +840,7 @@ PSTD_UNUSED static inline i32 pSqrtRI32(i32 x) {
     )((radians))
 
 // rotate
-#define pRotate (radians, axis) \
+#define pRotate(radians, axis)  \
     _Generic((radians),         \
         f32: pRotateMat4x4f,    \
         u32: pRotateMat4x4u,    \

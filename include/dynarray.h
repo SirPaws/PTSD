@@ -1,9 +1,15 @@
 #pragma once
+
 #ifndef PSTD_DYNARRAY_HEADER
+#define PSTD_DYNARRAY_HEADER
 #ifndef DYNARRAY_STANDALONE
 #   include "general.h"
 #else
-#if defined(_WIN32) || defined(_WIN64)
+#ifndef PSTD_GENERAL_HEADER
+#define PSTD_GENERAL_HEADER
+#if defined(__EMSCRIPTEN__)
+#   define PSTD_WASM
+#elif defined(_WIN32) || defined(_WIN64)
 #    define PSTD_WINDOWS
 #elif defined(__linux__) || defined(__unix__)
 #    define PSTD_LINUX
@@ -143,44 +149,45 @@ typedef float     f32;
 typedef double    f64;
 
 #if !defined(__cplusplus)
-#if defined(PSTD_C99)
-enum { false, true };
-typedef _Bool pBool;
+#   if defined(PSTD_C99)
+        enum { false, true };
+        typedef _Bool pBool;
+#   else
+        enum pBool { false, true };
+#   endif
 #else
-typedef enum { false, true } pBool;
-#endif
-#else
-enum pBool { pFalse, pTrue };
+    using pBool = bool;
 #endif
 
-#ifndef pReallocateBuffer
-#    define pReallocateBuffer realloc
+#ifndef pReallocate
+#    define pReallocate realloc
 #endif
-#ifndef pAllocateBuffer
-#   define pAllocateBuffer malloc
+#ifndef pAllocate
+#   define pAllocate malloc
 #endif
 #ifndef pFreeBuffer
 #   define pFreeBuffer free
 #endif
 #if defined(PSTD_GNU_COMPATIBLE)
-#ifndef pZeroAllocateBuffer
-#define pZeroAllocateBuffer(size) ({                \
-    void *pZeroAllocateBuffer_tmp = malloc(size);   \
-    memset(pZeroAllocateBuffer_tmp, 0, (size));     \
-    pZeroAllocateBuffer_tmp;                        \
+#ifndef pZeroAllocate
+#define pZeroAllocate(size) ({                \
+    void *pZeroAllocate_tmp = malloc(size);   \
+    memset(pZeroAllocate_tmp, 0, (size));     \
+    pZeroAllocate_tmp;                        \
 })
 #endif
 #else
-#ifndef pZeroAllocateBuffer
-    static void* pZeroAllocateBuffer(usize size) {
-        void* pZeroAllocateBuffer_tmp = pAllocateBuffer(size);
-        assert(pZeroAllocateBuffer_tmp);
-        memset(pZeroAllocateBuffer_tmp, 0, (size));
-        return pZeroAllocateBuffer_tmp;
+#ifndef pZeroAllocate
+    static void* pZeroAllocate(usize size) {
+        void* pZeroAllocate_tmp = pAllocate(size);
+        assert(pZeroAllocate_tmp);
+        memset(pZeroAllocate_tmp, 0, (size));
+        return pZeroAllocate_tmp;
     }
-#define pZeroAllocateBuffer pZeroAllocateBuffer
+#define pZeroAllocate pZeroAllocate
 #endif
 #endif
+#endif // PSTD_GENERAL_HEADER 
 #endif
 
 #if defined(_MSC_FULL_VER) && !defined(__clang__)
@@ -215,11 +222,11 @@ enum pBool { pFalse, pTrue };
     if (!(array)->data) {                                                           \
         __typeof(*(array)) pSetCapacity_array = {                                   \
             .endofstorage = pSizeof((array)->data[0]) * (count),                    \
-            .data         = pZeroAllocateBuffer(pSizeof((array)->data[0]) * (count))\
+            .data         = pZeroAllocate(pSizeof((array)->data[0]) * (count))\
         };                                                                          \
         *(array) = pSetCapacity_array;                                              \
     } else {                                                                        \
-        void *pSetCapacity_tmp = pReallocateBuffer((array)->data,                   \
+        void *pSetCapacity_tmp = pReallocate((array)->data,                   \
                 (pSizeof((array)->data[0]) * (count)));                             \
         (array)->data = pSetCapacity_tmp;                                           \
     }                                                                               \
@@ -266,7 +273,7 @@ enum pBool { pFalse, pTrue };
         /* then we insert the value                                                           */\
         /* [1, 6, 2, 3, 4]                                                                    */\
         usize pInsert_elems = (array)->size - pInsert_offset;                                   \
-        void *pInsert_tmp = pAllocateBuffer(pInsert_size * pInsert_elems);                      \
+        void *pInsert_tmp = pAllocate(pInsert_size * pInsert_elems);                      \
         memcpy(pInsert_tmp, (array)->data + pInsert_offset, pInsert_elems * pInsert_size);      \
         memcpy((array)->data + pInsert_offset + 1, pInsert_tmp, pInsert_elems * pInsert_size);  \
         pFreeBuffer(pInsert_tmp);                                                               \
@@ -296,7 +303,7 @@ enum pBool { pFalse, pTrue };
         /* then we insert the value                                                           */\
         /* [1, 6, 2, 3, 4]                                                                    */\
         usize pMakeHole_elems = (array)->size - pMakeHole_offset;                               \
-        void *pMakeHole_tmp = pAllocateBuffer(pMakeHole_size * pMakeHole_elems);                \
+        void *pMakeHole_tmp = pAllocate(pMakeHole_size * pMakeHole_elems);                \
         memcpy(pMakeHole_tmp, (array)->data + pMakeHole_offset,                                 \
                 pMakeHole_elems * pMakeHole_size);                                              \
         memcpy((array)->data + pMakeHole_offset + (num_bytes), pMakeHole_tmp,                   \
@@ -328,7 +335,7 @@ enum pBool { pFalse, pTrue };
     } else {                                                                            \
         pRemove_result = (array)->data[pRemove_offset];                                 \
         usize pRemove_elems = (array)->size - pRemove_offset;                           \
-        void *pRemove_tmp = pAllocateBuffer(pSizeof((array)->data[0]) * pRemove_elems); \
+        void *pRemove_tmp = pAllocate(pSizeof((array)->data[0]) * pRemove_elems); \
         memcpy(pRemove_tmp, (array)->data + pRemove_offset + 1,                         \
                 pRemove_elems * pSizeof((array)->data[0]));                             \
         memcpy((array)->data + pRemove_offset, pRemove_tmp,                             \
@@ -342,7 +349,7 @@ enum pBool { pFalse, pTrue };
 // arr:  another dynamic array
 #define pCopyDynArray(arr) ({                                                           \
         __typeof(arr) pCopyDynArray_tmp = { 0 };                                        \
-        pCopyDynArray_tmp.data = pAllocateBuffer( (arr).size );                         \
+        pCopyDynArray_tmp.data = pAllocate( (arr).size );                         \
         memcpy(pCopyDynArray_tmp.data, (arr).data, sizeof(*(arr).data) * (arr).size);   \
         pCopyDynArray_tmp.size = pCopyDynArray_tmp.endofstorage = (arr).size;           \
         pCopyDynArray_tmp;})
@@ -351,7 +358,7 @@ enum pBool { pFalse, pTrue };
 // arr:  a static array
 #define pCopyArray(type, arr) ({                                \
         type pCopyArray_tmp = { 0 };                            \
-        pCopyArray_tmp.data = pAllocateBuffer( sizeof(arr) );   \
+        pCopyArray_tmp.data = pAllocate( sizeof(arr) );   \
         memcpy(pCopyArray_tmp.data, (arr), sizeof(arr));        \
         pCopyArray_tmp.size = countof(arr);                     \
         pCopyArray_tmp.endofstorage = sizeof(arr);              \
@@ -387,7 +394,7 @@ static void pMaybeGrowDynArray(DynArray *array, usize datasize) {
 PSTD_UNUSED
 static void pDynArrayByteGrow(DynArray *array, usize bytes) {
     if (!bytes || !array) return;
-    void *tmp = pReallocateBuffer(array->data, array->endofstorage + bytes);
+    void *tmp = pReallocate(array->data, array->endofstorage + bytes);
     // assert(tmp);
     array->data = tmp;
     array->endofstorage += bytes;
@@ -396,7 +403,7 @@ static void pDynArrayByteGrow(DynArray *array, usize bytes) {
 PSTD_UNUSED
 static void pDynArrayGrow(DynArray *array, usize datasize, usize count) {
     if (!count || !array || !datasize) return;
-    void *tmp = pReallocateBuffer(array->data, datasize * (array->endofstorage + count));
+    void *tmp = pReallocate(array->data, datasize * (array->endofstorage + count));
     // assert(tmp);
     array->data = tmp;
     array->endofstorage += count;

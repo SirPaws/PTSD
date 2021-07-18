@@ -1,26 +1,23 @@
-
-
-
-
-
-void *debug_malloc(unsigned long long size);
-void *debug_zalloc(unsigned long long size);
-void *debug_realloc(void *buf, unsigned long long size);
-
-#include <stdlib.h>
-#   define pReallocateBuffer debug_realloc
-#   define pAllocateBuffer debug_malloc
-#   define pFreeBuffer free
-#   define pZeroAllocateBuffer debug_zalloc
-
 #define STRETCHY_BUFFER_STANDALONE
 #include "stretchy_buffer.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 
+
+#if defined(PSTD_USE_ALLOCATOR)
+void *debug_allocator(Allocator *, AllocationKind, usize, void*);
+#endif
 
 int main(void) {
+#if defined(PSTD_USE_ALLOCATOR)
+    Allocator alloc = {
+        .allocator = debug_allocator
+    };
+    int *vector = pCreateStretchyBuffer(int, alloc);
+#else
     int *vector = NULL;
+#endif
     // pReserve(vector, 5);
 
     pPushBack(vector, 1);
@@ -37,8 +34,9 @@ int main(void) {
     }
    
     int v = pRemove(vector, insert);
+    assert(v == 6);
     
-    printf("removed the number 6 from array:\n");
+    printf("removed the number %i from array:\n", v);
     for (int *it = pBegin(vector); it != pEnd(vector); it++) {
         printf("%p: %i\n", it, *it);
     }
@@ -46,19 +44,27 @@ int main(void) {
     pFreeStretchyBuffer(vector);
 }
 
-void *debug_malloc(unsigned long long size) {
-    printf("allocated buffer of size %llu\n", size);
-    return malloc(size);
+#if defined(PSTD_USE_ALLOCATOR)
+void *debug_allocator(Allocator *, AllocationKind kind, usize size, void *buf) {
+    switch (kind) {
+    case FREE: {
+            printf("freed buffer of size %llu\n", size);
+            return malloc(size);
+        }
+    case ALLOCATE: {
+            printf("allocated buffer of size %llu\n", size);
+            return malloc(size);
+        }
+    case REALLOCATE: {
+            printf("reallocated buffer %p to be %llu bytes long\n", buf, size);
+            return realloc(buf, size);
+        }
+    case ZERO_ALLOCATE: {
+            printf("zero allocated buffer of size %llu\n", size);
+            void *data = malloc(size);
+            assert(data); memset(data, 0, size);
+            return data;
+        }
+    }
 }
-
-void *debug_zalloc(unsigned long long size) {
-    printf("zero allocated buffer of size %llu\n", size);
-    void *data = malloc(size);
-    assert(data); memset(data, 0, size);
-    return data;
-}
-
-void *debug_realloc(void *buf, unsigned long long size) {
-    printf("reallocated buffer %p to be %llu bytes long\n", buf, size);
-    return realloc(buf, size);
-}
+#endif 

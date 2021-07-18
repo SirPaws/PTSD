@@ -155,32 +155,32 @@ typedef enum { false, true } pBool;
 enum pBool { pFalse, pTrue };
 #endif
 
-#ifndef pReallocateBuffer
-#    define pReallocateBuffer realloc
+#ifndef pReallocate
+#    define pReallocate realloc
 #endif
-#ifndef pAllocateBuffer
-#   define pAllocateBuffer malloc
+#ifndef pAllocate
+#   define pAllocate malloc
 #endif
 #ifndef pFreeBuffer
 #   define pFreeBuffer free
 #endif
 #if defined(PSTD_GNU_COMPATIBLE)
-#ifndef pZeroAllocateBuffer
-#define pZeroAllocateBuffer(size) ({                \
-void *pZeroAllocateBuffer_tmp = malloc(size);   \
-memset(pZeroAllocateBuffer_tmp, 0, (size));     \
-pZeroAllocateBuffer_tmp;                        \
+#ifndef pZeroAllocate
+#define pZeroAllocate(size) ({                \
+void *pZeroAllocate_tmp = malloc(size);   \
+memset(pZeroAllocate_tmp, 0, (size));     \
+pZeroAllocate_tmp;                        \
 })
 #endif
 #else
-#ifndef pZeroAllocateBuffer
-static void* pZeroAllocateBuffer(usize size) {
-    void* pZeroAllocateBuffer_tmp = pAllocateBuffer(size);
-    assert(pZeroAllocateBuffer_tmp);
-    memset(pZeroAllocateBuffer_tmp, 0, (size));
-    return pZeroAllocateBuffer_tmp;
+#ifndef pZeroAllocate
+static void* pZeroAllocate(usize size) {
+    void* pZeroAllocate_tmp = pAllocate(size);
+    assert(pZeroAllocate_tmp);
+    memset(pZeroAllocate_tmp, 0, (size));
+    return pZeroAllocate_tmp;
 }
-#define pZeroAllocateBuffer pZeroAllocateBuffer
+#define pZeroAllocate pZeroAllocate
 #endif
 #endif
 #endif
@@ -204,7 +204,6 @@ void *pCopy(void **);
 
 void *pSmartAllocateBuffer(usize size, pFreeFunction *dtor);
 void *pSmartZeroAllocateBuffer(usize size, pFreeFunction *dtor);
-
 void *pSmartReallocateBuffer(void *, usize size);
 
 void pSmartFreeBuffer(void *);
@@ -214,7 +213,6 @@ static void pCleanupFunc(void *mem) {
     pSmartFreeBuffer(*(void**)mem);
 }
 
-#define SMART_MEMORY_IMPLEMENTATION
 #if defined(SMART_MEMORY_IMPLEMENTATION)
 
 typedef struct pSmartMemoryHeader pSmartMemoryHeader;
@@ -225,7 +223,7 @@ struct pSmartMemoryHeader {
 };
 
 void *pSmartAllocateBuffer(usize size, pFreeFunction *dtor) {
-    pSmartMemoryHeader *sptr = pAllocateBuffer(sizeof(pSmartMemoryHeader) + size);
+    pSmartMemoryHeader *sptr = pAllocate(sizeof(pSmartMemoryHeader) + size);
     sptr->use_count = 0;
     sptr->dtor      = dtor;
     sptr->size      = size;
@@ -233,7 +231,7 @@ void *pSmartAllocateBuffer(usize size, pFreeFunction *dtor) {
 }
 
 void *pSmartZeroAllocateBuffer(usize size, pFreeFunction *dtor) {
-    pSmartMemoryHeader *sptr = pZeroAllocateBuffer(sizeof(pSmartMemoryHeader) + size);
+    pSmartMemoryHeader *sptr = pZeroAllocate(sizeof(pSmartMemoryHeader) + size);
     sptr->dtor      = dtor;
     sptr->size      = size;
     return sptr + 1;
@@ -243,7 +241,7 @@ void *pSmartReallocateBuffer(void *mem, usize size) {
     if (!mem) return NULL;
     pSmartMemoryHeader *sptr = ((pSmartMemoryHeader *)mem) - 1;
     if (sptr->use_count != 0) return NULL;
-    void *new_mem = pReallocateBuffer(sptr, sizeof(pSmartMemoryHeader) + size);
+    void *new_mem = pReallocate(sptr, sizeof(pSmartMemoryHeader) + size);
     if (!new_mem) return NULL;
     sptr = new_mem;
     sptr->size      = size;
