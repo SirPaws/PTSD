@@ -1,8 +1,7 @@
-
 #pragma once
+
 #ifndef PSTD_GENERAL_HEADER
 #define PSTD_GENERAL_HEADER
-#define PSTD_GENERAL_VER 1
 #if defined(__EMSCRIPTEN__)
 #   define PSTD_WASM
 #elif defined(_WIN32) || defined(_WIN64)
@@ -19,7 +18,6 @@
 #define PSTD_GNU_COMPATIBLE
 #else
 #define PSTD_MSVC
-#define __builtin_expect(a, b) (a)
 #endif
 
 #if defined(PSTD_MSVC) && (defined(_MSVC_TRADITIONAL) && _MSVC_TRADITIONAL)
@@ -70,6 +68,8 @@
 #   define PSTD_HAS_VLA 0
 #elif PSTD_C11 && !defined(PSTD_MSVC)
 #   define PSTD_HAS_VLA 1
+#else
+#   define PSTD_HAS_VLA 0
 #endif
 
 
@@ -145,43 +145,66 @@ typedef float     f32;
 typedef double    f64;
 
 #if !defined(__cplusplus)
-#if defined(PSTD_C99)
-enum { false, true };
-typedef _Bool pBool;
+#   if defined(PSTD_C99)
+        enum { false, true };
+        typedef _Bool pBool;
+#   else
+        enum pBool { false, true };
+        typedef enum pBool pBool;
+#   endif
 #else
-typedef enum { false, true } pBool;
-#endif
-#else
-enum pBool { pFalse, pTrue };
+    using pBool = bool;
 #endif
 
-#ifndef pReallocateBuffer
-#    define pReallocateBuffer realloc
-#endif
-#ifndef pAllocateBuffer
-#   define pAllocateBuffer malloc
-#endif
-#ifndef pFreeBuffer
-#   define pFreeBuffer free
-#endif
 #if defined(PSTD_GNU_COMPATIBLE)
-#ifndef pZeroAllocateBuffer
-#define pZeroAllocateBuffer(size) ({                \
-    void *pZeroAllocateBuffer_tmp = malloc(size);   \
-    memset(pZeroAllocateBuffer_tmp, 0, (size));     \
-    pZeroAllocateBuffer_tmp;                        \
-})
-#endif
+#define PSTD_ASSUME(x) __builtin_assume((x))
+#define PSTD_EXPECT(cond, expected_result) __builtin_expect((cond), (expected_result))
 #else
-#ifndef pZeroAllocateBuffer
-    static void* pZeroAllocateBuffer(usize size) {
-        void* pZeroAllocateBuffer_tmp = pAllocateBuffer(size);
-        assert(pZeroAllocateBuffer_tmp);
-        memset(pZeroAllocateBuffer_tmp, 0, (size));
-        return pZeroAllocateBuffer_tmp;
-    }
-#define pZeroAllocateBuffer pZeroAllocateBuffer
+#define PSTD_ASSUME(x) __assume((x))
+#define PSTD_EXPECT(cond, expected_result) (cond)
+#define register __register
 #endif
+
+#if defined(PSTD_GNU_COMPATIBLE)
+#   ifndef pAllocate
+#      define pAllocate(size) malloc(size)
+#   endif // pAllocate
+#   ifndef pZeroAllocate
+#      define pZeroAllocate(size) ({ void *_tmp_ = malloc(size); memset(_tmp_, 0, (size));})
+#   endif // pZeroAllocate
+#   ifndef pReallocate
+#      define pReallocate(size, buffer) realloc(buffer, size)
+#   endif // pReallocate
+#   ifndef pFree
+#      define pFree(buffer) free(buffer)
+#   endif // pFree
+#   ifndef pSizedFree
+#      define pSizedFree(size, buffer) free(buffer)
+#   endif // pFree
+#else
+#   ifndef pAllocate
+#      define pAllocate(size) malloc(size)
+#   endif // pAllocate
+#   ifndef pZeroAllocate
+PSTD_UNUSED
+static inline void *pZeroAllocateImplementation(usize size) {
+    void *tmp = malloc(size);
+    memset(tmp, 0, size);
+    return tmp;
+}
+#      define pZeroAllocate(size) pZeroAllocateImplementation
+#   endif // pZeroAllocate
+#   ifndef pReallocate
+#      define pReallocate(size, buffer) realloc(buffer, size)
+#   endif // pReallocate
+#   ifndef pFree
+#      define pFree(buffer) free(buffer)
+#   endif // pFree
+#   ifndef pSizedFree
+#      define pSizedFree(size, buffer) free(buffer)
+#   endif // pFree
 #endif
+
+
 #endif // PSTD_GENERAL_HEADER 
 

@@ -1,3 +1,6 @@
+#include <handleapi.h>
+#include <memoryapi.h>
+#include <winnt.h>
 #if !defined(PPLATFORM_HEADER_ONLY)
 #include "pplatform.h"
 #endif
@@ -52,8 +55,17 @@ pHandle *pGetSTDInHandle(void) {
 #endif
 }
 
+pFileStat pStatFile(pHandle *handle) {
+    if (!handle || handle == INVALID_HANDLE_VALUE) return (pFileStat){0};
+
+
+
+}
+
 pFileStat pGetFileStat(const char *file) {
     pFileStat result;
+    if (!file) return (pFileStat){0};
+
 #if defined(PSTD_WINDOWS)
 #define WIN32_COMBINE_HIGH_LOW( high, low ) ((u64)(high) << 31 | (low)) 
     WIN32_FILE_ATTRIBUTE_DATA data;
@@ -177,3 +189,47 @@ pBool pSeek(pHandle *handle, isize size, enum pSeekMode mode) {
 #endif
 }
 
+void *pMemoryMapFile(pHandle *handle, pFileAccess access, u64 size, u64 offset) {
+#if defined(PSTD_WINDOWS)
+
+    DWORD protection = 0;
+    switch (access) {
+    case P_WRITE_ACCESS|P_READ_ACCESS: 
+        protection = access & P_EXECUTABLE ? PAGE_EXECUTE_READWRITE : PAGE_READWRITE; break;
+    case P_READ_ACCESS: protection = access & P_EXECUTABLE ? PAGE_EXECUTE_READ : PAGE_READONLY; break;
+    case P_WRITE_ACCESS: return NULL;
+    }
+
+    pHandle *mapped_file = CreateFileMapping(handle, NULL, protection, 0, 0, NULL);
+    if (mapped_file == NULL) return NULL;
+
+    DWORD file_access = 0;
+    switch (access) {
+    case P_WRITE_ACCESS|P_READ_ACCESS: file_access = FILE_MAP_ALL_ACCESS; break;
+    case P_READ_ACCESS:                file_access = FILE_MAP_READ; break;
+    case P_WRITE_ACCESS:               file_access = FILE_MAP_WRITE; break;
+    }
+    LARGE_INTEGER i = {.QuadPart = offset};
+    if (access & P_EXECUTABLE) file_access |= FILE_MAP_EXECUTE;
+    void *mapping = MapViewOfFile(mapped_file, file_access, i.HighPart, i.LowPart, size);
+    CloseHandle(mapped_file);
+    return mapping;
+#elif  defined(PSTD_LINUX) || defined(PSTD_WASM)
+    u32 wmode;
+    switch (mode) {
+    case P_SEEK_SET: wmode = SEEK_SET; break;
+    case P_SEEK_END: wmode = SEEK_END; break;
+    case P_SEEK_CURRENT:
+    default: wmode = SEEK_CUR;
+    }
+
+    off_t offset = lseek((u64)(void*)handle, size, mode);
+    return offset != -1;
+#endif
+    
+}
+pBool pUnmapFile(void *handle) {
+    if (UnmapViewOfFile(handle)) 
+         return true;
+    else return false;
+}

@@ -1,7 +1,10 @@
+
 #include "pio.h"
 #include "pmath.h"
 #include <math.h>
 #include <float.h>
+
+#define RAD(x) ((x) * (3.1415926535f/180.f))
 
 
 void MatrixTestFloat(void);
@@ -226,8 +229,71 @@ void MatrixTestFloat(void) {
             MatrixEqualityFloat(pCreateString(""), &result, &expected);
         }
     }
+    { // ROTATE
+        pPrintf("    Rotate:\n");
+        { // m * v
+            Mat4x4f expected = {0};
+            expected.columns[0].x =  0.360000f;
+            expected.columns[0].y =  0.480000f;
+            expected.columns[0].z = -0.800000f;
+            expected.columns[1].x = -0.800000f;
+            expected.columns[1].y =  0.600000f;
+            expected.columns[2].x =  0.480000f;
+            expected.columns[2].y =  0.640000f;
+            expected.columns[2].z =  0.600000f;
+            expected.columns[3].w =  1.000000f;
+
+            Mat4x4f result = pRotate(RAD(-74.f), ((Vec3f){.x=-1.f/2.f, .y=1, .z=1}));
+            MatrixEqualityFloat(pCreateString(""), &result, &expected);
+        }
+    }
+    { // ROTATE X
+        pPrintf("    RotateX:\n");
+        { // m * v
+            Mat4x4f expected = {0};
+            expected.columns[0].x =  1.000000f;
+            expected.columns[1].y =  0.866025f;
+            expected.columns[1].z = -0.500000f;
+            expected.columns[2].y =  0.500000f;
+            expected.columns[2].z =  0.866025f;
+            expected.columns[3].w =  1.000000f;
+
+            Mat4x4f result = pRotateX(RAD(30.f));
+            MatrixEqualityFloat(pCreateString(""), &result, &expected);
+        }
+    }
+    { // ROTATE Y
+        pPrintf("    RotateY:\n");
+        { // m * v
+            Mat4x4f expected = {0};
+            expected.columns[0].x =  0.866025f;
+            expected.columns[0].z =  0.500000f;
+            expected.columns[1].y =  1.000000f;
+            expected.columns[2].x = -0.500000f;
+            expected.columns[2].z =  0.866025f;
+            expected.columns[3].w =  1.000000f;
+
+            Mat4x4f result = pRotateY(RAD(30.f));
+            MatrixEqualityFloat(pCreateString(""), &result, &expected);
+        }
+    }
+    { // ROTATE Z
+        pPrintf("    RotateZ:\n");
+        { // m * v
+            Mat4x4f expected = {0};
+            expected.columns[0].x =  0.866025f;
+            expected.columns[0].y = -0.500000f;
+            expected.columns[1].x =  0.500000f;
+            expected.columns[1].y =  0.866025f;
+            expected.columns[2].z =  1.0000000;
+            expected.columns[3].w =  1.000000f;
+
+            Mat4x4f result = pRotateZ(RAD(30.f));
+            MatrixEqualityFloat(pCreateString(""), &result, &expected);
+        }
+    }
     { // SCALE 
-        pPrintf("    Translate:\n");
+        pPrintf("    Scale:\n");
         { // m * v
             Mat4x4f expected = {0};
             expected.columns[0].x =  1.000000f;

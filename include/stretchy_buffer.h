@@ -1,10 +1,12 @@
 #pragma once
-#ifndef PSTD_STRETCHY_BUFFER_HEADER
 
+#ifndef PSTD_STRETCHY_BUFFER_HEADER
+#define PSTD_STRETCHY_BUFFER_HEADER
 #ifndef STRETCHY_BUFFER_STANDALONE
 #   include "general.h"
 #else
-#define PSTD_GENERAL_VER 1
+#ifndef PSTD_GENERAL_HEADER
+#define PSTD_GENERAL_HEADER
 #if defined(__EMSCRIPTEN__)
 #   define PSTD_WASM
 #elif defined(_WIN32) || defined(_WIN64)
@@ -21,7 +23,6 @@
 #define PSTD_GNU_COMPATIBLE
 #else
 #define PSTD_MSVC
-#define __builtin_expect(a, b) (a)
 #endif
 
 #if defined(PSTD_MSVC) && (defined(_MSVC_TRADITIONAL) && _MSVC_TRADITIONAL)
@@ -72,6 +73,8 @@
 #   define PSTD_HAS_VLA 0
 #elif PSTD_C11 && !defined(PSTD_MSVC)
 #   define PSTD_HAS_VLA 1
+#else
+#   define PSTD_HAS_VLA 0
 #endif
 
 
@@ -147,49 +150,87 @@ typedef float     f32;
 typedef double    f64;
 
 #if !defined(__cplusplus)
-#if defined(PSTD_C99)
-enum { false, true };
-typedef _Bool pBool;
+#   if defined(PSTD_C99)
+        enum { false, true };
+        typedef _Bool pBool;
+#   else
+        enum pBool { false, true };
+        typedef enum pBool pBool;
+#   endif
 #else
-typedef enum { false, true } pBool;
-#endif
-#else
-enum pBool { pFalse, pTrue };
+    using pBool = bool;
 #endif
 
-#ifndef pReallocateBuffer
-#    define pReallocateBuffer realloc
-#endif
-#ifndef pAllocateBuffer
-#   define pAllocateBuffer malloc
-#endif
-#ifndef pFreeBuffer
-#   define pFreeBuffer free
-#endif
 #if defined(PSTD_GNU_COMPATIBLE)
-#ifndef pZeroAllocateBuffer
-#define pZeroAllocateBuffer(size) ({                \
-    void *pZeroAllocateBuffer_tmp = malloc(size);   \
-    memset(pZeroAllocateBuffer_tmp, 0, (size));     \
-    pZeroAllocateBuffer_tmp;                        \
-})
-#endif
+#define PSTD_ASSUME(x) __builtin_assume((x))
+#define PSTD_EXPECT(cond, expected_result) __builtin_expect((cond), (expected_result))
 #else
-#ifndef pZeroAllocateBuffer
-    static void* pZeroAllocateBuffer(usize size) {
-        void* pZeroAllocateBuffer_tmp = pAllocateBuffer(size);
-        assert(pZeroAllocateBuffer_tmp);
-        memset(pZeroAllocateBuffer_tmp, 0, (size));
-        return pZeroAllocateBuffer_tmp;
-    }
-#define pZeroAllocateBuffer pZeroAllocateBuffer
+#define PSTD_ASSUME(x) __assume((x))
+#define PSTD_EXPECT(cond, expected_result) (cond)
 #endif
+
+#if defined(PSTD_GNU_COMPATIBLE)
+#   ifndef pAllocate
+#      define pAllocate(size) malloc(size)
+#   endif // pAllocate
+#   ifndef pZeroAllocate
+#      define pZeroAllocate(size) ({ void *_tmp_ = malloc(size); memset(_tmp_, 0, (size));})
+#   endif // pZeroAllocate
+#   ifndef pReallocate
+#      define pReallocate(size, buffer) realloc(buffer, size)
+#   endif // pReallocate
+#   ifndef pFree
+#      define pFree(buffer) free(buffer)
+#   endif // pFree
+#   ifndef pSizedFree
+#      define pSizedFree(size, buffer) free(buffer)
+#   endif // pFree
+#else
+#   ifndef pAllocate
+#      define pAllocate(size) malloc(size)
+#   endif // pAllocate
+#   ifndef pZeroAllocate
+PSTD_UNUSED
+static inline void *pZeroAllocateImplementation(usize size) {
+    void *tmp = malloc(size);
+    memset(tmp, 0, size);
+    return tmp;
+}
+#      define pZeroAllocate(size) pZeroAllocateImplementation
+#   endif // pZeroAllocate
+#   ifndef pReallocate
+#      define pReallocate(size, buffer) realloc(buffer, size)
+#   endif // pReallocate
+#   ifndef pFree
+#      define pFree(buffer) free(buffer)
+#   endif // pFree
+#   ifndef pSizedFree
+#      define pSizedFree(size, buffer) free(buffer)
+#   endif // pFree
 #endif
+
+
+#endif // PSTD_GENERAL_HEADER 
+#endif
+
+#ifndef PSTD_STRETCHY_BUFFER_GROWTH_COUNT
+#define PSTD_STRETCHY_BUFFER_GROWTH_COUNT 2
 #endif
 
 // symbol to make it clear that a datatype is a stretchy buffer
 // ie.  `int *stretchy data;
 #define stretchy
+
+// sets a function that will be called on each element
+// when the element is removed, equivalent to a destrutor in c++
+#define pSetFreeFunc(array, free_func) \
+    pSetFreeFuncImplementation(array, free_func)
+
+#if defined(PSTD_USE_ALLOCATOR)
+// creates a new array with a given allocator
+#define pCreateStretchyBuffer(data_type, allocator) \
+    pCreateStretchyBufferImplementation(data_type, allocator)
+#endif
 
 // sets the capacity of the current buffer to hold exactly 'count' elements
 #define pResize(array, count)      pSetCapacityImplementation(array, count)
@@ -227,9 +268,9 @@ enum pBool { pFalse, pTrue };
 #define pEnd(array)   pEndImplementation(array)
 
 // returns a pointer to the last element of the array
-#define pBeginR(array) pBeginImplementation(array)
+#define pBeginR(array) _Static_assert(false, "pBeginR not implemented!"), pBeginImplementation(array)
 // returns a pointer to the element before the first element in the array
-#define pEndR(array)   pEndImplementation(array)
+#define pEndR(array)   _Static_assert(false, "pEndR not implemented!"), pEndImplementation(array)
 
 // get the number of elements currently stored in the array
 #define pSize(array)   pSizeImplementation(array)
@@ -246,7 +287,7 @@ enum pBool { pFalse, pTrue };
 #define pFreeStretchyBuffer(array) pFreeStretchyBufferImplementation(array)
 
 // gets meta data for the array
-#define pGetMeta(array)         pGetMetaImplementation(array)
+#define pGetMeta(array)            pGetMetaImplementation(array)
 
 // gets meta data for the array. if the array is equal to NULL
 // then it creates a new strechy buffer and assigns array to that
@@ -281,6 +322,41 @@ enum pBool { pFalse, pTrue };
 
 
 
+
+
+#if defined(PSTD_USE_ALLOCATOR) && !defined(PSTD_ALLOCATOR_DEFINED)
+#define PSTD_ALLOCATOR_DEFINED
+enum AllocationKind {
+    ALLOCATE,
+    ZERO_ALLOCATE,
+    REALLOCATE,
+    FREE,
+    SIZED_FREE,
+};
+typedef enum AllocationKind AllocationKind;
+typedef struct Allocator Allocator;
+struct Allocator {
+    void *(*allocator)(Allocator *, AllocationKind kind, usize size, void *buffer); 
+    void *user_data;
+};
+
+void *pDefaultAllocator(
+        Allocator *, AllocationKind kind, usize size, void *buffer) 
+{
+    switch(kind) {
+    case ALLOCATE:       return pAllocate(size);
+    case ZERO_ALLOCATE:  return pZeroAllocate(size);
+    case REALLOCATE:     return pReallocate(size, buffer);
+    case FREE:           return (pFree(buffer), NULL); // NOLINT
+    case SIZED_FREE:     return (pSizedFree(size, buffer), NULL);
+    }
+    return NULL;
+}
+const static Allocator PSTD_DEFAULT_HASH_MAP_ALLOCATOR = {
+    .allocator = pDefaultAllocator,
+};
+#endif
+
 #if defined(PSTD_FOR_MACRO)   && defined(PSTD_GNU_COMPATIBLE)
 #define pForEach(array, ...)  pForEach_(array,  ## __VA_ARGS__)(array, ## __VA_ARGS__)
 #define pForEachI(array, ...) pForEachI_(array, ## __VA_ARGS__)(array, ## __VA_ARGS__)
@@ -289,63 +365,65 @@ enum pBool { pFalse, pTrue };
 #error strechy buffer for each macro relies on a gnu extention that this compiler does not support (__auto_type)
 #endif
 
-#ifndef PSTD_STRETCHY_BUFFER_GROWTH_COUNT
-#define PSTD_STRETCHY_BUFFER_GROWTH_COUNT 2
+#if defined(PSTD_GNU_COMPATIBLE) // not an msvc compiler
+
+#if defined(PSTD_USE_ALLOCATOR)
+#define pCreateStretchyBufferImplementation(data_type, allocator) ({                    \
+     __auto_type _buf = pGetArrayMetaData(NULL, pSizeof(data_type), true, (allocator)); \
+     (data_type *)(_buf + 1);                                                           \
+     })
 #endif
 
-#if defined(PSTD_GNU_COMPATIBLE) // not an msvc compiler
+#define pFreeStretchyBufferImplementation(array) \
+    pStretchyBufferFree(pGetMeta(array), pSizeof((array)[0]))
+
+#define PSTD_FREE_ELEMENT(array, offset) ({                 \
+    if (pGetMeta(array)->free_element) {                    \
+        pGetMeta(array)->free_element((array) + (offset));  \
+    }                                                       \
+})
+
+#define pSetFreeFuncImplementation(array, free_func) ({\
+    pGetMetaOrCreate(array)->free_element = (free_func);\
+})
 
 #define pSizeofImplementation(value) (sizeof(__typeof(value)))
 
+#if defined(PSTD_USE_ALLOCATOR)
+#define pGetMetaImplementation(array) \
+    ({ pGetArrayMetaData((array), pSizeof((array)[0]), false, PSTD_DEFAULT_ALLOCATOR); })
+#else
 #define pGetMetaImplementation(array) ({ pGetArrayMetaData((array), pSizeof((array)[0]), false); })
+#endif
 
-#define pGetMetaOrCreateImplementation(array) ({                                  \
-            StretchyBufferMeta *pGetMeta_meta =                      \
+#if defined(PSTD_USE_ALLOCATOR)
+#define pGetMetaOrCreateImplementation(array) ({                                            \
+            pStretchyBufferMeta *pGetMeta_meta =                                            \
+            pGetArrayMetaData((array), pSizeof((array)[0]), true, PSTD_DEFAULT_ALLOCATOR);  \
+            (array) = (__typeof(array))(pGetMeta_meta + 1);                                 \
+            pGetMeta_meta;                                                                  \
+        })
+#else 
+#define pGetMetaOrCreateImplementation(array) ({                    \
+            pStretchyBufferMeta *pGetMeta_meta =                    \
             pGetArrayMetaData((array), pSizeof((array)[0]), true);  \
-            (array) = (void*)(pGetMeta_meta + 1);                   \
+            (array) = (__typeof(array))(pGetMeta_meta + 1);         \
             pGetMeta_meta;                                          \
         })
+#endif
 
 #define pSizeImplementation(array)   (pGetMeta(array)->size) 
 
-#define pFreeStretchyBufferImplementation(array) pFreeBuffer(pGetMeta(array))
-#define pSetCapacityImplementation(array, count) ({                                               \
-    if (!(array)) {                                                                 \
-        StretchyBufferMeta *pSetCapacity_meta = pZeroAllocateBuffer(                 \
-                    (pSizeof((array)[0]) * (count)) + sizeof(StretchyBufferMeta));   \
-        pSetCapacity_meta->endofstorage = (pSizeof((array)[0]) * (count));          \
-        (array) = (void*)(pSetCapacity_meta + 1);                                   \
-    } else {                                                                        \
-        __auto_type pSetCapacity_meta = pGetMeta(array);                            \
-        void *pSetCapacity_tmp = pReallocateBuffer(pSetCapacity_meta,               \
-                (pSizeof((array)[0]) * (count)) + sizeof(StretchyBufferMeta));       \
-        pSetCapacity_meta = pSetCapacity_tmp;                                       \
-        (array) = (void*)(pSetCapacity_meta + 1);                                   \
-    }                                                                               \
-    (array);                                                                        \
-})
+#define pSetCapacityImplementation(array, count) \
+    pSetCapacityImplementation_(&(array), (count), pSizeof((array)[0]))
 
-#define pReserveImplementation(array, count) ({                                     \
-    if (!(array)) {                                                                 \
-        StretchyBufferMeta *pSetCapacity_meta = pZeroAllocateBuffer(                 \
-                    (pSizeof((array)[0]) * (count)) + sizeof(StretchyBufferMeta));   \
-        pSetCapacity_meta->endofstorage = (pSizeof((array)[0]) * (count));          \
-        (array) = (void*)(pSetCapacity_meta + 1);                                   \
-    } else if (pSize(array) < (count)) {                                            \
-        __auto_type pSetCapacity_meta = pGetMeta(array);                            \
-        void *pSetCapacity_tmp = pReallocateBuffer(pSetCapacity_meta,               \
-                (pSizeof((array)[0]) * (count)) + sizeof(StretchyBufferMeta));       \
-        assert(pSetCapacity_tmp);                                                   \
-        pSetCapacity_meta = pSetCapacity_tmp;                                       \
-        (array) = (void*)(pSetCapacity_meta + 1);                                   \
-    }                                                                               \
-    (array);                                                                        \
-})
+#define pReserveImplementation(array, count) \
+    pReserveImplementation_(&(array), (count), pSizeof((array)[0]))
 
 
 #define pPushBackImplementation(array, value) ({                   \
     pGetMetaOrCreate(array);                                       \
-    pMaybeGrowStretchyBuffer(&(array), pSizeof((array)[0]));        \
+    pMaybeGrowStretchyBuffer(&(array), pSizeof((array)[0]));       \
     __auto_type pPushBack_ret = (array) + pSize(array)++;          \
     *pPushBack_ret = (value);                                      \
     pPushBack_ret;                                                 \
@@ -353,7 +431,7 @@ enum pBool { pFalse, pTrue };
 
 #define pPushBytesImplementation(array, value, bytes) ({    \
     pGetMetaOrCreate(array);                                \
-    pMaybeByteGrowStretchyBuffer(&(array), (bytes));         \
+    pMaybeByteGrowStretchyBuffer(&(array), (bytes));        \
     memcpy((array) + pSize((array)), (value), (bytes));     \
     __auto_type pPushBack_ret = (array) + pSize((array));   \
     pSize((array)) += (bytes);                              \
@@ -374,7 +452,7 @@ enum pBool { pFalse, pTrue };
     __typeof(value) *pInsert_result = NULL;                                                     \
     if (pInsert_array->size && pInsert_offset >= pInsert_array->size) {}                        \
     else {                                                                                      \
-        pMaybeGrowStretchyBuffer(&(array), pInsert_size);                                        \
+        pMaybeGrowStretchyBuffer(&(array), pInsert_size);                                       \
         /* first we extract all elements after the place where we want                        */\
         /* to insert and then we shift them one element forward                               */\
         /* here is an example we wan't to insert 6 at the place pointed to below              */\
@@ -403,6 +481,7 @@ enum pBool { pFalse, pTrue };
             __typeof((array)[0]) pPopBack_result = {0};         \
             if (pSize(array) == 0) {}                           \
             else {                                              \
+                PSTD_FREE_ELEMENT(array, pSize(array));         \
                 pPopBack_result = (array)[(pSize(array)--) - 1];\
             }                                                   \
             pPopBack_result;                                    \
@@ -413,9 +492,11 @@ enum pBool { pFalse, pTrue };
     usize pRemove_offset = (position) - pBegin(array);                              \
     if (pRemove_offset >= pSize(array)) {}                                          \
     else if (pRemove_offset == pSize(array) - 1) {                                  \
+        PSTD_FREE_ELEMENT(array, pRemove_offset);                                   \
         pSize(array)--;                                                             \
         pRemove_result = (array)[pRemove_offset];                                   \
     } else {                                                                        \
+        PSTD_FREE_ELEMENT(array, pRemove_offset);                                   \
         pRemove_result = (array)[pRemove_offset];                                   \
         usize pRemove_elems = (pSize(array) - pRemove_offset) - 1;                  \
         memmove((array) + pRemove_offset, (array) + pRemove_offset + 1,             \
@@ -427,14 +508,14 @@ enum pBool { pFalse, pTrue };
 
 // arr:  another dynamic array
 #define pCopyStretchyBufferImplementation(arr) ({\
-    __auto_type pCopyStretchyBuffer_array  = pGetMeta(array);                            \
+    __auto_type pCopyStretchyBuffer_array  = pGetMeta(array);                             \
     usize pCopyStretchyBuffer_size = pSizeof((arr)[0]) * pCopyStretchyBuffer_array->size; \
-    StretchyBufferMeta *pCopyStretchyBuffer_copy =                                        \
-        pAllocateBuffer(sizeof(StretchyBufferMeta) * pCopyStretchyBuffer_size)            \
+    pStretchyBufferMeta *pCopyStretchyBuffer_copy =                                       \
+        pAllocate(sizeof(pStretchyBufferMeta) * pCopyStretchyBuffer_size)           \
     pCopyStretchyBuffer_copy->endofstorage = pCopyStretchyBuffer_size;                    \
     pCopyStretchyBuffer_copy->size = pCopyStretchyBuffer_array->size;                     \
     memcpy((arr), pCopyStretchyBuffer_array + 1, pCopyStretchyBuffer_size;                \
-    (__typeof((arr)[0])*)( pCopyStretchyBuffer_copy + 1);                                \
+    (__typeof((arr)[0])*)( pCopyStretchyBuffer_copy + 1);                                 \
 })
 
 // type: the type of array we want
@@ -447,8 +528,13 @@ enum pBool { pFalse, pTrue };
     pCopyArray_tmp;                                 \
 })
 
-typedef struct StretchyBufferMetaa StretchyBufferMeta;
-struct StretchyBufferMetaa {
+typedef void pFreeFunction(void*);
+typedef struct pStretchyBufferMeta pStretchyBufferMeta;
+struct pStretchyBufferMeta {
+#if defined(PSTD_USE_ALLOCATOR)
+    Allocator cb;
+#endif
+    pFreeFunction *free_element;
     usize size;
     usize endofstorage;
 #if PSTD_C99
@@ -462,8 +548,8 @@ static void pStretchyBufferGrow(void* array, usize datasize, usize count);
 
 PSTD_UNUSED
 static void pMaybeByteGrowStretchyBuffer(void* array, usize bytes) {
-    StretchyBufferMeta** meta_ptr = array;
-    StretchyBufferMeta* meta = (*meta_ptr) - 1;
+    pStretchyBufferMeta** meta_ptr = (pStretchyBufferMeta**)array;
+    pStretchyBufferMeta* meta = (*meta_ptr) - 1;
 
     if (meta->size + bytes > meta->endofstorage) {
         pStretchyBufferByteGrow(array, bytes);
@@ -472,8 +558,8 @@ static void pMaybeByteGrowStretchyBuffer(void* array, usize bytes) {
 
 PSTD_UNUSED
 static void pMaybeGrowStretchyBuffer(void* array, usize datasize) {
-    StretchyBufferMeta** meta_ptr = array;
-    StretchyBufferMeta* meta = (*meta_ptr) - 1;
+    pStretchyBufferMeta** meta_ptr = (pStretchyBufferMeta**)array;
+    pStretchyBufferMeta* meta = (*meta_ptr) - 1;
 
     if ((meta->size + 1) * datasize > meta->endofstorage) {
         pStretchyBufferGrow(array, datasize, PSTD_STRETCHY_BUFFER_GROWTH_COUNT);
@@ -483,56 +569,345 @@ static void pMaybeGrowStretchyBuffer(void* array, usize datasize) {
 static void pStretchyBufferByteGrow(void* array_ptr, usize bytes) {
     if (!bytes || !array_ptr) return;
     u8* array = *(u8**)array_ptr;
-    StretchyBufferMeta* meta = ((StretchyBufferMeta*)array) - 1;
+    pStretchyBufferMeta* meta = ((pStretchyBufferMeta*)array) - 1;
+    usize size = sizeof(pStretchyBufferMeta) + meta->endofstorage + bytes;
 
+#if defined(PSTD_USE_ALLOCATOR)
+    assert(meta->cb.allocator);
 
-    void* tmp = pReallocateBuffer(meta, sizeof(StretchyBufferMeta) + meta->endofstorage + bytes);
-    assert(tmp); meta = tmp;
+    void *tmp = meta->cb.allocator(&meta->cb, REALLOCATE, size, meta);
+#else
+    void *tmp = pReallocate(size, meta);
+#endif
+    assert(tmp); meta = (pStretchyBufferMeta*)tmp;
+
     meta->endofstorage += bytes;
-    *(u8**)array_ptr = (void*)(meta + 1);
+    *(u8**)array_ptr = (u8*)(meta + 1);
 }
 
 static void pStretchyBufferGrow(void* array_ptr, usize datasize, usize count) {
     if (!count || !array_ptr || !datasize) return;
     u8* array = *(u8**)array_ptr;
-    StretchyBufferMeta* meta = ((StretchyBufferMeta*)array) - 1;
+    pStretchyBufferMeta* meta = ((pStretchyBufferMeta*)array) - 1;
+
+#if defined(PSTD_USE_ALLOCATOR)
+    assert(meta->cb.allocator);
+#endif 
 
     usize array_size = meta->endofstorage + (datasize * count);
-    usize size = sizeof(StretchyBufferMeta) + array_size;
-    void* tmp = pReallocateBuffer(meta, size);
+    usize size = sizeof(pStretchyBufferMeta) + array_size;
+
+#if defined(PSTD_USE_ALLOCATOR)
+    void *tmp = meta->cb.allocator(&meta->cb, REALLOCATE, size, meta);
+#else
+    void *tmp = pReallocate(size, meta);
+#endif
+    assert(tmp); meta = (pStretchyBufferMeta*)tmp;
+
+    meta->endofstorage += datasize * count;
+    *(u8**)array_ptr = (u8*)(meta + 1);
+}
+
+PSTD_UNUSED
+#if defined(PSTD_USE_ALLOCATOR)
+static pStretchyBufferMeta* pGetArrayMetaData(void* array, usize data_size, pBool create, Allocator cb) {
+#else
+static pStretchyBufferMeta* pGetArrayMetaData(void* array, usize data_size, pBool create) {
+#endif
+#if defined(PSTD_USE_ALLOCATOR)
+    if (!cb.allocator) {
+        cb.allocator = pDefaultAllocator;
+    }
+#endif
+
+    if (!array) {
+        if (!create) { // should probably just return NULL
+            static pStretchyBufferMeta nil = {0};
+            nil = (pStretchyBufferMeta){0};
+            return &nil;
+        }
+        pStretchyBufferMeta *meta;
+#if defined(PSTD_USE_ALLOCATOR)
+        meta = cb.allocator(&cb, ZERO_ALLOCATE, sizeof(pStretchyBufferMeta) + data_size, NULL);
+        meta->cb = cb;
+#else
+        meta = pZeroAllocate(sizeof(pStretchyBufferMeta) + data_size);
+#endif
+        meta->endofstorage = data_size;
+        meta->size = 0;
+        return meta;
+    }
+
+    return ((pStretchyBufferMeta*)array) - 1;
+}
+
+PSTD_UNUSED
+static usize pSetCapacityImplementation_(void *mem, usize count, usize data_size) {
+    void **array_ptr = mem;
+    if (!(*array_ptr)) {
+        usize array_size = ((data_size) * (count));
+        usize size = array_size + sizeof(pStretchyBufferMeta);
+#if defined(PSTD_USE_ALLOCATOR)
+        Allocator cb = PSTD_DEFAULT_ALLOCATOR;
+        pStretchyBufferMeta *meta = cb.allocator(&cb, ZERO_ALLOCATE, size, NULL);
+        meta->cb = cb;
+#else
+        pStretchyBufferMeta *meta = pZeroAllocate(size);
+#endif
+        meta->endofstorage = array_size;
+        (*array_ptr) = (void*)(meta + 1);
+    } else {
+        __auto_type meta = pGetMeta(*array_ptr);
+
+        usize size = ((data_size) * (count)) + sizeof(pStretchyBufferMeta);
+#if defined(PSTD_USE_ALLOCATOR)
+        assert(meta->cb.allocator);
+        void *tmp = meta->cb.allocator(&meta->cb, REALLOCATE, size, meta);
+#else
+        void *tmp = pReallocate(size, meta);
+#endif
+        assert(tmp);
+        meta = tmp;
+        (*array_ptr) = (void*)(meta + 1);
+    }
+    return count;
+}
+
+PSTD_UNUSED
+static usize pReserveImplementation_(void *mem, usize count, usize data_size) {
+    void **array_ptr = mem;
+    if (!(*array_ptr)) {
+        usize array_size = ((data_size) * (count));
+        usize size = array_size + sizeof(pStretchyBufferMeta);
+#if defined(PSTD_USE_ALLOCATOR)
+        Allocator cb = PSTD_DEFAULT_ALLOCATOR;
+        pStretchyBufferMeta *meta = cb.allocator(&cb, ZERO_ALLOCATE, size, NULL);
+#else
+        pStretchyBufferMeta *meta = pZeroAllocate(size);
+#endif
+        assert(meta);
+        meta->endofstorage = array_size;
+#if defined(PSTD_USE_ALLOCATOR)
+        meta->cb           = cb;
+#endif
+        (*array_ptr)       = (void*)(meta + 1);
+    } else if ((data_size) < (count)) {
+        __auto_type meta = pGetMeta(*array_ptr);
+        usize size = ((data_size) * (count)) + sizeof(pStretchyBufferMeta);
+#if defined(PSTD_USE_ALLOCATOR)
+        void *tmp = meta->cb.allocator(&meta->cb, REALLOCATE, size, meta);
+#else
+        void *tmp = pReallocate(size, meta);
+#endif
+        assert(tmp);
+        meta = tmp;
+        (*array_ptr) = (void*)(meta + 1);
+    }
+    return count;
+}
+
+PSTD_UNUSED
+static inline void pStretchyBufferFree(pStretchyBufferMeta *meta, usize data_size) {
+    if (meta->free_element) {
+        u8 *data = (void*)(meta + 1);
+        for (isize i = meta->size - 1; i >= 0; i--) {
+            meta->free_element(data + data_size * i);
+        }
+    }
+#if defined(PSTD_USE_ALLOCATOR)
+    meta->cb.allocator(&meta->cb, SIZED_FREE, sizeof(*meta) + meta->endofstorage, meta);
+#else
+    pSizedFree(sizeof(*meta) + meta->endofstorage, meta);
+#endif
+}
+
+#else // using mvsc compiler
+#define pSizeof(value) (sizeof(value))
+
+#define pGetMetaOrCreate(array)                                                         \
+    ((array) = (void*) pGetArrayMetaData((array), pSizeof((array)[0]),true),            \
+            (array) = ((StrechyBufferMeta*)array) + 1, ((StrechyBufferMeta*)array) - 1)
+
+#define pGetMeta(array) (pGetArrayMetaData((array), pSizeof((array)[0]), false))
+
+#define pSetBufferAllocatorImplementation(array, allocator) \
+    ({ pGetMetaOrCreate(array)->allocator = allocator; })
+
+
+#define pSize(array)   (pGetMeta(array)->size) 
+#define pLength(array) (pGetMeta(array)->size)
+#define pLen(array)    (pGetMeta(array)->size)
+
+#define pFreeStrechyBuffer(array) pFreeBuffer(pGetMeta(array))
+
+#define pSetCapacity(array, count)   \
+    (pSetArraySize(pGetMetaOrCreate(array), &(array), (pSizeof((array)[0]) * (count))), array) 
+
+
+#define pSetCap     pSetCapacity
+#define pSetCount   pSetCapacity
+#define pSetSize    pSetCapacity
+#define pSetLength  pSetCapacity
+#define pReserve    pSetCapacity
+
+#define pPushBack(array, value) \
+    (pGetMetaOrCreate(array), pMaybeGrowStrechyBuffer(&(array), pSizeof((array)[0])),\
+        *((array)+pSize(array)) = (value), pGetMeta(array)->size++, ((array)+(pSize(array)-1)))
+
+#define pBegin(array) (array)
+#define pEnd(array) ((array) + pSize(array))
+
+#define pInsert(array, position, value)\
+    (pGetMetaOrCreate(array), (((position) - pBegin(array)) >= pSize(array) ? NULL :              \
+        ((position) = pInsertAtLocation(pGetMeta(array), &(array), &(position), pSizeof(value)))),\
+        (*(position) = value), position)
+
+
+
+#define pPopBack(array) /*due to not having any typeof we just return msvc (trash) on size 0*/\
+    (pSize(array) == 0 ? (array)[-9034] : (pGetMeta(array)->size--, (array)[pSize(array)]))   \
+
+#define pRemove(array, position)                                            \
+    (((position) - pBegin(array)) >= pSize(array) ? *position :             \
+    ((((position) - pBegin(array)) == pSize(array) - 1) ? pPopBack(array) : \
+                (array)[pSwapAndPop(pGetMeta(array), &(array), &(position), pSizeof((array)[0]))]))
+
+#define pCopyStrechyBuffer(array)    \
+    (pCopyBuffer(pGetMeta(array), pSizeof((array)[0]))) 
+
+#define pCopyArray(array) \
+    (pCopyStaticArray((array), pSizeof((array)[0]), sizeof((array)))
+
+
+typedef struct StrechyBufferMeta StrechyBufferMeta;
+struct StrechyBufferMeta {
+    Allocator cb;
+    usize size;
+    usize endofstorage;
+};
+
+// how many elements we should add
+static void pStrechyBufferGrow(void* array, usize datasize, usize count);
+
+static void pMaybeGrowStrechyBuffer(void* array, usize datasize) {
+    StrechyBufferMeta** meta_ptr = array;
+    StrechyBufferMeta* meta = (*meta_ptr) - 1;
+
+    if ((meta->size + 1) * datasize > meta->endofstorage) {
+        pStrechyBufferGrow(array, datasize, P_STRECHY_BUFFER_GROWTH_COUNT);
+    }
+}
+
+static void pStrechyBufferGrow(void* array_ptr, usize datasize, usize count) {
+    if (!count || !array_ptr || !datasize) return;
+    u8* array = *(u8**)array_ptr;
+    StrechyBufferMeta* meta = ((StrechyBufferMeta*)array) - 1;
+
+    usize array_size = meta->endofstorage + (datasize * count);
+    usize size = sizeof(StrechyBufferMeta) + array_size;
+    void* tmp = pReallocate(meta, size);
     assert(tmp); meta = tmp;
     meta->endofstorage += datasize * count;
     *(u8**)array_ptr = (void*)(meta + 1);
 }
-StretchyBufferMeta* pGetArrayMetaData(void* array, usize data_size, pBool create) {
+
+static StrechyBufferMeta p_strechy_buffer_nil = { 0 };
+static StrechyBufferMeta* pGetArrayMetaData(void* array, usize data_size, bool should_create) {
     if (!array) {
-        if (!create) { // should probably just return NULL
-            static StretchyBufferMeta nil = { 0 };
-            nil = (StretchyBufferMeta){ 0 };
-            return &nil;
+        if (!should_create) {
+            p_strechy_buffer_nil = (StrechyBufferMeta){ 0 };
+            return &p_strechy_buffer_nil;
         }
-        StretchyBufferMeta* meta = pZeroAllocateBuffer(sizeof(StretchyBufferMeta) + data_size);
+        StrechyBufferMeta* meta = pZeroAllocate(sizeof(StrechyBufferMeta) + data_size);
         meta->endofstorage = data_size;
         meta->size = 0;
         array = (meta + 1);
     }
 
-    return ((StretchyBufferMeta*)array) - 1;
+    return ((StrechyBufferMeta*)array) - 1;
 }
 
-#if !defined(NDEBUG)
-StretchyBufferMeta* _debug_GetMeta(void* array) { //NOLINT
-    StretchyBufferMeta* address = array;
-    return address - 1;
+static StrechyBufferMeta* pSetArraySize(StrechyBufferMeta* meta, void* array_ptr, usize new_size) {
+    void* tmp = pReallocate(meta, (new_size)+sizeof(StrechyBufferMeta));
+    assert(tmp); meta = tmp;
+    meta->endofstorage = new_size;
+    *((void**)array_ptr) = meta + 1;
+    return meta;
+}
+
+static void* pCopyBuffer(StrechyBufferMeta* src, usize data_size) {
+    if (src->size != 0) {
+        StrechyBufferMeta* meta =
+            pZeroAllocate((data_size * src->size) + sizeof(StrechyBufferMeta));
+        meta->endofstorage = src->size * data_size;
+        meta->size = src->size;
+        memcpy(meta + 1, src + 1, src->size * data_size);
+        return meta + 1;
+    }
+    else {
+        void* arr;
+        StrechyBufferMeta* meta = pNewArray(&arr, data_size);
+        return arr;
+    }
+}
+
+static void* pCopyStaticArray(void* array, usize data_size, usize count) {
+    if (count != 0) {
+        StrechyBufferMeta* meta =
+            pZeroAllocate((data_size * count) + sizeof(StrechyBufferMeta));
+        meta->endofstorage = count * data_size;
+        meta->size = count;
+        memcpy(meta + 1, array, count * data_size);
+        return meta + 1;
+    }
+    else {
+        void* arr;
+        StrechyBufferMeta* meta = pNewArray(&arr, data_size);
+        return arr;
+    }
+}
+
+static void* pInsertAtLocation(StrechyBufferMeta* meta, void* array, void* location, usize data_size) {
+    pMaybeGrowStrechyBuffer(array, data_size);
+
+    /* first we extract all elements after the place where we want
+     * to insert and then we shift them one element forward
+     * here is an example we wan't to insert 6 at the place pointed to below
+     * [1, 2, 3, 4]
+     *     ^
+     * we make a new array that holds [2, 3, 4]
+     * we insert that into the array
+     * [1, 2, 2, 3, 4]
+     * then we insert the value
+     * [1, 6, 2, 3, 4]
+     */
+
+    u8* array_ = (u8*)*(void**)array;
+    usize offset = (((u8*)(*(void**)location)) - array_) / data_size;
+    usize elems = meta->size - offset;
+    memmove(array_ + ((offset + 1) * data_size), (array_)+(offset * data_size), elems * data_size);
+    meta->size++;
+    return array_ + (offset * data_size);
+}
+
+static usize pSwapAndPop(StrechyBufferMeta* meta, void* array, void* location, usize data_size) {
+    u8* buffer = (u8*)malloc(data_size);
+    u8* data_start = (u8*)*(void**)location;
+    memmove(buffer, data_start, data_size);
+
+    u8* array_ = (u8*)*(void**)array;
+    usize offset = (((u8*)(*(void**)location)) - array_) / data_size;
+    usize elems = meta->size - offset;
+    memmove(data_start, data_start + data_size, elems * data_size);
+    memmove(array_ + (--meta->size) * data_size, buffer, data_size);
+    free(buffer);
+    return meta->size;
 }
 #endif
-#else // using mvsc compiler
-int msvc_not_implemented[-1];
-#endif
 
-#if defined(PSTD_FOR_MACRO) && !defined(PSTD_GNU_COMPATIBLE)
-#elif defined(PSTD_FOR_MACRO)
 
+#if defined(PSTD_FOR_MACRO) && ( defined(PSTD_GNU_COMPATIBLE) \
+        || (defined(_MSVC_TRADITIONAL) && _MSVC_TRADITIONAL == 0))
 #define pHas2Args_(_0, a, b, _3, answer, _5, ...) answer
 #define pHas2Args(a, ...)                         pHas2Args_(0, a, ## __VA_ARGS__, 1, 1, 0, 1) 
 #define PSTD_CONCAT_( a, b )                      a##b
@@ -551,9 +926,8 @@ int msvc_not_implemented[-1];
 #define pForEachI0(array)        pForEachI1(array, it)
 #define pForEachI__(array, args) PSTD_CONCAT(pForEachR, args)
 #define pForEachI_(array, ...)   pForEachI__(array, pHas2Args( array, ## __VA_ARGS__ ))
-
+#elif defined(PSTD_FOR_MACRO) 
+#error pstd For Macro Does not work with msvc traditional preprocessor
 #endif
-
-
 
 #endif // PSTD_STRETCHY_BUFFER_HEADER

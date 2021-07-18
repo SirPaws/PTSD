@@ -14,6 +14,8 @@ char *files[] = {
     "include/stretchy_buffer.h",
     "include/util.h",
     "src/pio.c",
+    "src/pPrintf.c",
+  //  "src/pScanf.c",
     "src/pplatform.c",
     "src/pstring.c",
     "src/util.c",

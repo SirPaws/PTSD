@@ -386,7 +386,7 @@ Mat4x4 pRotateZ(element_type radians) {
 #define M result.columns
     Mat4x4 result = {0};
 
-    M[0].x = pCos(radians); M[0].y = pSin(radians); M[0].z =             0; M[0].w = 0;
+    M[0].x = pCos(radians); M[0].y =-pSin(radians); M[0].z =             0; M[0].w = 0;
     M[1].x = pSin(radians); M[1].y = pCos(radians); M[1].z =             0; M[1].w = 0;
     M[2].x =             0; M[2].y =             0; M[2].z =             1; M[2].w = 0;
     M[3].x =             0; M[3].y =             0; M[3].z =             0; M[3].w = 1;
@@ -396,18 +396,55 @@ Mat4x4 pRotateZ(element_type radians) {
 
 Mat4x4 pRotate (element_type radians, Vec3 axis) {
     
-    Vec3 unit_axis = pVec3Normalize(axis);
-    element_type m00 = pCos(radians) + unit_axis.x * (1 - pCos(radians));
-    element_type m01 = axis.x*axis.y*(1 - pCos(radians)) - axis.z*pSin(radians);
-    element_type m02 = axis.z*axis.z*(1 - pCos(radians)) + axis.y*pSin(radians);
+    const element_type c = pCos(radians);
+    const element_type s = pSin(radians);
 
-    element_type m10 = axis.y*axis.x*(1 - pCos(radians)) + axis.z*pSin(radians);
-    element_type m11 = pCos(radians) + unit_axis.y * (1 - pCos(radians));
-    element_type m12 = axis.y*axis.z*(1 - pCos(radians)) - axis.x*pSin(radians);
+    Vec3 normalized = pVec3Normalize(axis);
+    Vec3 temp = pVec3MulScalar(normalized, (element_type)1 - c);
+    element_type x = normalized.x;
+    element_type y = normalized.y;
+    element_type z = normalized.z;
+    element_type tx = temp.x;
+    element_type ty = temp.y;
+    element_type tz = temp.z;
+
+    element_type m00 = c + tx * x;
+    element_type m01 = tx * y + s * z;
+    element_type m02 = tx * z - s * y;
+
+    element_type m10 = ty * x - s * z;
+    element_type m11 = c + ty * y;
+    element_type m12 = ty * z + s * x;
     
-    element_type m20 = axis.z*axis.x*(1 - pCos(radians)) - axis.y*pSin(radians);
-    element_type m21 = axis.z*axis.y*(1 - pCos(radians)) + axis.x*pSin(radians);
-    element_type m22 = pCos(radians) + unit_axis.z * (1 - pCos(radians));
+    element_type m20 = tz * x + s * y;
+    element_type m21 = tz * y - s * x;
+    element_type m22 = c + tz * z;
+
+    return (Mat4x4) {.columns={
+        {.x=m00, .y=m10, .z=m20, .w=0},
+        {.x=m01, .y=m11, .z=m21, .w=0},
+        {.x=m02, .y=m12, .z=m22, .w=0},
+        {.x=  0, .y=  0, .z=  0, .w=1},
+    }};
+
+#if 0
+
+
+
+    Vec3 unit_axis = pVec3Normalize(axis);
+    Vec3 temp      = pVec3MulScalar(unit_axis, _ncos);
+
+    element_type m00 = _cos + temp.x;
+    element_type m01 = x*y*_ncos - z * _sin;
+    element_type m02 = x*z*_ncos + y * _sin;
+                                                                    
+    element_type m10 = y*x*_ncos + z * _sin;
+    element_type m11 = _cos + temp.y;                               
+    element_type m12 = y*z*_ncos - x * _sin;
+                                                                    
+    element_type m20 = z*x*_ncos - y * _sin;
+    element_type m21 = z*y*_ncos + x * _sin;
+    element_type m22 = _cos + temp.z;
 
 #define M result.columns
     Mat4x4 result = {0};
@@ -418,6 +455,7 @@ Mat4x4 pRotate (element_type radians, Vec3 axis) {
     M[3].x =   0; M[3].y =   0; M[3].z =   0; M[3].w = 1;
     return result;
 #undef M
+#endif
 }
 
 #undef ALIAS
@@ -432,7 +470,6 @@ Mat4x4 pRotate (element_type radians, Vec3 axis) {
 
 #undef pAddScalar
 #undef pSubScalar
-#undef pMulScalar
 #undef pDivScalar
 
 #undef pAddMatrix
@@ -440,9 +477,10 @@ Mat4x4 pRotate (element_type radians, Vec3 axis) {
 #undef pMulMatrix
 #undef pDivMatrix
 
-// linear algebra
+#undef pMulScalar
 #undef pMulVector
 #undef pVecMulMatrix
+
 #undef pVecMulScalar
 #undef pVecDot
 #undef pVecAdd
@@ -450,15 +488,23 @@ Mat4x4 pRotate (element_type radians, Vec3 axis) {
 #undef pVecMul
 #undef pVecDiv
 
+#undef pVec3Dot
+#undef pVec3Add
+#undef pVec3Sub
+#undef pVec3Mul
+#undef pVec3MulScalar
+#undef pVec3Div
+#undef pVec3Normalize
+#undef pVec3Cross
+
 #undef pOrtho
-#undef pFrustum
 #undef pPerspective
 #undef pLookAt
+#undef pFrustum
 #undef pTranslate
 #undef pRotate
 #undef pRotateX
 #undef pRotateY
 #undef pRotateZ
 #undef pScale
-
 

@@ -3,12 +3,18 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-pPrintfInfo callback(pPrintfInfo info) {
-    int arrcount = va_arg(info.list, int);
-    int *arr     = va_arg(info.list, int*);
+#define PPLATFORM_HEADER_ONLY
+#include "pplatform.h"
 
-    pStreamWrite(info.stream, pCreateString("[ "));
-    info.count += 2;
+#define PSTD_PSTRING_IMPLEMENTATION
+#include "pstring.h"
+
+void callback(pPrintfInfo *info) {
+    int arrcount = va_arg(info->list, int);
+    int *arr     = va_arg(info->list, int*);
+
+    pStreamWrite(info->stream, pCreateString("[ "));
+    info->count += 2;
 
     u8 buf[20];
     for (int i = 0; i < arrcount; i++) {
@@ -17,14 +23,13 @@ pPrintfInfo callback(pPrintfInfo info) {
         u8 *printbuf = buf;
         if (arr[i] > 0) printbuf++; count--;
 
-        pStreamWrite(info.stream, pString(printbuf, count));
-        info.count += count;
+        pStreamWrite(info->stream, pString(printbuf, count));
+        info->count += count;
         if (i != arrcount - 1)
-            pStreamWrite(info.stream, pCreateString(", ")), info.count += 2;
+            pStreamWrite(info->stream, pCreateString(", ")), info->count += 2;
     }
-    pStreamWrite(info.stream, pCreateString("]"));
-    info.count++;
-    return info;
+    pStreamWrite(info->stream, pCreateString("]"));
+    info->count++;
 }
 
 
@@ -35,13 +40,18 @@ int main(void) {
         .flags = STREAM_INPUT|STREAM_OUTPUT,
         .filename = "pio.s",
     };
+#if defined(BY_POINTER)
     FileStream *fstream = (void *)pInitStream(fstream_info);
     if (fstream) {
+#else
+    FileStream fstream = pInitStream(fstream_info);
+    if (fstream.is_valid) {
+#endif 
         char arr[23];
-        pStreamRead(fstream, arr, 23);
+        pStreamRead(&fstream, arr, 23);
         String read_from_file = pString((u8 *)arr, 23);
         pPrintf("read this from a file: {\n%S\n}\n", read_from_file);
-        pFreeStream(fstream);
+        pFreeStream(&fstream);
         
         StreamInfo sstream_info = {
             .type  = STRING_STREAM,
@@ -49,13 +59,13 @@ int main(void) {
             .buffersize = 50
         };
 
-        StringStream *sstream = (void *)pInitStream(sstream_info); 
+        StringStream sstream = pInitStream(sstream_info); 
         {
-            pStreamWriteString(sstream, read_from_file);
-            String sstream_string = pStreamToBufferString(sstream);
+            pStreamWriteString(&sstream, read_from_file);
+            String sstream_string = pStreamToBufferString(&sstream);
             pPrintf("string stream holds {\n%S\n}\n", sstream_string);
         }
-        pFreeStream(sstream);
+        pFreeStream(&sstream);
     }
     
     String str = pCreateString("hello");
@@ -132,6 +142,7 @@ int main(void) {
 
     pPrintf("\tlet's do %u random numbers\n", 10);
     for (int i = 0; i < 10; i++) {
+
         srand(pGetTick(PSTD_HIGH_RESOLUTION_CLOCK)); 
         int num = rand();
         pPrintf("\t\t% 2u: ( pPrintf: %5u, ", i,  num);
@@ -147,8 +158,6 @@ int main(void) {
     pPrintf("%v", 10, (int[10]){ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 });
     
     pFormatPop("v");
-
-
-
-
+    pPrintf("\n");
+    fflush(stdout);
 }

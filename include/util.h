@@ -1,11 +1,12 @@
 #pragma once
+
 #ifndef PSTD_UTIL_HEADER
 #define PSTD_UTIL_HEADER
-
 #ifndef PSTD_UTIL_STANDALONE
 #include "general.h"
 #else
-#define PSTD_GENERAL_VER 1
+#ifndef PSTD_GENERAL_HEADER
+#define PSTD_GENERAL_HEADER
 #if defined(__EMSCRIPTEN__)
 #   define PSTD_WASM
 #elif defined(_WIN32) || defined(_WIN64)
@@ -148,44 +149,45 @@ typedef float     f32;
 typedef double    f64;
 
 #if !defined(__cplusplus)
-#if defined(PSTD_C99)
-enum { false, true };
-typedef _Bool pBool;
+#   if defined(PSTD_C99)
+        enum { false, true };
+        typedef _Bool pBool;
+#   else
+        enum pBool { false, true };
+#   endif
 #else
-typedef enum { false, true } pBool;
-#endif
-#else
-enum pBool { pFalse, pTrue };
+    using pBool = bool;
 #endif
 
-#ifndef pReallocateBuffer
-#    define pReallocateBuffer realloc
+#ifndef pReallocate
+#    define pReallocate realloc
 #endif
-#ifndef pAllocateBuffer
-#   define pAllocateBuffer malloc
+#ifndef pAllocate
+#   define pAllocate malloc
 #endif
 #ifndef pFreeBuffer
 #   define pFreeBuffer free
 #endif
 #if defined(PSTD_GNU_COMPATIBLE)
-#ifndef pZeroAllocateBuffer
-#define pZeroAllocateBuffer(size) ({                \
-    void *pZeroAllocateBuffer_tmp = malloc(size);   \
-    memset(pZeroAllocateBuffer_tmp, 0, (size));     \
-    pZeroAllocateBuffer_tmp;                        \
+#ifndef pZeroAllocate
+#define pZeroAllocate(size) ({                \
+    void *pZeroAllocate_tmp = malloc(size);   \
+    memset(pZeroAllocate_tmp, 0, (size));     \
+    pZeroAllocate_tmp;                        \
 })
 #endif
 #else
-#ifndef pZeroAllocateBuffer
-    static void* pZeroAllocateBuffer(usize size) {
-        void* pZeroAllocateBuffer_tmp = pAllocateBuffer(size);
-        assert(pZeroAllocateBuffer_tmp);
-        memset(pZeroAllocateBuffer_tmp, 0, (size));
-        return pZeroAllocateBuffer_tmp;
+#ifndef pZeroAllocate
+    static void* pZeroAllocate(usize size) {
+        void* pZeroAllocate_tmp = pAllocate(size);
+        assert(pZeroAllocate_tmp);
+        memset(pZeroAllocate_tmp, 0, (size));
+        return pZeroAllocate_tmp;
     }
-#define pZeroAllocateBuffer pZeroAllocateBuffer
+#define pZeroAllocate pZeroAllocate
 #endif
 #endif
+#endif // PSTD_GENERAL_HEADER 
 #endif
 
 #if defined(__cplusplus)
@@ -193,6 +195,20 @@ extern "C" {
 #endif
 
 void *pGetPlatformHandle(void);
+
+// compare number to range
+PSTD_UNUSED
+static pBool pCmpRange(s32 num, s32 start, s32 end) {
+    return num > start && num < end;
+}
+
+// compare number to range inclusive
+PSTD_UNUSED
+static pBool pCmpRangeI(s32 num, s32 start, s32 end) {
+    return (num >= start) && (num <= end);
+}
+
+
 
 typedef s64 pTimePoint;
 

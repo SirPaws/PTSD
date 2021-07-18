@@ -3,7 +3,8 @@
 #if !defined(PSTD_PSTRING_STANDALONE)
 #include "general.h"
 #else
-#define PSTD_GENERAL_VER 1
+#ifndef PSTD_GENERAL_HEADER
+#define PSTD_GENERAL_HEADER
 #if defined(__EMSCRIPTEN__)
 #   define PSTD_WASM
 #elif defined(_WIN32) || defined(_WIN64)
@@ -146,44 +147,45 @@ typedef float     f32;
 typedef double    f64;
 
 #if !defined(__cplusplus)
-#if defined(PSTD_C99)
-enum { false, true };
-typedef _Bool pBool;
+#   if defined(PSTD_C99)
+        enum { false, true };
+        typedef _Bool pBool;
+#   else
+        enum pBool { false, true };
+#   endif
 #else
-typedef enum { false, true } pBool;
-#endif
-#else
-enum pBool { pFalse, pTrue };
+    using pBool = bool;
 #endif
 
-#ifndef pReallocateBuffer
-#    define pReallocateBuffer realloc
+#ifndef pReallocate
+#    define pReallocate realloc
 #endif
-#ifndef pAllocateBuffer
-#   define pAllocateBuffer malloc
+#ifndef pAllocate
+#   define pAllocate malloc
 #endif
 #ifndef pFreeBuffer
 #   define pFreeBuffer free
 #endif
 #if defined(PSTD_GNU_COMPATIBLE)
-#ifndef pZeroAllocateBuffer
-#define pZeroAllocateBuffer(size) ({                \
-    void *pZeroAllocateBuffer_tmp = malloc(size);   \
-    memset(pZeroAllocateBuffer_tmp, 0, (size));     \
-    pZeroAllocateBuffer_tmp;                        \
+#ifndef pZeroAllocate
+#define pZeroAllocate(size) ({                \
+    void *pZeroAllocate_tmp = malloc(size);   \
+    memset(pZeroAllocate_tmp, 0, (size));     \
+    pZeroAllocate_tmp;                        \
 })
 #endif
 #else
-#ifndef pZeroAllocateBuffer
-    static void* pZeroAllocateBuffer(usize size) {
-        void* pZeroAllocateBuffer_tmp = pAllocateBuffer(size);
-        assert(pZeroAllocateBuffer_tmp);
-        memset(pZeroAllocateBuffer_tmp, 0, (size));
-        return pZeroAllocateBuffer_tmp;
+#ifndef pZeroAllocate
+    static void* pZeroAllocate(usize size) {
+        void* pZeroAllocate_tmp = pAllocate(size);
+        assert(pZeroAllocate_tmp);
+        memset(pZeroAllocate_tmp, 0, (size));
+        return pZeroAllocate_tmp;
     }
-#define pZeroAllocateBuffer pZeroAllocateBuffer
+#define pZeroAllocate pZeroAllocate
 #endif
 #endif
+#endif // PSTD_GENERAL_HEADER 
 #endif
 
 #define pCreateString(str) pString((u8 *)(str), sizeof((str)) - 1)
@@ -211,48 +213,33 @@ static String pString(u8 *c_str, usize length) {
     return (String){ length, c_str };
 #endif
 }
-
-// reallocates str 
-String pStringAppendCharacter(String *str, u8 character);
-String pStringAppendString(String *str, String string);
-
-#if PSTD_C11
-#define pStringAppend(str, value) \
-    _Generic((value), String: pStringAppendString, default: pStringAppendCharacter)(str, value) 
-#elif defined(__cplusplus)
-static String pStringAppend(String *str, u8 character) {
-    return pStringAppendCharacter(str, character);
-}
-
-static String pStringAppend(String *str, String string) {
-    return pStringAppendString(str, string);
-}
-#endif
 #endif // PSTD_PSTRING_HEADER
 
-#if defined(PSTD_PSTRING_IMPLEMENTATION) && !defined(PSTD_PSTRING_IMPLEMENTED)
-#define PSTD_PSTRING_IMPLEMENTED
+#if defined(PSTD_PSTRING_IMPLEMENTATION)
 pBool pStringCmp(const struct String rhs, const struct String lhs) {
 	if (rhs.length != lhs.length) return false;
-	return (strncmp((const char *)rhs.c_str, (const char *)lhs.c_str, rhs.length) == 0);
+    for (register usize i = 0; i < rhs.length; i++) {
+        if (rhs.c_str[i] != lhs.c_str[i]) return false;
+    }
+    return true;
 }
 
 struct String pStringCopy(const struct String str) {
-    char *dst = pAllocateBuffer(sizeof(char) * str.length);
+    char *dst = malloc(sizeof(char) * str.length);
     struct String r = pString((u8 *)dst, str.length);
     memcpy(dst, str.c_str, sizeof(char) * str.length);
 	return r;
 }
 
 String pStringAppendCharacter(String *str, u8 character) {
-    void *tmp = pReallocateBuffer(str->c_str, str->length + 1);
+    void *tmp = realloc(str->c_str, str->length + 1);
     str->c_str = tmp;
     str->c_str[str->length++] = character;
     return *str;
 }
 
 String pStringAppendString(String *str, String string) {
-    void* tmp = pReallocateBuffer(str->c_str, str->length + string.length);
+    void* tmp = realloc(str->c_str, str->length + string.length);
     str->c_str = tmp;
 
     memcpy(str->c_str + str->length, string.c_str, string.length);

@@ -19,73 +19,124 @@
 
 #define stretchy 
 
-#if defined(PSTD_C11)
-#define CAST_STREAM(stream)                      \
-    _Generic((stream),                           \
-        GenericStream *: (GenericStream*)(stream),\
-        StdStream     *: (GenericStream*)(stream),\
-        FileStream    *: (GenericStream*)(stream),\
-        cFileStream   *: (GenericStream*)(stream),\
-        StringStream  *: (GenericStream*)(stream) \
-    )
-#endif
-
 #if defined(__cplusplus)
 #define restrict
 extern "C" {
 #endif
 
-enum StreamFlags {
-    STREAM_OUTPUT = 0b01U,
-    STREAM_INPUT  = 0b10U,
-};
 
-enum StreamType {
-    STANDARD_STREAM,
-    FILE_STREAM,
-    STRING_STREAM,
-    CFILE_STREAM,
-};
+
+/*
+    pPrintf extra format specifiers
+    
+    |-----------------------------------------------------------|
+    |S              | prints a String (char *, with length)     |
+    |-----------------------------------------------------------|
+    |Cc             | clear color output                        |
+    |-----------------------------------------------------------|
+    |Cbg(r, g, b)   | set background color                      |
+    |-----------------------------------------------------------|
+    |Cfg(r, g, b)   | set foreground color                      |
+    |-----------------------------------------------------------|
+    |b              | binary. supports '.', '0',                |
+    |               | and, length modifiers                     |
+    |               | example would be "%hhb", 0b00001010       |
+    |               | the example above would print 1010        |
+    |-----------------------------------------------------------|
+    |generic        | this is not a specifier but the pPrintf   | 
+    |               | functions allows for custom specifiers    |
+    |               | this is done through the `pFormatPush`    |
+    |               | and `pFormatPop` functions.               |
+    |               | see examples/formatting.c for usage       |
+    |-----------------------------------------------------------|
+*/
+
+
+/*
+    pScanf extra format specifiers
+    
+    |-----------------------------------------------------------|
+    |S              | same as '%s' but also returns the length  |
+    |               | note that this will allocate space        |
+    |               | for the string on the heap                |
+    |-----------------------------------------------------------|
+    |b              | reads a binary number and                 |
+    |               | returns the bits,                         |
+    |               | note that if length modifier is not       |
+    |               | present it will expect a usize.           |
+    |               | if length is specified (at most 'll')     |
+    |               | then it uses an integer big enough        |
+    |               | to store that size                        |
+    |-----------------------------------------------------------|
+    |S[set]         | String version of [set]                   |
+    |-----------------------------------------------------------|
+
+    note that the uppercase 'S' variants don't support 'l' modifier
+
+    '-' has been implemented as a range modifier in [set]
+    if '-' is the last character it is seen as being a character literal
+    for example the set '[-]' would only match '-'
+*/
+
+/*  IDEA: (not implemented)
+    
+    pRegex()
+    
+*/
+
+
 
 // TODO: CreateFile dwShareMode
 // TODO: CreateFile lpSecurityAttributes 
-
-typedef struct StringStream  StringStream;
-struct StringStream {
-    enum StreamType  type;
-    u32 flags;
-    char  *stretchy buffer;
-    usize cursor;
-    // maybe more if not we just expose stringstream
-};
-
-typedef struct FileStream FileStream;
-struct FileStream {
-    enum StreamType type;
-    u32 flags;
-    pHandle *handle;
-    usize size;
-    String buffer;
-};
-
-typedef struct StdStream StdStream;
-struct StdStream {
-    enum StreamType type;
-    u32 flags;
-    pHandle *stdout_handle;
-    pHandle *stdin_handle;
-};
-
 typedef struct GenericStream GenericStream;
 struct GenericStream {
-    enum StreamType type;
-    u32 flags;
-    void *data;
+    pBool is_valid;
+#if defined(PSTD_USE_ALLOCATOR)
+    Allocator cb;
+#endif
+
+    enum StreamType {
+        STANDARD_STREAM,
+        FILE_STREAM,
+        STRING_STREAM,
+        CFILE_STREAM,
+    } type;
+    enum StreamFlags {
+        STREAM_OUTPUT = 0b01U,
+        STREAM_INPUT  = 0b10U,
+    } flags;
+    union {
+        struct { // String stream
+            char  *stretchy buffer;
+            usize cursor;
+        };
+        struct { // File stream
+            pHandle *handle;
+            usize size;
+            String file_buffer;
+        };
+        struct { // Standard stream
+            pHandle *stdout_handle;
+            pHandle *stdin_handle;
+        };
+        struct { // c stream
+            FILE *file;
+        };
+    };
 };
+typedef GenericStream StringStream; 
+typedef GenericStream FileStream;
+typedef GenericStream StdStream;
+typedef GenericStream cFileStream;
 
 typedef struct StreamInfo StreamInfo;
 struct StreamInfo {
     enum StreamType type;
+#if defined(PSTD_USE_ALLOCATOR)
+    Allocator cb;
+#else
+#endif
+
     u32 flags;
     // filestream | stringstream
     usize buffersize;
@@ -96,18 +147,11 @@ struct StreamInfo {
     pBool append;
 };
 
-typedef struct cFileStream cFileStream;
-struct cFileStream {
-    enum StreamType type;
-    u32 flags;
-    FILE *file;
-};
-
-GenericStream *pSetStream(GenericStream *stream);
+void pSetStream(GenericStream *new_stream, GenericStream *old_stream);
 GenericStream *pGetStream(void);
 
 
-GenericStream *pInitStream(StreamInfo info);
+GenericStream pInitStream(StreamInfo info);
 void pFreeStream(GenericStream *stream);
 
 String pStreamToBufferString(GenericStream *stream);
@@ -136,12 +180,36 @@ static inline u32 pPrintf(const char *restrict fmt, ...) {
     return result;
 }
 
+u32 pVBScanf(GenericStream *stream, const char *restrict fmt, va_list list);
+
+PSTD_UNUSED
+static u32 pBScanf(GenericStream *stream, const char *restrict fmt, ...) {
+    va_list list;
+    va_start(list, fmt);
+    u32 result = pVBScanf(stream, fmt, list);
+    va_end(list);
+    return result;
+}
+
+static inline u32 pVScanf(const char *restrict fmt, va_list list ) {
+    return pVBScanf(pGetStream(), fmt, list);
+}
+
+PSTD_UNUSED
+static inline u32 pScanf(const char *restrict fmt, ...) {
+    va_list list;
+    va_start(list, fmt);
+    u32 result = pVScanf(fmt, list);
+    va_end(list);
+    return result;
+}
+
 void pStreamWriteString(GenericStream *stream, String str);
 void pStreamWriteChar(GenericStream *stream, char chr);
 
 // size: how many bytes to read from stream
 // eof: (if null it's ignored) set to true if the stream is at the end 
-void pStreamRead(GenericStream *stream, void *buf, usize size);
+void  pStreamRead(GenericStream *stream, void *buf, usize size);
 
 PSTD_UNUSED
 static inline void pRead(void *buf, usize size) {
@@ -193,7 +261,37 @@ u32 pFtoa(char *buf, f32);
 u32 pDtoa(char *buf, f64);
 
 
+#if defined(PSTD_GNU_COMPATIBLE)
+PSTD_UNUSED
+static inline pBool pCharAnyOf(int character, u32 count, const char tests[count]) {
+#else
+PSTD_UNUSED
+static inline pBool pCharAnyOf(int character, u32 count, const char tests[]) {
+#endif
+    for (u32 i = 0; i < count; i++) {
+        if (character == tests[i]) return true;
+    }
+    return false;
+}
 
+PSTD_UNUSED
+static inline usize pGetUtf8Length(const char *chr) {
+#define UNICODE_MASK 0xf8 
+#define UNICODE_4_BYTES 0xf0
+#define UNICODE_3_BYTES 0xe0
+#define UNICODE_2_BYTES 0xc0
+    if ((chr[0] & UNICODE_MASK) == UNICODE_4_BYTES)
+         return 4;
+    else if ((chr[0] & UNICODE_4_BYTES) == UNICODE_3_BYTES)
+         return 3;
+    else if ((chr[0] & UNICODE_3_BYTES) == UNICODE_2_BYTES)
+         return 2;
+    else return 1;
+#undef UNICODE_MASK
+#undef UNICODE_4_BYTES
+#undef UNICODE_3_BYTES
+#undef UNICODE_2_BYTES
+}
 
 
 
@@ -230,8 +328,8 @@ struct pFormattingSpecification {
     pBool alternative_form;
 };
 
-typedef pPrintfInfo FormatCallback(pPrintfInfo); 
-typedef pPrintfInfo FormatCallbackAdv(pPrintfInfo, pFormattingSpecification); 
+typedef void FormatCallback(pPrintfInfo*); 
+typedef void FormatCallbackAdv(pPrintfInfo*, pFormattingSpecification*); 
 
 void pFormatPushImpl(String fmt, FormatCallback *callback);
 void pFormatPushAdvImpl(String fmt, FormatCallbackAdv *callback);
@@ -239,121 +337,12 @@ void pFormatPushAdvImpl(String fmt, FormatCallbackAdv *callback);
 void pFormatPopImpl(String fmt);
 void pFormatPopAdvImpl(String fmt);
 
-
-
-
 #if defined(PSTD_C11)
-#define pSetStream(stream)            pSetStream(CAST_STREAM(stream))
-
-#define pFreeStream(stream)           pFreeStream(CAST_STREAM(stream))
-
-#define pStreamToBufferString(stream) pStreamToBufferString(CAST_STREAM(stream))
-
-#define pVBPrintf(stream, fmt, list)  pVBPrintf(CAST_STREAM(stream), fmt, list)
-
-#define pBPrintf(stream, fmt, ...)    pBPrintf(CAST_STREAM(stream), fmt, ## __VA_ARGS__)
-
 #define pStreamWrite(stream, ...) _Generic(__VA_ARGS__, int: pStreamWriteChar, \
-    char: pStreamWriteChar, String: pStreamWriteString)(CAST_STREAM(stream), __VA_ARGS__)
-
-#define pStreamWriteString(stream, str) pStreamWriteString(CAST_STREAM(stream), str)
-
-#define pStreamWriteChar(stream, chr)   pStreamWriteChar(CAST_STREAM(stream), chr)
-
-#define pStreamRead(stream, buf, str)   pStreamRead(CAST_STREAM(stream), buf, str)
-
-#define pStreamReadLine(stream)         pStreamReadLine(CAST_STREAM(stream))
-
-#define pStreamMove(stream, size)       pStreamMove(CAST_STREAM(stream), size)
+    char: pStreamWriteChar, String: pStreamWriteString)(stream, __VA_ARGS__)
 
 #elif defined(__cplusplus)
 }
-static GenericStream *pSetStream(StdStream     *stream) { return pSetStream((GenericStream*)stream); }
-static GenericStream *pSetStream(FileStream    *stream) { return pSetStream((GenericStream*)stream); }
-static GenericStream *pSetStream(cFileStream   *stream) { return pSetStream((GenericStream*)stream); }
-static GenericStream *pSetStream(StringStream  *stream) { return pSetStream((GenericStream*)stream); }
-
-static void pFreeStream(StdStream     *stream) { pFreeStream((GenericStream*)stream); }
-static void pFreeStream(FileStream    *stream) { pFreeStream((GenericStream*)stream); }
-static void pFreeStream(cFileStream   *stream) { pFreeStream((GenericStream*)stream); }
-static void pFreeStream(StringStream  *stream) { pFreeStream((GenericStream*)stream); }
-
-static String pStreamToBufferString(StdStream     *stream) { return pStreamToBufferString((GenericStream*)stream); }
-static String pStreamToBufferString(FileStream    *stream) { return pStreamToBufferString((GenericStream*)stream); }
-static String pStreamToBufferString(cFileStream   *stream) { return pStreamToBufferString((GenericStream*)stream); }
-static String pStreamToBufferString(StringStream  *stream) { return pStreamToBufferString((GenericStream*)stream); }
-
-static u32 pBPrintf(StdStream     *stream, const char *restrict fmt, va_list list) { return pVBPrintf((GenericStream*)stream, fmt, list); }
-static u32 pBPrintf(FileStream    *stream, const char *restrict fmt, va_list list) { return pVBPrintf((GenericStream*)stream, fmt, list); }
-static u32 pBPrintf(cFileStream   *stream, const char *restrict fmt, va_list list) { return pVBPrintf((GenericStream*)stream, fmt, list); }
-static u32 pBPrintf(StringStream  *stream, const char *restrict fmt, va_list list) { return pVBPrintf((GenericStream*)stream, fmt, list); }
-
-static u32 pBPrintf(StdStream     *stream, const char *restrict fmt, ...) {
-    va_list list;
-    va_start(list, fmt);
-    u32 result = pVBPrintf((GenericStream*)stream, fmt, list);
-    va_end(list);
-    return result;
-}
-static u32 pBPrintf(FileStream    *stream, const char *restrict fmt, ...) {
-    va_list list;
-    va_start(list, fmt);
-    u32 result = pVBPrintf((GenericStream*)stream, fmt, list);
-    va_end(list);
-    return result;
-}
-static u32 pBPrintf(cFileStream   *stream, const char *restrict fmt, ...) {
-    va_list list;
-    va_start(list, fmt);
-    u32 result = pVBPrintf((GenericStream*)stream, fmt, list);
-    va_end(list);
-    return result;
-}
-static u32 pBPrintf(StringStream  *stream, const char *restrict fmt, ...) {
-    va_list list;
-    va_start(list, fmt);
-    u32 result = pVBPrintf((GenericStream*)stream, fmt, list);
-    va_end(list);
-    return result;
-}
-
-static void pStreamWriteChar(StdStream     *stream, char character) { pStreamWriteChar((GenericStream*)stream, character); }
-static void pStreamWriteChar(FileStream    *stream, char character) { pStreamWriteChar((GenericStream*)stream, character); }
-static void pStreamWriteChar(cFileStream   *stream, char character) { pStreamWriteChar((GenericStream*)stream, character); }
-static void pStreamWriteChar(StringStream  *stream, char character) { pStreamWriteChar((GenericStream*)stream, character); }
-
-static void pStreamWriteString(StdStream     *stream, String string) { pStreamWriteString((GenericStream*)stream, string); }
-static void pStreamWriteString(FileStream    *stream, String string) { pStreamWriteString((GenericStream*)stream, string); }
-static void pStreamWriteString(cFileStream   *stream, String string) { pStreamWriteString((GenericStream*)stream, string); }
-static void pStreamWriteString(StringStream  *stream, String string) { pStreamWriteString((GenericStream*)stream, string); }
-
-
-static void pStreamWrite(GenericStream *stream, char character) { pStreamWriteChar(stream, character); }
-static void pStreamWrite(StdStream     *stream, char character) { pStreamWriteChar(stream, character); }
-static void pStreamWrite(FileStream    *stream, char character) { pStreamWriteChar(stream, character); }
-static void pStreamWrite(cFileStream   *stream, char character) { pStreamWriteChar(stream, character); }
-static void pStreamWrite(StringStream  *stream, char character) { pStreamWriteChar(stream, character); }
-
-static void pStreamWrite(GenericStream *stream, String string) { pStreamWriteString(stream, string); }
-static void pStreamWrite(StdStream     *stream, String string) { pStreamWriteString(stream, string); }
-static void pStreamWrite(FileStream    *stream, String string) { pStreamWriteString(stream, string); }
-static void pStreamWrite(cFileStream   *stream, String string) { pStreamWriteString(stream, string); }
-static void pStreamWrite(StringStream  *stream, String string) { pStreamWriteString(stream, string); }
-
-static void pStreamRead(StdStream     *stream, void *buf, usize size) { pStreamRead((GenericStream*)stream, buf, size); }
-static void pStreamRead(FileStream    *stream, void *buf, usize size) { pStreamRead((GenericStream*)stream, buf, size); }
-static void pStreamRead(cFileStream   *stream, void *buf, usize size) { pStreamRead((GenericStream*)stream, buf, size); }
-static void pStreamRead(StringStream  *stream, void *buf, usize size) { pStreamRead((GenericStream*)stream, buf, size); }
-
-static String pStreamReadLine(StdStream     *stream) { pStreamReadLine((GenericStream*)stream); }
-static String pStreamReadLine(FileStream    *stream) { pStreamReadLine((GenericStream*)stream); }
-static String pStreamReadLine(cFileStream   *stream) { pStreamReadLine((GenericStream*)stream); }
-static String pStreamReadLine(StringStream  *stream) { pStreamReadLine((GenericStream*)stream); }
-
-static void pStreamMove(StdStream     *stream, isize size) { pStreamMove((GenericStream*)stream, size); }
-static void pStreamMove(FileStream    *stream, isize size) { pStreamMove((GenericStream*)stream, size); }
-static void pStreamMove(cFileStream   *stream, isize size) { pStreamMove((GenericStream*)stream, size); }
-static void pStreamMove(StringStream  *stream, isize size) { pStreamMove((GenericStream*)stream, size); }
 #endif
 
 #define pFormatPush(fmt, callback) pFormatPushImpl(pCreateString(fmt), callback)
