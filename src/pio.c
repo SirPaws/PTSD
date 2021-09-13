@@ -38,7 +38,8 @@ static pBool color_output = true;
 static u32 console_mode = 0;
 #endif
 
-void pSetStream(GenericStream *new_stream, GenericStream *old_stream) {
+void pSetStream(GenericStream *new_stream, GenericStream *old_stream)
+{
     if (old_stream) *old_stream = current_stream;
     if (!new_stream->is_valid) return;
     current_stream = *new_stream;
@@ -214,12 +215,10 @@ String pStreamToBufferString(GenericStream *stream) {
     }
 }
 
-#define expect(x, value) __builtin_expect(x, value)
-
 void pStreamMove(GenericStream *stream, isize size) {
     if (!stream || !stream->is_valid) return;
 
-    if (expect(stream->type == STANDARD_STREAM, 1) || stream->type == FILE_STREAM) {
+    if (PSTD_EXPECT(stream->type == STANDARD_STREAM, 1) || stream->type == FILE_STREAM) {
         // this should probably have a comment explaning why we do this
         pHandle *handle = stream->type == STANDARD_STREAM ? stream->stdin_handle 
                 : stream->stdout_handle;
@@ -236,7 +235,7 @@ void pStreamRead(GenericStream *stream, void *buf, usize size) {
     if (!stream || !stream->is_valid) return;
     if ((pBool)(stream->flags & STREAM_INPUT) == false) return;
 
-    if (expect(stream->type == STANDARD_STREAM, 1) || stream->type == FILE_STREAM) {
+    if (PSTD_EXPECT(stream->type == STANDARD_STREAM, 1) || stream->type == FILE_STREAM) {
         // this should probably have a comment explaning why we do this
         pHandle *handle = 
             stream->type == STANDARD_STREAM ? stream->stdin_handle : stream->stdout_handle;  
@@ -254,7 +253,7 @@ String pStreamReadLine(GenericStream *stream) {
     if (!stream || !stream->is_valid) return (String){0};
     if ((pBool)(stream->flags & STREAM_INPUT) == false) return (String){0};
 
-    if (expect(stream->type == STANDARD_STREAM, 1) || stream->type == FILE_STREAM) {
+    if (PSTD_EXPECT(stream->type == STANDARD_STREAM, 1) || stream->type == FILE_STREAM) {
         // this should probably have a comment explaning why we do this
         pHandle *handle = stream->type == STANDARD_STREAM ? stream->stdin_handle : stream->stdout_handle;  
     
@@ -295,7 +294,7 @@ void pStreamWriteString(GenericStream *stream, String str) {
     if (!stream->is_valid) return;
     if ((pBool)(stream->flags & STREAM_OUTPUT) == false) return;
 
-    if (expect(stream->type == STANDARD_STREAM, 1) || stream->type == FILE_STREAM) {
+    if (PSTD_EXPECT(stream->type == STANDARD_STREAM, 1) || stream->type == FILE_STREAM) {
         pFileWrite(stream->handle, str);
     } else if (stream->type == CFILE_STREAM) {
         for (usize i = 0; i < str.length; i++)
@@ -311,7 +310,7 @@ void pStreamWriteChar(GenericStream *stream, char chr) {
     if (!stream->is_valid) return;
     if ((pBool)(stream->flags & STREAM_OUTPUT) == false) return;
 
-    if (expect(stream->type == STANDARD_STREAM, 1) || stream->type == FILE_STREAM) {
+    if (PSTD_EXPECT(stream->type == STANDARD_STREAM, 1) || stream->type == FILE_STREAM) {
         pFileWrite(stream->handle, pString( (u8*)&chr, 1 ));
     } else if (stream->type == CFILE_STREAM) {
         fputc(chr, stream->file);

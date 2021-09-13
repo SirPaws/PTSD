@@ -1,6 +1,3 @@
-#include <handleapi.h>
-#include <memoryapi.h>
-#include <winnt.h>
 #if !defined(PPLATFORM_HEADER_ONLY)
 #include "pplatform.h"
 #endif
@@ -13,6 +10,9 @@
 #include <fcntl.h>
 #elif defined(PSTD_WINDOWS)
 #include <Windows.h>
+#include <handleapi.h>
+#include <memoryapi.h>
+#include <winnt.h>
 #elif defined(PSTD_LINUX)
 #include <unistd.h>
 #include <sys/stat.h>
@@ -22,7 +22,7 @@
 #endif 
 
 
-pHandle *pNullHandle(void) {
+phandle_t *pnull_handle(void) {
 #if defined(PSTD_WINDOWS)
     return NULL; 
 #else
@@ -30,16 +30,16 @@ pHandle *pNullHandle(void) {
 #endif
 }
 
-pBool pEnableConsoleColorOutput(void) {
+pbool_t penable_console_color_output(void) {
 #if defined(PSTD_WINDOWS)
-    pBool result = SetConsoleMode(GetModuleHandle(NULL), ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+    pbool_t result = SetConsoleMode(GetModuleHandle(NULL), ENABLE_VIRTUAL_TERMINAL_PROCESSING);
     return result != 0;
 #else
     return true; // don't know if it's enabled but we assume it is
 #endif
 }
 
-pHandle *pGetSTDOutHandle(void) {
+phandle_t *pget_stdout_handle(void) {
 #if defined(PSTD_WINDOWS)
     return GetStdHandle(STD_OUTPUT_HANDLE); 
 #else
@@ -47,7 +47,7 @@ pHandle *pGetSTDOutHandle(void) {
 #endif
 }
 
-pHandle *pGetSTDInHandle(void) {
+phandle_t *pget_stdin_handle(void) {
 #if defined(PSTD_WINDOWS)
     return GetStdHandle(STD_INPUT_HANDLE); 
 #else
@@ -55,16 +55,17 @@ pHandle *pGetSTDInHandle(void) {
 #endif
 }
 
-pFileStat pStatFile(pHandle *handle) {
-    if (!handle || handle == INVALID_HANDLE_VALUE) return (pFileStat){0};
-
-
-
+pfilestat_t pstat_file(phandle_t *handle) {
+#if defined(PSTD_WINDOWS)
+    if (!handle || handle == INVALID_HANDLE_VALUE) return (pfilestat_t){0};
+#else
+#endif
+    return (pfilestat_t){0};
 }
 
-pFileStat pGetFileStat(const char *file) {
-    pFileStat result;
-    if (!file) return (pFileStat){0};
+pfilestat_t pget_filestat(const char *file) {
+    pfilestat_t result;
+    if (!file) return (pfilestat_t){0};
 
 #if defined(PSTD_WINDOWS)
 #define WIN32_COMBINE_HIGH_LOW( high, low ) ((u64)(high) << 31 | (low)) 
@@ -92,7 +93,7 @@ pFileStat pGetFileStat(const char *file) {
     return result;
 }
 
-pHandle *pFileOpen(const char *filename, pFileAccess access) {
+phandle_t *pfile_open(const char *filename, pfile_access_t access) {
 #if defined(PSTD_WINDOWS)
     DWORD file_access;
     file_access  = access & P_READ_ACCESS  ? GENERIC_READ  : 0;
@@ -111,7 +112,7 @@ pHandle *pFileOpen(const char *filename, pFileAccess access) {
     return (void*)(u64)open(filename, file_access);
 #endif
 }
-pHandle *pFileCreate(const char *filename, pFileAccess access) {
+phandle_t *pfile_create(const char *filename, pfile_access_t access) {
 #if defined(PSTD_WINDOWS)
     DWORD file_access;
     file_access  = access & P_READ_ACCESS  ? GENERIC_READ  : 0;
@@ -133,7 +134,7 @@ pHandle *pFileCreate(const char *filename, pFileAccess access) {
 #endif
 }
 
-void pFileClose(pHandle *handle) {
+void pfile_close(phandle_t *handle) {
 #if defined(PSTD_WINDOWS)
     CloseHandle(handle);
 #elif  defined(PSTD_LINUX) || defined(PSTD_WASM)
@@ -142,7 +143,7 @@ void pFileClose(pHandle *handle) {
 #endif
 }
 
-pBool pFileWrite(pHandle *handle, String buf) {
+pbool_t pfile_write(phandle_t *handle, pstring_t buf) {
 #if defined(PSTD_WINDOWS)
     return WriteFile(handle, buf.c_str, (u32)buf.length, NULL, NULL);
 #elif  defined(PSTD_LINUX) || defined(PSTD_WASM)
@@ -151,7 +152,7 @@ pBool pFileWrite(pHandle *handle, String buf) {
 #endif
 }
 
-pBool pFileRead(pHandle *handle, String buf) {
+pbool_t pfile_read(phandle_t *handle, pstring_t buf) {
 #if defined(PSTD_WINDOWS)
     DWORD bytes_read = 0;
     ReadFile(handle, buf.c_str, buf.length, &bytes_read, NULL);
@@ -162,7 +163,7 @@ pBool pFileRead(pHandle *handle, String buf) {
 #endif
 }
 
-pBool pSeek(pHandle *handle, isize size, enum pSeekMode mode) {
+pbool_t pseek(phandle_t *handle, isize size, enum pseek_mode_t mode) {
 #if defined(PSTD_WINDOWS)
     
     DWORD wmode;
@@ -189,22 +190,22 @@ pBool pSeek(pHandle *handle, isize size, enum pSeekMode mode) {
 #endif
 }
 
-void *pMemoryMapFile(pHandle *handle, pFileAccess access, u64 size, u64 offset) {
+void *pmemory_map_file(phandle_t *handle, pfile_access_t access, u64 size, u64 offset) {
 #if defined(PSTD_WINDOWS)
 
     DWORD protection = 0;
-    switch (access) {
+    switch (access & (P_WRITE_ACCESS|P_READ_ACCESS)) {
     case P_WRITE_ACCESS|P_READ_ACCESS: 
         protection = access & P_EXECUTABLE ? PAGE_EXECUTE_READWRITE : PAGE_READWRITE; break;
     case P_READ_ACCESS: protection = access & P_EXECUTABLE ? PAGE_EXECUTE_READ : PAGE_READONLY; break;
     case P_WRITE_ACCESS: return NULL;
     }
 
-    pHandle *mapped_file = CreateFileMapping(handle, NULL, protection, 0, 0, NULL);
+    phandle_t *mapped_file = CreateFileMapping(handle, NULL, protection, 0, 0, NULL);
     if (mapped_file == NULL) return NULL;
 
     DWORD file_access = 0;
-    switch (access) {
+    switch (access & (P_WRITE_ACCESS|P_READ_ACCESS)) {
     case P_WRITE_ACCESS|P_READ_ACCESS: file_access = FILE_MAP_ALL_ACCESS; break;
     case P_READ_ACCESS:                file_access = FILE_MAP_READ; break;
     case P_WRITE_ACCESS:               file_access = FILE_MAP_WRITE; break;
@@ -228,7 +229,7 @@ void *pMemoryMapFile(pHandle *handle, pFileAccess access, u64 size, u64 offset) 
 #endif
     
 }
-pBool pUnmapFile(void *handle) {
+pbool_t punmap_file(void *handle) {
     if (UnmapViewOfFile(handle)) 
          return true;
     else return false;

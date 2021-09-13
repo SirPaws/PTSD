@@ -1,0 +1,50 @@
+file                                |status|
+------------------------------------|------|
+templates/generic_maths.h           |  ❌  |
+templates/matrix4x4.h               |  ❌  |
+templates/vector.h                  |  ❌  |
+templates/vector_constructors.h     |  ❌  |
+templates/vector_math.h             |  ❌  |
+templates/vector_sse.h              |  ❌  |
+------------------------------------|------|
+examples/dynarraytest.c             |  ❌  |
+examples/formatting.c               |  ❌  |
+examples/hash_map.c                 |  ⭕  |
+examples/matrix.c                   |  ❌  |
+examples/memexpandtest.c            |  ❌  |
+examples/stretchy_buffer_example.c  |  ❌  |
+examples/vector.c                   |  ❌  |
+examples/window.c                   |  ❌  |
+------------------------------------|------|
+include/general.h                   |  ⭕  |
+include/pplatform.h                 |  ⭕  |
+include/prandom.h                   |  ⭕  |
+include/pstring.h                   |  ⭕  |
+include/ptime.h                     |  ⭕  |
+include/stretchy_buffer.h           |  ⭕  |
+include/util.h                      |  ⭕  |
+include/hash_map.h                  |  ⭕  |
+include/pio.h                       |  ❌  |
+include/pmath.h                     |  ❌  |
+include/dynalg.h                    |  ❌  |
+include/dynarray.h                  |  ❌  |
+include/generic_sse.h               |  ❌  |
+include/smart_mem.h                 |  ❌  |
+include/pwindow.h                   |  ❌  |
+include/string_buffer.h             |  ❌  |
+------------------------------------|------|
+src/pio.c                           |  ❌  |
+src/pplatform.c                     |  ⭕  |
+src/pPrintf.c                       |  ❌  |
+src/pScanf.c                        |  ❌  |
+src/pstring.c                       |  ⭕  |
+src/ptime.c                         |  ⭕  |
+src/random.c                        |  ⭕  |
+src/table.c                         |  ⭕  |
+src/util.c                          |  ⭕  |
+src/window.c                        |  ❌  |
+------------------------------------|------|
+
+
+
+
