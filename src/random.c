@@ -4,7 +4,7 @@
 #define PSTD_RNG_START_SEED (0X16A0CE8489509C5ULL)
 #endif
 
-static pRandomDevice device = { 
+static prandom_device_t device = { 
     .seed = PSTD_RNG_START_SEED,
     .size = PSTD_RNG_SIZE,
     .state = {
@@ -183,7 +183,7 @@ static pRandomDevice device = {
     }
 };
 
-u64 pRDRandomU64(pRandomDevice *device) {
+u64 prd_random_u64(prandom_device_t *device) {
     if (device->seed == 0) {
         srand(device->state[rand() % device->size]); // NOLINT
         device->seed = rand(); // NOLINT
@@ -221,24 +221,24 @@ u64 pRDRandomU64(pRandomDevice *device) {
 }
 
 
-u64 pRandomU64(void) { return      pRDRandomU64(&device); }
-u32 pRandomU32(void) { return (u32)pRDRandomU64(&device); }
-u16 pRandomU16(void) { return (u16)pRDRandomU64(&device); }
-u8  pRandomU8 (void) { return (u8) pRDRandomU64(&device); }
+u64 prandom_u64(void) { return      prd_random_u64(&device); }
+u32 prandom_u32(void) { return (u32)prd_random_u64(&device); }
+u16 prandom_u16(void) { return (u16)prd_random_u64(&device); }
+u8  prandom_u8 (void) { return (u8) prd_random_u64(&device); }
 
-s64 pRandomS64(void) { return (s64)pRDRandomU64(&device); }
-s32 pRandomS32(void) { return (s32)pRDRandomU64(&device); }
-s16 pRandomS16(void) { return (s16)pRDRandomU64(&device); }
-s8  pRandomS8 (void) { return (s8) pRDRandomU64(&device); }
+s64 prandom_s64(void) { return (s64)prd_random_u64(&device); }
+s32 prandom_s32(void) { return (s32)prd_random_u64(&device); }
+s16 prandom_s16(void) { return (s16)prd_random_u64(&device); }
+s8  prandom_s8 (void) { return (s8) prd_random_u64(&device); }
 
-u32 pRDRandomU32(pRandomDevice *device) { return (u32)pRDRandomU64(device); }
-u16 pRDRandomU16(pRandomDevice *device) { return (u16)pRDRandomU64(device); }
-u8  pRDRandomU8 (pRandomDevice *device) { return (u8) pRDRandomU64(device); }
+u32 prd_random_u32(prandom_device_t *device) { return (u32)prd_random_u64(device); }
+u16 prd_random_u16(prandom_device_t *device) { return (u16)prd_random_u64(device); }
+u8  prd_random_u8 (prandom_device_t *device) { return (u8) prd_random_u64(device); }
 
-s64 pRDRandomS64(pRandomDevice *device) { return (s64)pRDRandomU64(device); }
-s32 pRDRandomS32(pRandomDevice *device) { return (s32)pRDRandomU64(device); }
-s16 pRDRandomS16(pRandomDevice *device) { return (s16)pRDRandomU64(device); }
-s8  pRDRandomS8 (pRandomDevice *device) { return (s8) pRDRandomU64(device); }
+s64 prd_random_s64(prandom_device_t *device) { return (s64)prd_random_u64(device); }
+s32 prd_random_s32(prandom_device_t *device) { return (s32)prd_random_u64(device); }
+s16 prd_random_s16(prandom_device_t *device) { return (s16)prd_random_u64(device); }
+s8  prd_random_s8 (prandom_device_t *device) { return (s8) prd_random_u64(device); }
 
 
 #ifndef PSTD_STATE_INITIAL_VALUE
@@ -248,14 +248,14 @@ s8  pRDRandomS8 (pRandomDevice *device) { return (s8) pRDRandomU64(device); }
 #define PSTD_STATE_CONSTANT_VALUE (15632138375488585303ULL)
 #endif
 
-static u64 pGetStateValue(u64 n) {
+static u64 pget_state_value(u64 n) {
     if (n == 0) return PSTD_STATE_INITIAL_VALUE;
     return PSTD_STATE_CONSTANT_VALUE * 
-        (pGetStateValue(n - 1) ^ (pGetStateValue(n - 1) >> (64 - 2))) + n;
+        (pget_state_value(n - 1) ^ (pget_state_value(n - 1) >> (64 - 2))) + n;
 }
-void pInitializeStateArray(usize count, u64 buffer[count]) {
+void pinitialize_state_array(usize count, u64 buffer[count]) {
     for (usize i = 0; i < count; i++) {
-        buffer[i] = pGetStateValue(count);
+        buffer[i] = pget_state_value(count);
     }
 }
 

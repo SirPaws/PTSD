@@ -14,28 +14,36 @@
 #   error platform not supported
 #endif
 
+#if _WIN32 || _WIN64
+    #if _WIN64
+        #define PSTD_64
+    #else
+        #define PSTD_32
+    #endif
+#elif __GNUC__
+    #if __x86_64__ || __ppc64__
+        #define PSTD_64
+    #else
+        #define PSTD_32
+    #endif
+#elif UINTPTR_MAX > UINT_MAX
+    #define PSTD_64
+#else
+    #define PSTD_32
+#endif
+
 #if !(defined(_MSC_FULL_VER) && !defined(__clang__)) // not an msvc compiler
-#define PSTD_GNU_COMPATIBLE
+#   define PSTD_GNU_COMPATIBLE 1
 #else
-#define PSTD_MSVC
+#   define PSTD_MSVC 1
 #endif
-
-#if defined(PSTD_MSVC) && (defined(_MSVC_TRADITIONAL) && _MSVC_TRADITIONAL)
-#pragma message("Warning: the traditional msvc preprocessor does not support 'complicated' macros use /Zc:preprocessor") 
-#define PSTD_HAS_SECOND(...) 0
-#else
-#define PSTD_HAS_SECOND_TEST__(_0, _1, _2, ...) _2
-#define PSTD_HAS_SECOND_TRIGGER(...) ,
-#define PSTD_HAS_SECOND_TEST_(...) PSTD_HAS_SECOND_TEST__(__VA_ARGS__)
-#define PSTD_HAS_SECOND_TEST(...)  PSTD_HAS_SECOND_TEST_(PSTD_HAS_SECOND_TRIGGER __VA_ARGS__ (), 0, 1, 0) 
-#define PSTD_HAS_SECOND(a, ...)    PSTD_HAS_SECOND_TEST(__VA_ARGS__)
+#if defined(__cplusplus) && !defined(PSTD_I_KNOW_WHAT_IM_DOING)
+#   if defined(PSTD_MSVC)
+#       pragma message pstd was written with c in mind so c++ might not work as intended. Please run your compiler in c mode
+#   else
+#       warning pstd was written with c in mind so c++ might not work as intended. Please run your compiler in c mode
+#   endif
 #endif
-
-#define PSTD_CONCAT_( a, b ) a##b
-#define PSTD_CONCAT( a, b ) PSTD_CONCAT_( a, b )
-
-#define PSTD_STRINGIFY_(x) #x
-#define PSTD_STRINGIFY(x) PSTD_STRINGIFY_(x)
 
 #if defined(__STDC_VERSION__)
 #   if __STDC_VERSION__ == 199901
@@ -56,14 +64,6 @@
 #       define PSTD_C89 1
 #endif
 
-#if defined(__cplusplus) && !defined(PSTD_I_KNOW_WHAT_IM_DOING)
-#if defined(PSTD_MSVC)
-#pragma message pstd was written with c in mind so c++ might not work as intended. Please run your compiler in c mode
-#else
-#   warning pstd was written with c in mind so c++ might not work as intended. Please run your compiler in c mode
-#endif
-#endif
-
 #if defined(__STDC_NO_VLA__)
 #   define PSTD_HAS_VLA 0
 #elif PSTD_C11 && !defined(PSTD_MSVC)
@@ -71,7 +71,6 @@
 #else
 #   define PSTD_HAS_VLA 0
 #endif
-
 
 #if defined(__has_c_attribute)
 #   define PSTD_HAS_ATTRIBUTE __has_c_attribute
@@ -91,6 +90,28 @@
 #define PSTD_UNUSED
 #endif
 
+#if defined(PSTD_MSVC) && (defined(_MSVC_TRADITIONAL) && _MSVC_TRADITIONAL)
+#pragma message("Warning: the traditional msvc preprocessor does not support 'complicated' macros use /Zc:preprocessor") 
+#define PSTD_HAS_SECOND(...) 0
+#else
+#define PSTD_HAS_SECOND_TEST__(_0, _1, _2, ...) _2
+#define PSTD_HAS_SECOND_TRIGGER(...) ,
+#define PSTD_HAS_SECOND_TEST_(...) PSTD_HAS_SECOND_TEST__(__VA_ARGS__)
+#define PSTD_HAS_SECOND_TEST(...)  PSTD_HAS_SECOND_TEST_(PSTD_HAS_SECOND_TRIGGER __VA_ARGS__ (), 0, 1, 0) 
+#define PSTD_HAS_SECOND(a, ...)    PSTD_HAS_SECOND_TEST(__VA_ARGS__)
+#endif
+
+#define PSTD_CONCAT_( a, b ) a##b
+#define PSTD_CONCAT( a, b ) PSTD_CONCAT_( a, b )
+
+#define PSTD_STRINGIFY_(x) #x
+#define PSTD_STRINGIFY(x) PSTD_STRINGIFY_(x)
+
+#ifndef PSTD_CASE
+#define PSTD_CASE CAMEL
+#endif
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -99,27 +120,9 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#if _WIN32 || _WIN64
-    #if _WIN64
-        #define PSTD_64
-    #else
-        #define PSTD_32
-    #endif
-#elif __GNUC__
-    #if __x86_64__ || __ppc64__
-        #define PSTD_64
-    #else
-        #define PSTD_32
-    #endif
-#elif UINTPTR_MAX > UINT_MAX
-    #define PSTD_64
-#else
-    #define PSTD_32
-#endif
-
 #ifndef countof
-#define countof(x) ((sizeof(x))/(sizeof((x)[0])))
-#endif 
+#define countof(x) (sizeof((x))/sizeof((x)[0]))
+#endif
 
 typedef int8_t    i8;
 typedef int16_t   i16;
@@ -147,13 +150,13 @@ typedef double    f64;
 #if !defined(__cplusplus)
 #   if defined(PSTD_C99)
         enum { false, true };
-        typedef _Bool pBool;
+        typedef _Bool pbool_t;
 #   else
-        enum pBool { false, true };
-        typedef enum pBool pBool;
+        enum pbool_t { false, true };
+        typedef enum pbool_t pbool_t;
 #   endif
 #else
-    using pBool = bool;
+    using p_bool = pbool_t;
 #endif
 
 #if defined(PSTD_GNU_COMPATIBLE)
@@ -166,44 +169,45 @@ typedef double    f64;
 #endif
 
 #if defined(PSTD_GNU_COMPATIBLE)
-#   ifndef pAllocate
-#      define pAllocate(size) malloc(size)
+#   ifndef pallocate
+#      define pallocate(size) malloc(size)
 #   endif // pAllocate
-#   ifndef pZeroAllocate
-#      define pZeroAllocate(size) ({ void *_tmp_ = malloc(size); memset(_tmp_, 0, (size));})
-#   endif // pZeroAllocate
-#   ifndef pReallocate
-#      define pReallocate(size, buffer) realloc(buffer, size)
+#   ifndef pzero_allocate
+#      define pzero_allocate(size) ({ void *_tmp_ = malloc(size); memset(_tmp_, 0, (size));})
+#   endif // pzeroallocate
+#   ifndef preallocate
+#      define preallocate(size, buffer) realloc(buffer, size)
 #   endif // pReallocate
-#   ifndef pFree
-#      define pFree(buffer) free(buffer)
-#   endif // pFree
-#   ifndef pSizedFree
-#      define pSizedFree(size, buffer) free(buffer)
-#   endif // pFree
+#   ifndef pfree
+#      define pfree(buffer) free(buffer)
+#   endif // pfree
+#   ifndef psized_free
+#      define psized_free(size, buffer) free(buffer)
+#   endif // psizedfree
 #else
-#   ifndef pAllocate
-#      define pAllocate(size) malloc(size)
+#   ifndef pallocate
+#      define pallocate(size) malloc(size)
 #   endif // pAllocate
-#   ifndef pZeroAllocate
+#   ifndef pzero_allocate
 PSTD_UNUSED
-static inline void *pZeroAllocateImplementation(usize size) {
+static inline void *pzero_allocate_implementation(usize size) {
     void *tmp = malloc(size);
     memset(tmp, 0, size);
     return tmp;
 }
-#      define pZeroAllocate(size) pZeroAllocateImplementation
+#      define pzero_allocate(size) pzero_allocate_implementation
 #   endif // pZeroAllocate
 #   ifndef pReallocate
-#      define pReallocate(size, buffer) realloc(buffer, size)
+#      define preallocate(size, buffer) realloc(buffer, size)
 #   endif // pReallocate
 #   ifndef pFree
-#      define pFree(buffer) free(buffer)
+#      define pfree(buffer) free(buffer)
 #   endif // pFree
-#   ifndef pSizedFree
-#      define pSizedFree(size, buffer) free(buffer)
+#   ifndef pSized_Free
+#      define psized_free(size, buffer) free(buffer)
 #   endif // pFree
 #endif
+
 
 
 #endif // PSTD_GENERAL_HEADER 

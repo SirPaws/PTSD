@@ -90,7 +90,7 @@ extern "C" {
 // TODO: CreateFile lpSecurityAttributes 
 typedef struct GenericStream GenericStream;
 struct GenericStream {
-    pBool is_valid;
+    pbool_t is_valid;
 #if defined(PSTD_USE_ALLOCATOR)
     Allocator cb;
 #endif
@@ -142,9 +142,9 @@ struct StreamInfo {
     usize buffersize;
     // filestream
     char *filename;
-    pBool createbuffer;
-    pBool createifnonexistent;
-    pBool append;
+    pbool_t createbuffer;
+    pbool_t createifnonexistent;
+    pbool_t append;
 };
 
 void pSetStream(GenericStream *new_stream, GenericStream *old_stream);
@@ -263,10 +263,10 @@ u32 pDtoa(char *buf, f64);
 
 #if defined(PSTD_GNU_COMPATIBLE)
 PSTD_UNUSED
-static inline pBool pCharAnyOf(int character, u32 count, const char tests[count]) {
+static inline pbool_t pCharAnyOf(int character, u32 count, const char tests[count]) {
 #else
 PSTD_UNUSED
-static inline pBool pCharAnyOf(int character, u32 count, const char tests[]) {
+static inline pbool_t pCharAnyOf(int character, u32 count, const char tests[]) {
 #endif
     for (u32 i = 0; i < count; i++) {
         if (character == tests[i]) return true;
@@ -307,7 +307,7 @@ struct pPrintfInfo {
     const char *restrict fmt;
     va_list list;
     u32 count; 
-    pBool *failflag;
+    pbool_t *failflag;
 };
 
 enum pFormattingLength {
@@ -319,13 +319,13 @@ enum pFormattingLength {
 
 typedef struct pFormattingSpecification pFormattingSpecification;
 struct pFormattingSpecification {
-    pBool right_justified;
+    pbool_t right_justified;
     u32 justification_count;
     u32 zero_justification_count;
-    pBool prefix_zero;
-    pBool force_sign;
+    pbool_t prefix_zero;
+    pbool_t force_sign;
     enum pFormattingLength length;
-    pBool alternative_form;
+    pbool_t alternative_form;
 };
 
 typedef void FormatCallback(pPrintfInfo*); 

@@ -39,7 +39,58 @@ static f32 pSqrt(f32 d);
 
 #define pPerpendicular  PSTD_CONCAT(pPerpendicular, vector_type)
 #define pCross          PSTD_CONCAT(pCross,         vector_type)
+#define pLessThan       PSTD_CONCAT(pLessThan,      vector_type)
+#define pGreaterThan    PSTD_CONCAT(pGreaterThan,      vector_type)
 
+PSTD_UNUSED static inline
+vector_type pNegate(vector_type vector);
+PSTD_UNUSED static inline
+vector_type pAddVector(vector_type a, vector_type b);
+PSTD_UNUSED static inline
+vector_type pSubVector(vector_type a, vector_type b);
+PSTD_UNUSED static inline
+vector_type pMulVector(vector_type a, vector_type b);
+PSTD_UNUSED static inline
+vector_type pDivVector(vector_type a, vector_type b);
+PSTD_UNUSED static inline
+vector_type pAddScalar(vector_type vector, element_type scalar);
+PSTD_UNUSED static inline
+vector_type pSubScalar(vector_type vector, element_type scalar);
+PSTD_UNUSED static inline
+vector_type pMulScalar(vector_type vector, element_type scalar);
+PSTD_UNUSED static inline
+vector_type pDivScalar(vector_type vector, element_type scalar);
+PSTD_UNUSED static inline
+element_type pDot(vector_type a, vector_type b);
+PSTD_UNUSED static inline
+element_type pLengthSquared(vector_type vector);
+PSTD_UNUSED static inline
+element_type pLength(vector_type vector);
+PSTD_UNUSED static inline
+vector_type pNormalize(vector_type vector);
+PSTD_UNUSED static inline
+vector_type pProject(vector_type a, vector_type b);
+PSTD_UNUSED static inline
+vector_type pReject(vector_type a, vector_type b);
+
+
+
+#if defined(VEC2)
+PSTD_UNUSED static inline
+vector_type pPerpendicular(vector_type vector);
+#endif 
+
+#if defined(VEC3)
+PSTD_UNUSED static inline
+vector_type pCross(vector_type a, vector_type b);
+#endif
+
+PSTD_UNUSED static inline
+pBool pLessThan(vector_type a, vector_type b);
+PSTD_UNUSED static inline
+pBool pGreaterThan(vector_type a, vector_type b);
+
+#if !defined(PIO_EXTERNAL_MATH)
 
 PSTD_UNUSED static inline
 vector_type pNegate(vector_type vector) {
@@ -159,6 +210,62 @@ vector_type pCross(vector_type a, vector_type b) {
 }
 #endif
 
+pBool pLessThan(vector_type a, vector_type b) {
+    pBool result = false;
+    for (u32 i = 0; i < countof(a.elements); i++)
+        result = a.elements[i] < b.elements[i];
+    return result;
+}
+
+pBool pGreaterThan(vector_type a, vector_type b) {
+    pBool result = false;
+    for (u32 i = 0; i < countof(a.elements); i++)
+        result = a.elements[i] > b.elements[i];
+    return result;
+}
+#endif
+
+#define pAdd(a,b) pAddVector(a, b)
+#define pSub(a,b) pSubVector(a, b)
+#define pMul(a,b) pMulVector(a, b)
+#define pDiv(a,b) pDivVector(a, b)
+#if defined(VEC2)
+#define pMulFloat(f, v)             \
+    ((vector_type){                 \
+        .elements={                 \
+            (f) * (v).elements[0],  \
+            (f) * (v).elements[1],  \
+        }                           \
+     })
+#elif defined(VEC3)
+#define pMulFloat(f, v)             \
+    ((vector_type){                 \
+        .elements={                 \
+            (f) * (v).elements[0],  \
+            (f) * (v).elements[1],  \
+            (f) * (v).elements[2],  \
+        }                           \
+     })
+#else
+#define pMulFloat(f, v)             \
+    ((vector_type){                 \
+        .elements={                 \
+            (f) * (v).elements[0],  \
+            (f) * (v).elements[1],  \
+            (f) * (v).elements[2],  \
+            (f) * (v).elements[3],  \
+        }                           \
+     })
+#endif
+#define value_type vector_type
+#include "generic_maths.h"
+
+#undef pAdd
+#undef pSub
+#undef pMul
+#undef pDiv
+#undef pMulFloat
+
 #undef pNegate
 #undef pAddVector
 #undef pSubVector
@@ -176,4 +283,6 @@ vector_type pCross(vector_type a, vector_type b) {
 #undef pCross
 #undef pProject
 #undef pReject
+#undef pLessThan
+#undef pGreaterThan
 

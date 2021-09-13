@@ -209,12 +209,14 @@ typedef double    f64;
 #define pCreateStaticDynArray(type, value) (type){ sizeof(value), countof(value), value }
 
 #define pSize(array)   ((array)->size) 
+#ifndef pLength
 #define pLength(array) ((array)->size)
+#endif
 #define pLen(array)    ((array)->size)
 #define pSizeof(value) (sizeof(__typeof(value)))
 
 #define pFreeDynArray(array) ({             \
-        pFreeBuffer((array)->data);         \
+        pFree((array)->data);               \
         memset((array), 0, sizeof *(array));\
     })
 
@@ -226,8 +228,8 @@ typedef double    f64;
         };                                                                          \
         *(array) = pSetCapacity_array;                                              \
     } else {                                                                        \
-        void *pSetCapacity_tmp = pReallocate((array)->data,                   \
-                (pSizeof((array)->data[0]) * (count)));                             \
+        void *pSetCapacity_tmp = pReallocate((pSizeof((array)->data[0]) * (count)), \
+                (array)->data);                                                     \
         (array)->data = pSetCapacity_tmp;                                           \
     }                                                                               \
     (array);                                                                        \
@@ -273,10 +275,10 @@ typedef double    f64;
         /* then we insert the value                                                           */\
         /* [1, 6, 2, 3, 4]                                                                    */\
         usize pInsert_elems = (array)->size - pInsert_offset;                                   \
-        void *pInsert_tmp = pAllocate(pInsert_size * pInsert_elems);                      \
+        void *pInsert_tmp = pAllocate(pInsert_size * pInsert_elems);                            \
         memcpy(pInsert_tmp, (array)->data + pInsert_offset, pInsert_elems * pInsert_size);      \
         memcpy((array)->data + pInsert_offset + 1, pInsert_tmp, pInsert_elems * pInsert_size);  \
-        pFreeBuffer(pInsert_tmp);                                                               \
+        pFree(pInsert_tmp);                                                                     \
                                                                                                 \
         (array)->size++;                                                                        \
         (array)->data[pInsert_offset] = value;                                                  \
@@ -303,12 +305,12 @@ typedef double    f64;
         /* then we insert the value                                                           */\
         /* [1, 6, 2, 3, 4]                                                                    */\
         usize pMakeHole_elems = (array)->size - pMakeHole_offset;                               \
-        void *pMakeHole_tmp = pAllocate(pMakeHole_size * pMakeHole_elems);                \
+        void *pMakeHole_tmp = pAllocate(pMakeHole_size * pMakeHole_elems);                      \
         memcpy(pMakeHole_tmp, (array)->data + pMakeHole_offset,                                 \
                 pMakeHole_elems * pMakeHole_size);                                              \
         memcpy((array)->data + pMakeHole_offset + (num_bytes), pMakeHole_tmp,                   \
                 pMakeHole_elems * pMakeHole_size);                                              \
-        pFreeBuffer(pMakeHole_tmp);                                                             \
+        pFree(pMakeHole_tmp);                                                                   \
                                                                                                 \
         pMakeHole_result = (array)->data + pMakeHole_offset;                                    \
     }                                                                                           \
@@ -335,12 +337,12 @@ typedef double    f64;
     } else {                                                                            \
         pRemove_result = (array)->data[pRemove_offset];                                 \
         usize pRemove_elems = (array)->size - pRemove_offset;                           \
-        void *pRemove_tmp = pAllocate(pSizeof((array)->data[0]) * pRemove_elems); \
+        void *pRemove_tmp = pAllocate(pSizeof((array)->data[0]) * pRemove_elems);       \
         memcpy(pRemove_tmp, (array)->data + pRemove_offset + 1,                         \
                 pRemove_elems * pSizeof((array)->data[0]));                             \
         memcpy((array)->data + pRemove_offset, pRemove_tmp,                             \
                 pRemove_elems * pSizeof((array)->data[0]));                             \
-        pFreeBuffer(pRemove_tmp);                                                       \
+        pFree(pRemove_tmp);                                                             \
         (array)->size--;                                                                \
     }                                                                                   \
     pRemove_result;                                                                     \
@@ -394,7 +396,7 @@ static void pMaybeGrowDynArray(DynArray *array, usize datasize) {
 PSTD_UNUSED
 static void pDynArrayByteGrow(DynArray *array, usize bytes) {
     if (!bytes || !array) return;
-    void *tmp = pReallocate(array->data, array->endofstorage + bytes);
+    void *tmp = pReallocate(array->endofstorage + bytes, array->data);
     // assert(tmp);
     array->data = tmp;
     array->endofstorage += bytes;
@@ -403,7 +405,7 @@ static void pDynArrayByteGrow(DynArray *array, usize bytes) {
 PSTD_UNUSED
 static void pDynArrayGrow(DynArray *array, usize datasize, usize count) {
     if (!count || !array || !datasize) return;
-    void *tmp = pReallocate(array->data, datasize * (array->endofstorage + count));
+    void *tmp = pReallocate(datasize * (array->endofstorage + count), array->data);
     // assert(tmp);
     array->data = tmp;
     array->endofstorage += count;
@@ -411,7 +413,7 @@ static void pDynArrayGrow(DynArray *array, usize datasize, usize count) {
 
 PSTD_UNUSED
 static void pDynArrayFree(DynArray *array) {
-    pFreeBuffer(array->data);
+    pFree(array->data);
     memset(array, 0, sizeof *array);
 }
 #endif // PSTD_DYNARRAY_HEADER

@@ -1,4 +1,4 @@
-#define STRETCHY_BUFFER_STANDALONE
+// #define STRETCHY_BUFFER_STANDALONE
 #include "stretchy_buffer.h"
 
 #include <stdio.h>
@@ -14,34 +14,33 @@ int main(void) {
     Allocator alloc = {
         .allocator = debug_allocator
     };
-    int *vector = pCreateStretchyBuffer(int, alloc);
+    int *vector = psb_create_stretchy_buffer(int, alloc);
 #else
     int *vector = NULL;
 #endif
     // pReserve(vector, 5);
 
-    pPushBack(vector, 1);
-    pPushBack(vector, 2);
-    pPushBack(vector, 3);
-    pPushBack(vector, 4);
+    psb_pushback(vector, 1);
+    psb_pushback(vector, 2);
+    psb_pushback(vector, 3);
+    psb_pushback(vector, 4);
     
-    int *insert = pBegin(vector);
+    int *insert = psb_begin(vector);
     insert++;
-    insert = pInsert(vector, insert, 6);
+    insert = psb_insert(vector, insert, 6);
 
-    for (int *it = pBegin(vector); it != pEnd(vector); it++) {
+    for (int *it = psb_begin(vector); it != psb_end(vector); it++) {
         printf("%p: %i\n", it, *it);
     }
    
-    int v = pRemove(vector, insert);
+    int v = psb_remove(vector, insert);
     assert(v == 6);
     
     printf("removed the number %i from array:\n", v);
-    for (int *it = pBegin(vector); it != pEnd(vector); it++) {
+    for (int *it = psb_begin(vector); it != psb_end(vector); it++) {
         printf("%p: %i\n", it, *it);
     }
-
-    pFreeStretchyBuffer(vector);
+    psb_free(vector);
 }
 
 #if defined(PSTD_USE_ALLOCATOR)

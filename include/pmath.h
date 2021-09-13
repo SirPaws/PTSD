@@ -1,3 +1,6 @@
+#pragma once
+#ifndef PSTD_PMATH_HEADER
+#define PSTD_PMATH_HEADER
 
 #include "general.h"
 #if !defined(PSTD_WASM)
@@ -5,6 +8,13 @@
 #include <immintrin.h>
 #endif
 #include <math.h>
+
+#if !defined(PIO_EXTERN_PMATH)
+#define PMATH_STATIC PSTD_UNUSED static inline
+#else
+#define PMATH_STATIC
+#endif 
+
 
 #define pSqrt(x)        \
     _Generic((x),       \
@@ -164,6 +174,32 @@ PSTD_UNUSED static inline i32 pSqrtRI32(i32 x) {
 }
 #endif
 
+
+#define value_type f32
+#include "templates/generic_maths.h"
+#undef value_type
+#define value_type f64
+#include "templates/generic_maths.h"
+#undef value_type
+
+#define value_type u8
+#include "templates/generic_maths.h"
+#define value_type u16
+#include "templates/generic_maths.h"
+#define value_type u32
+#include "templates/generic_maths.h"
+#define value_type u64
+#include "templates/generic_maths.h"
+
+#define value_type s8
+#include "templates/generic_maths.h"
+#define value_type s16
+#include "templates/generic_maths.h"
+#define value_type s32
+#include "templates/generic_maths.h"
+#define value_type s64
+#include "templates/generic_maths.h"
+
 #define element_type    f32
 #define vector_prefix   Vec
 #define matrix_prefix   Mat
@@ -181,6 +217,123 @@ PSTD_UNUSED static inline i32 pSqrtRI32(i32 x) {
 #define element_type i32
 #define suffix       i
 #include "templates/matrix4x4.h"
+#undef  element_type
+#undef suffix
+
+#define pMin(a, b)          \
+    _Generic((a),           \
+        s8:     pMins8,     \
+        s16:    pMins16,    \
+        s32:    pMins32,    \
+        s64:    pMins64,    \
+        u8:     pMinu8,     \
+        u16:    pMinu16,    \
+        u32:    pMinu32,    \
+        u64:    pMinu64,    \
+        f32:    pMinf32,    \
+        f64:    pMinf64,    \
+        Vec2i:  pMinVec2i,  \
+        Vec2u:  pMinVec2u,  \
+        Vec2f:  pMinVec2f,  \
+        Vec3i:  pMinVec3i,  \
+        Vec3u:  pMinVec3u,  \
+        Vec3f:  pMinVec3f,  \
+        Vec4i:  pMinVec4i,  \
+        Vec4u:  pMinVec4u,  \
+        Vec4f:  pMinVec4f   \
+    )((a), (b))
+
+#define pMax(a, b)          \
+    _Generic((a),           \
+        s8:     pMaxs8,     \
+        s16:    pMaxs16,    \
+        s32:    pMaxs32,    \
+        s64:    pMaxs64,    \
+        u8:     pMaxu8,     \
+        u16:    pMaxu16,    \
+        u32:    pMaxu32,    \
+        u64:    pMaxu64,    \
+        f32:    pMaxf32,    \
+        f64:    pMaxf64,    \
+        Vec2i:  pMaxVec2i,  \
+        Vec2u:  pMaxVec2u,  \
+        Vec2f:  pMaxVec2f,  \
+        Vec3i:  pMaxVec3i,  \
+        Vec3u:  pMaxVec3u,  \
+        Vec3f:  pMaxVec3f,  \
+        Vec4i:  pMaxVec4i,  \
+        Vec4u:  pMaxVec4u,  \
+        Vec4f:  pMaxVec4f   \
+    )((a), (b))
+
+#define pSwap(a, b)         \
+    _Generic((a),           \
+        s8:     pSwaps8,    \
+        s16:    pSwaps16,   \
+        s32:    pSwaps32,   \
+        s64:    pSwaps64,   \
+        u8:     pSwapu8,    \
+        u16:    pSwapu16,   \
+        u32:    pSwapu32,   \
+        u64:    pSwapu64,   \
+        f32:    pSwapf32,   \
+        f64:    pSwapf64,   \
+        Vec2i:  pSwapVec2i, \
+        Vec2u:  pSwapVec2u, \
+        Vec2f:  pSwapVec2f, \
+        Vec3i:  pSwapVec3i, \
+        Vec3u:  pSwapVec3u, \
+        Vec3f:  pSwapVec3f, \
+        Vec4i:  pSwapVec4i, \
+        Vec4u:  pSwapVec4u, \
+        Vec4f:  pSwapVec4f  \
+    )(&(a), &(b))
+
+#define pLerp(v0, v1, t)    \
+    _Generic((v0),          \
+        s8:     pLerps8,    \
+        s16:    pLerps16,   \
+        s32:    pLerps32,   \
+        s64:    pLerps64,   \
+        u8:     pLerpu8,    \
+        u16:    pLerpu16,   \
+        u32:    pLerpu32,   \
+        u64:    pLerpu64,   \
+        f32:    pLerpf32,   \
+        f64:    pLerpf64,   \
+        Vec2i:  pLerpVec2i, \
+        Vec2u:  pLerpVec2u, \
+        Vec2f:  pLerpVec2f, \
+        Vec3i:  pLerpVec3i, \
+        Vec3u:  pLerpVec3u, \
+        Vec3f:  pLerpVec3f, \
+        Vec4i:  pLerpVec4i, \
+        Vec4u:  pLerpVec4u, \
+        Vec4f:  pLerpVec4f  \
+    )((v0), (v1), (t))
+
+#define pRemap(value, from0, to0, from1, to1)   \
+    _Generic((value),                           \
+        s8:     pRemaps8,                       \
+        s16:    pRemaps16,                      \
+        s32:    pRemaps32,                      \
+        s64:    pRemaps64,                      \
+        u8:     pRemapu8,                       \
+        u16:    pRemapu16,                      \
+        u32:    pRemapu32,                      \
+        u64:    pRemapu64,                      \
+        f32:    pRemapf32,                      \
+        f64:    pRemapf64,                      \
+        Vec2i:  pRemapVec2i,                    \
+        Vec2u:  pRemapVec2u,                    \
+        Vec2f:  pRemapVec2f,                    \
+        Vec3i:  pRemapVec3i,                    \
+        Vec3u:  pRemapVec3u,                    \
+        Vec3f:  pRemapVec3f,                    \
+        Vec4i:  pRemapVec4i,                    \
+        Vec4u:  pRemapVec4u,                    \
+        Vec4f:  pRemapVec4f                     \
+    )((value), (from0), (to0), (from1), (to1))
 
 // negate
 #define pNegate(x)              \
@@ -770,6 +923,7 @@ PSTD_UNUSED static inline i32 pSqrtRI32(i32 x) {
 // ortho
 #define pOrtho(left, right, bottom, top, near, far) \
     _Generic((left),                                \
+        f64: pOrthoMat4x4f,                         \
         f32: pOrthoMat4x4f,                         \
         u32: pOrthoMat4x4u,                         \
         i32: pOrthoMat4x4i                          \
@@ -778,6 +932,7 @@ PSTD_UNUSED static inline i32 pSqrtRI32(i32 x) {
 // frustum
 #define pFrustum(left, right, bottom, top, near, far)   \
     _Generic((left),                                    \
+        f64: pFrustumMat4x4f,                           \
         f32: pFrustumMat4x4f,                           \
         u32: pFrustumMat4x4u,                           \
         i32: pFrustumMat4x4i                            \
@@ -786,6 +941,7 @@ PSTD_UNUSED static inline i32 pSqrtRI32(i32 x) {
 // perspective
 #define pPerspective(fov, aspect, near, far)\
     _Generic((fov),                         \
+        f64: pPerspectiveMat4x4f,           \
         f32: pPerspectiveMat4x4f,           \
         u32: pPerspectiveMat4x4u,           \
         i32: pPerspectiveMat4x4i            \
@@ -802,6 +958,7 @@ PSTD_UNUSED static inline i32 pSqrtRI32(i32 x) {
 // translate
 #define pTranslate(x, y, z)     \
     _Generic((x),               \
+        f64: pTranslateMat4x4f, \
         f32: pTranslateMat4x4f, \
         u32: pTranslateMat4x4u, \
         i32: pTranslateMat4x4i  \
@@ -810,6 +967,7 @@ PSTD_UNUSED static inline i32 pSqrtRI32(i32 x) {
 // scale
 #define pScale(x, y, z)     \
     _Generic((x),           \
+        f64: pScaleMat4x4f, \
         f32: pScaleMat4x4f, \
         u32: pScaleMat4x4u, \
         i32: pScaleMat4x4i  \
@@ -818,6 +976,7 @@ PSTD_UNUSED static inline i32 pSqrtRI32(i32 x) {
 // rotate x
 #define pRotateX(radians)    \
     _Generic((radians),      \
+        f64: pRotateXMat4x4f,\
         f32: pRotateXMat4x4f,\
         u32: pRotateXMat4x4u,\
         i32: pRotateXMat4x4i \
@@ -826,6 +985,7 @@ PSTD_UNUSED static inline i32 pSqrtRI32(i32 x) {
 // rotate y
 #define pRotateY(radians)       \
     _Generic((radians),         \
+        f64: pRotateYMat4x4f,   \
         f32: pRotateYMat4x4f,   \
         u32: pRotateYMat4x4u,   \
         i32: pRotateYMat4x4i    \
@@ -834,6 +994,7 @@ PSTD_UNUSED static inline i32 pSqrtRI32(i32 x) {
 // rotate z
 #define pRotateZ(radians)       \
     _Generic((radians),         \
+        f64: pRotateZMat4x4f,   \
         f32: pRotateZMat4x4f,   \
         u32: pRotateZMat4x4u,   \
         i32: pRotateZMat4x4i    \
@@ -842,13 +1003,23 @@ PSTD_UNUSED static inline i32 pSqrtRI32(i32 x) {
 // rotate
 #define pRotate(radians, axis)  \
     _Generic((radians),         \
+        f64: pRotateMat4x4f,    \
         f32: pRotateMat4x4f,    \
         u32: pRotateMat4x4u,    \
         i32: pRotateMat4x4i     \
     )((radians), (axis))
 
+#define pIdentity(scale)        \
+    _Generic((scale),           \
+        f64: pIdentityMat4x4f,  \
+        f32: pIdentityMat4x4f,  \
+        u32: pIdentityMat4x4u,  \
+        i32: pIdentityMat4x4i   \
+    )((scale))
 
 
 
 
 
+
+#endif // PSTD_PMATH_HEADER
