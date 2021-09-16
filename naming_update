@@ -7,12 +7,12 @@ templates/vector_constructors.h     |  ❌  |
 templates/vector_math.h             |  ❌  |
 templates/vector_sse.h              |  ❌  |
 ------------------------------------|------|
-examples/dynarraytest.c             |  ❌  |
+examples/dynarraytest.c             |  ⭕  |
 examples/formatting.c               |  ❌  |
 examples/hash_map.c                 |  ⭕  |
 examples/matrix.c                   |  ❌  |
-examples/memexpandtest.c            |  ❌  |
-examples/stretchy_buffer_example.c  |  ❌  |
+examples/memexpandtest.c            |  ⭕  |
+examples/stretchy_buffer_example.c  |  ⭕  |
 examples/vector.c                   |  ❌  |
 examples/window.c                   |  ❌  |
 ------------------------------------|------|
@@ -24,10 +24,10 @@ include/ptime.h                     |  ⭕  |
 include/stretchy_buffer.h           |  ⭕  |
 include/util.h                      |  ⭕  |
 include/hash_map.h                  |  ⭕  |
+include/dynarray.h                  |  ⭕  |
 include/pio.h                       |  ❌  |
 include/pmath.h                     |  ❌  |
 include/dynalg.h                    |  ❌  |
-include/dynarray.h                  |  ❌  |
 include/generic_sse.h               |  ❌  |
 include/smart_mem.h                 |  ❌  |
 include/pwindow.h                   |  ❌  |

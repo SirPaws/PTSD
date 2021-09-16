@@ -1,26 +1,27 @@
 #include "dynarray.h"
 #include "util.h"
 
-typedef pCreateDynArray(, int) IntVector;
+typedef pda_create_dynarray(, int) IntVector;
 
 int main(void) {
     IntVector vector = { 0 };
-    pPushBack(&vector, 1);
-    pPushBack(&vector, 2);
-    pPushBack(&vector, 3);
-    pPushBack(&vector, 4);
+    pda_pushback(&vector, 1);
+    pda_pushback(&vector, 2);
+    pda_pushback(&vector, 3);
+    pda_pushback(&vector, 4);
     
-    int *insert = pBegin(&vector);
+    int *insert = pda_begin(&vector);
     insert++;
-    insert = pInsert(&vector, insert, 6);
+    insert = pda_insert(&vector, insert, 6);
 
-    for (int *it = pBegin(&vector); it != pEnd(&vector); it++) {
+    for (int *it = pda_begin(&vector); it != pda_end(&vector); it++) {
         printf("%p: %i\n", it, *it);
     }
     
-    int v = pRemove(&vector, insert);
+    int v = pda_remove(&vector, insert);
+    printf("removed value: %i\n", v);
 
-    pDynArrayFree((DynArray *)&vector);
+    pda_free((DynArray *)&vector);
 }
 
 
