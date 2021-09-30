@@ -1,15 +1,5 @@
 #include "pio.h"
 #include "general.h"
-#undef pSetStream
-#undef pFreeStream
-#undef pStreamToBufferString
-#undef pVBPrintf
-#undef pBPrintf
-#undef pStreamWriteString
-#undef pStreamWriteChar
-#undef pStreamRead
-#undef pStreamReadLine
-#undef pStreamMove
 
 #include "pplatform.h"
 #include "pstring.h"
@@ -26,64 +16,74 @@
 #define BASE_8   8
 #define BASE_16 16
 
-#define invalid_stream ((GenericStream){.is_valid = false});
+#define invalid_stream ((pgeneric_stream_t){.is_valid = false});
 
-static StdStream standard_stream = {0};
-
+struct {
+    pstd_stream_t           std_stream;
+    u32                     default_code_page;
+    pgeneric_stream_t       current_stream;
+    pbool_t                 colored_output;
+#if defined(PSTD_WINDOWS)
+    u32                     console_mode;
+#endif
+} static PIO_GLOBALS = {};
+/*
+static pstd_stream_t standard_stream = {0};
 static u32 default_code_page = 0;
-static GenericStream current_stream;
-static pBool color_output = true;
+static pgeneric_stream_t current_stream;
+static pbool_t color_output = true;
 
 #if defined(PSTD_WINDOWS)
 static u32 console_mode = 0;
 #endif
+*/
 
-void pSetStream(GenericStream *new_stream, GenericStream *old_stream)
+void pSetStream(pgeneric_stream_t *new_stream, pgeneric_stream_t *old_stream)
 {
-    if (old_stream) *old_stream = current_stream;
+    if (old_stream) *old_stream = PIO_GLOBALS.current_stream;
     if (!new_stream->is_valid) return;
-    current_stream = *new_stream;
+    PIO_GLOBALS.current_stream = *new_stream;
 }
-GenericStream *pGetStream(void) { return &current_stream; }
+pgeneric_stream_t *pGetStream(void) { return &PIO_GLOBALS.current_stream; }
 
-void InitializeStdStream(void) {
+void pinitialize_std_stream(void) {
 #if defined(PSTD_WINDOWS)
     // this is so we can print unicode characters on windows
-    default_code_page = GetConsoleOutputCP();
+    PIO_GLOBALS.default_code_page = GetConsoleOutputCP();
     SetConsoleOutputCP(CP_UTF8);
-    GetConsoleMode(GetStdHandle(STD_OUTPUT_HANDLE), (LPDWORD)&console_mode);
+    GetConsoleMode(GetStdHandle(STD_OUTPUT_HANDLE), (LPDWORD)&PIO_GLOBALS.console_mode);
 
-    u32 mode_output = console_mode | ENABLE_PROCESSED_OUTPUT | ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+    u32 mode_output = PIO_GLOBALS.console_mode | ENABLE_PROCESSED_OUTPUT | ENABLE_VIRTUAL_TERMINAL_PROCESSING;
 
     BOOL did_succeed = SetConsoleMode(GetStdHandle(STD_OUTPUT_HANDLE), mode_output);
     if (!did_succeed) {
-        color_output = false;
+        PIO_GLOBALS.colored_output = false;
     }
 #elif defined(PSTD_WASM)
-    color_output = false;
+    PIO_GLOBALS.color_output = false;
 #endif
-    const StdStream template = { 
+    const pstd_stream_t template = { 
 #if defined(PSTD_USE_ALLOCATOR)
         .cb = PSTD_DEFAULT_ALLOCATOR,
 #endif
         .is_valid      = true,
         .type          = STANDARD_STREAM,
         .flags         = STREAM_INPUT|STREAM_OUTPUT,
-        .stdout_handle = pGetSTDOutHandle(),
-        .stdin_handle  = pGetSTDInHandle()
+        .stdout_handle = pget_stdout_handle(),
+        .stdin_handle  = pget_stdin_handle()
     };
 
-    memcpy(&standard_stream, &template, sizeof template);
-    current_stream = standard_stream;
+    memcpy((void*)&PIO_GLOBALS.std_stream, &template, sizeof template);
+    PIO_GLOBALS.current_stream = PIO_GLOBALS.std_stream;
 }
-void DestroyStdStream(void) {
+void pdestroy_std_stream(void) {
 #if defined(PSTD_WINDOWS)
-    SetConsoleOutputCP(default_code_page);
-    SetConsoleMode(GetStdHandle(STD_OUTPUT_HANDLE), console_mode);
+    SetConsoleOutputCP(PIO_GLOBALS.default_code_page);
+    SetConsoleMode(GetStdHandle(STD_OUTPUT_HANDLE), PIO_GLOBALS.console_mode);
 #endif
 }
 
-GenericStream pInitStream(StreamInfo info) {
+pgeneric_stream_t pinit_stream(pstream_info_t info) {
 #if defined(PSTD_USE_ALLOCATOR)
     Allocator cb = info.cb;
     if (!cb.allocator) cb.allocator = pDefaultAllocator;
@@ -91,27 +91,27 @@ GenericStream pInitStream(StreamInfo info) {
 
     switch(info.type) {
         case STANDARD_STREAM: {
-                StdStream std = {
+                pstd_stream_t std = {
                     .is_valid= true, 
 #if defined(PSTD_USE_ALLOCATOR)
                     .cb= cb
 #endif
                 };
-                memcpy(&std, &standard_stream, sizeof std);
+                memcpy(&std, &PIO_GLOBALS.std_stream, sizeof std);
                 std.flags = info.flags; 
 
                 if ((info.flags & STREAM_INPUT) == 0)
-                    std.stdin_handle = pNullHandle();
+                    std.stdin_handle = pnull_handle();
                 if ((info.flags & STREAM_OUTPUT) == 0)
-                    std.stdout_handle = pNullHandle();
-                return (GenericStream )std;
+                    std.stdout_handle = pnull_handle();
+                return (pgeneric_stream_t )std;
             }
         case FILE_STREAM: {
-                pFileStat stat = pGetFileStat(info.filename);
-                pBool result = stat.exists;
+                pfilestat_t stat = pget_filestat(info.filename);
+                pbool_t result = stat.exists;
                 u64 filesize = stat.filesize;
 
-                FileStream fstream = {
+                pfile_stream_t fstream = {
                     .is_valid = true, 
 #if defined(PSTD_USE_ALLOCATOR)
                     .cb= cb
@@ -121,7 +121,7 @@ GenericStream pInitStream(StreamInfo info) {
                     if (info.createifnonexistent) {
                         fstream.type = FILE_STREAM;
                         fstream.flags = info.flags;
-                        fstream.handle = pFileCreate(info.filename, (pFileAccess)info.flags);
+                        fstream.handle = pfile_create(info.filename, (pfile_access_t)info.flags);
                         fstream.size   = 0;
                     }
                     else {
@@ -132,16 +132,16 @@ GenericStream pInitStream(StreamInfo info) {
                     fstream.type = FILE_STREAM;
                     fstream.flags = info.flags;
                     fstream.size  = filesize;
-                    fstream.handle = pFileOpen(info.filename, (pFileAccess)info.flags);
+                    fstream.handle = pfile_open(info.filename, (pfile_access_t)info.flags);
                 }
                 if (info.createbuffer) {
-                    pStreamToBufferString(&fstream);
-                    pSeek((void*)fstream.handle, 0, P_SEEK_SET);
+                    pstream_to_buffer_string(&fstream);
+                    pseek((void*)fstream.handle, 0, P_SEEK_SET);
                 }
                 return fstream;
             }
         case STRING_STREAM: {
-                StringStream sstream = {
+                pstring_stream_t sstream = {
                     .is_valid= true, 
 #if defined(PSTD_USE_ALLOCATOR)
                     .cb= cb
@@ -150,7 +150,7 @@ GenericStream pInitStream(StreamInfo info) {
                 sstream.type  = STRING_STREAM; 
                 sstream.flags = info.flags; 
 #if defined(PSTD_USE_ALLOCATOR)
-                sstream.buffer = pCreateStretchyBuffer(char, cb);
+                sstream.buffer = psb_create(char, cb);
 #endif
                 return sstream;
             }
@@ -159,15 +159,15 @@ GenericStream pInitStream(StreamInfo info) {
     return invalid_stream;
 }
 
-void pFreeStream(GenericStream *stream) {
+void pfree_stream(pgeneric_stream_t *stream) {
     if (!stream || stream->is_valid) return;
 #if defined(PSTD_USE_ALLOCATOR)
     Allocator cb = stream->cb;
 #endif
-    StdStream    *stdstream;
-    FileStream   *fstream;
-    StringStream *sstream;
-    cFileStream  *cstream;
+    pstd_stream_t    *stdstream;
+    pfile_stream_t   *fstream;
+    pstring_stream_t *sstream;
+    pcfile_stream_t  *cstream;
     stdstream = stream;
     fstream   = stream;
     sstream   = stream;
@@ -177,107 +177,107 @@ void pFreeStream(GenericStream *stream) {
             fclose(cstream->file);
         case STANDARD_STREAM: break;
         case FILE_STREAM:
-            pFileClose(fstream->handle);
+            pfile_close(fstream->handle);
             if (fstream->file_buffer.length) {
 #if defined(PSTD_USE_ALLOCATOR)
                 cb.allocator(&cb, FREE, fstream->file_buffer.length, fstream->file_buffer.c_str);
 #else
-                pSizedFree(fstream->file_buffer.length, fstream->file_buffer.c_str);
+                psized_free(fstream->file_buffer.length, fstream->file_buffer.c_str);
 #endif
             }
             break;
         case STRING_STREAM:
-            if (sstream->buffer) pFreeStretchyBuffer(sstream->buffer);
+            if (sstream->buffer) psb_free(sstream->buffer);
     }
 }
 
-String pStreamToBufferString(GenericStream *stream) {
-    if (!stream || !stream->is_valid) return (String){0};
+pstring_t pstream_to_buffer_string(pgeneric_stream_t *stream) {
+    if (!stream || !stream->is_valid) return (pstring_t){0};
     assert(stream->type != STANDARD_STREAM);
 #if defined(PSTD_USE_ALLOCATOR)
-    Allocator cb = stream->cb;
+    pallocator_t cb = stream->cb;
 #endif
 
     if (stream->type == STRING_STREAM) {
-        return pString((u8*)stream->buffer, pSize(stream->buffer));
+        return pstring((u8*)stream->buffer, psb_size(stream->buffer));
     } else {
         if (stream->file_buffer.length == 0) {
 #if defined(PSTD_USE_ALLOCATOR)
             u8 *tmp = cb.allocator(&cb, ALLOCATE, stream->size, NULL);
 #else
-            u8 *tmp = pAllocate(stream->size);
+            u8 *tmp = pallocate(stream->size);
 #endif
-            String buf = pString(tmp, stream->size);
-            pFileRead(stream->handle, buf);
+            pstring_t buf = pstring(tmp, stream->size);
+            pfile_read(stream->handle, buf);
             stream->file_buffer = buf;
         }
         return stream->file_buffer;
     }
 }
 
-void pStreamMove(GenericStream *stream, isize size) {
+void pstream_move(pgeneric_stream_t *stream, isize size) {
     if (!stream || !stream->is_valid) return;
 
     if (PSTD_EXPECT(stream->type == STANDARD_STREAM, 1) || stream->type == FILE_STREAM) {
         // this should probably have a comment explaning why we do this
-        pHandle *handle = stream->type == STANDARD_STREAM ? stream->stdin_handle 
+        phandle_t *handle = stream->type == STANDARD_STREAM ? stream->stdin_handle 
                 : stream->stdout_handle;
-        pSeek(handle, size, P_SEEK_CURRENT);
+        pseek(handle, size, P_SEEK_CURRENT);
     } else {
         isize location = (isize)stream->cursor + size; 
         if (location < 0) stream->cursor = 0;
-        else if ((usize)location >= pSize(stream->buffer))
-            stream->cursor = pSize(stream->buffer) - 1;
+        else if ((usize)location >= psb_size(stream->buffer))
+            stream->cursor = psb_size(stream->buffer) - 1;
     }
 }
 
-void pStreamRead(GenericStream *stream, void *buf, usize size) {
+void pstream_read(pgeneric_stream_t *stream, void *buf, usize size) {
     if (!stream || !stream->is_valid) return;
-    if ((pBool)(stream->flags & STREAM_INPUT) == false) return;
+    if ((pbool_t)(stream->flags & STREAM_INPUT) == false) return;
 
     if (PSTD_EXPECT(stream->type == STANDARD_STREAM, 1) || stream->type == FILE_STREAM) {
         // this should probably have a comment explaning why we do this
-        pHandle *handle = 
+        phandle_t *handle = 
             stream->type == STANDARD_STREAM ? stream->stdin_handle : stream->stdout_handle;  
-        pBool result = pFileRead(handle, pString(buf, size));
+        pbool_t result = pfile_read(handle, pstring(buf, size));
         if (result == false) memset(buf, 0, size);
     } else {
-        if (stream->cursor + size >= pSize(stream->buffer)) {
+        if (stream->cursor + size >= psb_size(stream->buffer)) {
             memset(buf, 0, size); return;
         }
         char *stretchy buffer = stream->buffer;
         memcpy(buf, buffer + stream->cursor, size);
     }
 }
-String pStreamReadLine(GenericStream *stream) {
-    if (!stream || !stream->is_valid) return (String){0};
-    if ((pBool)(stream->flags & STREAM_INPUT) == false) return (String){0};
+pstring_t pStreamReadLine(pgeneric_stream_t *stream) {
+    if (!stream || !stream->is_valid) return (pstring_t){0};
+    if ((pbool_t)(stream->flags & STREAM_INPUT) == false) return (pstring_t){0};
 
     if (PSTD_EXPECT(stream->type == STANDARD_STREAM, 1) || stream->type == FILE_STREAM) {
         // this should probably have a comment explaning why we do this
-        pHandle *handle = stream->type == STANDARD_STREAM ? stream->stdin_handle : stream->stdout_handle;  
+        phandle_t *handle = stream->type == STANDARD_STREAM ? stream->stdin_handle : stream->stdout_handle;  
     
         static const usize BUFFER_SIZE = 512;
         u8 *stretchy line = NULL;
-        pReserve(line, BUFFER_SIZE);
+        psb_reserve(line, BUFFER_SIZE);
         u8 chr;
-        while (pFileRead(handle, pString(&chr, 1))) {
+        while (pfile_read(handle, pstring(&chr, 1))) {
             if (chr == '\r') continue; // if we see '\r' we assume it's followed by '\n'
             if (chr == '\n') {
-                pPushBack(line, chr);
-                pSetCapacity(line, pSize(line));
-                return pString(line, pSize(line));
+                psb_pushback(line, chr);
+                psb_set_capacity(line, psb_size(line));
+                return pstring(line, psb_size(line));
             }
-            pPushBack(line, chr);
+            psb_pushback(line, chr);
         }
-        if (pSize(line)) {
-            pSetCapacity(line, pSize(line));
+        if (psb_size(line)) {
+            psb_set_capacity(line, psb_size(line));
         }
-        return pString(line, pSize(line));
+        return pstring(line, psb_size(line));
     } else {
         usize begin = stream->cursor;
         usize end   = stream->cursor;
-        usize buf_end = pSize(stream->buffer);
+        usize buf_end = psb_size(stream->buffer);
         u8 *str = (u8*)stream->buffer;
         while (end < buf_end) {
            if (str[end] == '\n') {
@@ -285,40 +285,40 @@ String pStreamReadLine(GenericStream *stream) {
            }
            end++;
         }
-        if (end - begin == 0) return (String){0};
-        return pStringCopy(pString(str + begin, end - begin));
+        if (end - begin == 0) return (pstring_t){0};
+        return pcopy_string(pstring(str + begin, end - begin));
     }
 }
 
-void pStreamWriteString(GenericStream *stream, String str) {
+void pstream_write_string(pgeneric_stream_t *stream, pstring_t str) {
     if (!stream->is_valid) return;
-    if ((pBool)(stream->flags & STREAM_OUTPUT) == false) return;
+    if ((pbool_t)(stream->flags & STREAM_OUTPUT) == false) return;
 
     if (PSTD_EXPECT(stream->type == STANDARD_STREAM, 1) || stream->type == FILE_STREAM) {
-        pFileWrite(stream->handle, str);
+        pfile_write(stream->handle, str);
     } else if (stream->type == CFILE_STREAM) {
         for (usize i = 0; i < str.length; i++)
             fputc(str.c_str[i], stream->file);
     } else {
         char *stretchy buffer = stream->buffer;
-        pPushBytes(buffer, str.c_str, str.length);
+        psb_pushbytes(buffer, str.c_str, str.length);
         stream->cursor += str.length;
     }
 }
 
-void pStreamWriteChar(GenericStream *stream, char chr) {
+void pstream_write_char(pgeneric_stream_t *stream, char chr) {
     if (!stream->is_valid) return;
-    if ((pBool)(stream->flags & STREAM_OUTPUT) == false) return;
+    if ((pbool_t)(stream->flags & STREAM_OUTPUT) == false) return;
 
     if (PSTD_EXPECT(stream->type == STANDARD_STREAM, 1) || stream->type == FILE_STREAM) {
-        pFileWrite(stream->handle, pString( (u8*)&chr, 1 ));
+        pfile_write(stream->handle, pstring( (u8*)&chr, 1 ));
     } else if (stream->type == CFILE_STREAM) {
         fputc(chr, stream->file);
     } else {
         char *stretchy buffer = stream->buffer;
            
         char *position = buffer + stream->cursor;
-        pInsert(buffer, position, chr);
+        psb_insert(buffer, position, chr);
         // *(buffer + sstream->cursor) = chr;
         stream->cursor++;
     }
@@ -334,7 +334,7 @@ void pStreamWriteChar(GenericStream *stream, char chr) {
 //                            ||                                   ||                            //
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-u32 pSignedIntToString(char *buf, s64 num, u32 radix, 
+u32 psigned_int_to_string(char *buf, s64 num, u32 radix, 
         const char radixarray[], const char (*pow2array)[2], const char (*pow3array)[3]) 
 {
     if (num) {
@@ -343,11 +343,11 @@ u32 pSignedIntToString(char *buf, s64 num, u32 radix,
             num = llabs(num);
         } else *buf++ = '+';
     }
-    return pUnsignedIntToString(buf, (u64)num, radix, radixarray, pow2array, pow3array) 
+    return punsigned_int_to_string(buf, (u64)num, radix, radixarray, pow2array, pow3array) 
         + ( num ? 1 : 0 ); 
 }
 
-u32 pUnsignedIntToString(char *buf, u64 num, u32 radix, 
+u32 punsigned_int_to_string(char *buf, u64 num, u32 radix, 
         const char radixarray[], const char (*pow2array)[2], const char (*pow3array)[3])
 {
     u64 pow3 = radix * radix * radix;
@@ -428,23 +428,23 @@ u32 pUnsignedIntToString(char *buf, u64 num, u32 radix,
     return printnum;
 }
 
-u32 pSignedDecimalToString(char *buf, s64 num) {
-    return pSignedIntToString(buf, num, BASE_10, (char *)pMod10, pMod100, pMod1000);
+u32 psigned_decimal_to_string(char *buf, s64 num) {
+    return psigned_int_to_string(buf, num, BASE_10, (char *)pmod10, pmod100, pmod1000);
 }
-u32 pUnsignedDecimalToString(char *buf, u64 num) {
-    return pUnsignedIntToString(buf, num, BASE_10, (char *)pMod10, pMod100, pMod1000);
+u32 punsigned_decimal_to_string(char *buf, u64 num) {
+    return punsigned_int_to_string(buf, num, BASE_10, (char *)pmod10, pmod100, pmod1000);
 }
-u32 pSignedHexToString(char *buf, s64 num) {
-    return pSignedIntToString(buf, num, BASE_16, (char *)pMod16, pMod256, pMod4096);
+u32 psignedhextostring(char *buf, s64 num) {
+    return psigned_int_to_string(buf, num, BASE_16, (char *)pmod16, pmod256, pmod4096);
 }
-u32 pUnsignedHexToString(char *buf, u64 num) {
-    return pUnsignedIntToString(buf, num, BASE_16, (char *)pMod16, pMod256, pMod4096);
+u32 punsigned_hex_to_string(char *buf, u64 num) {
+    return punsigned_int_to_string(buf, num, BASE_16, (char *)pmod16, pmod256, pmod4096);
 }
-u32 pSignedOctalToString(char *buf, s64 num) {
-    return pSignedIntToString(buf, num, BASE_8, (char *)pMod8, pMod64, pMod512);
+u32 psigned_octal_to_string(char *buf, s64 num) {
+    return psigned_int_to_string(buf, num, BASE_8, (char *)pmod8, pmod64, pmod512);
 }
-u32 pUnsignedOctalToString(char *buf, u64 num) {
-    return pUnsignedIntToString(buf, num, BASE_8, (char *)pMod8, pMod64, pMod512);
+u32 punsigned_octal_to_string(char *buf, u64 num) {
+    return punsigned_int_to_string(buf, num, BASE_8, (char *)pmod8, pmod64, pmod512);
 }
 
 

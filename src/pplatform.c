@@ -152,7 +152,7 @@ pbool_t pfile_write(phandle_t *handle, pstring_t buf) {
 #endif
 }
 
-pbool_t pfile_read(phandle_t *handle, pstring_t buf) {
+pbool_t pfile_read(phandle_t *handle, pbuffer_t buf) {
 #if defined(PSTD_WINDOWS)
     DWORD bytes_read = 0;
     ReadFile(handle, buf.c_str, buf.length, &bytes_read, NULL);

@@ -42,6 +42,9 @@
 #define pda_copy_dynarray(arr)                   pda_copy_dynarray_implementation(arr)
 #define pda_copy_array(type, arr)                pda_copy_array_implementation(type, arr)
 
+#define pda_foreach(array, .../*[optiona] name*/)   pda_foreach_(array, __VA_ARGS__)
+#define pda_foreach_r(array, .../*[optiona] name*/) pda_foreach_i_(array, __VA_ARGS__)
+#define pda_foreach_i(array, .../*[optiona] name*/) pda_foreach_i_(array, __VA_ARGS__)
 
 
 
@@ -54,8 +57,17 @@
 
 
 
+#define pda_foreach_1(array, name) \
+    for( __auto_type name = pda_begin(array); name != pda_end(array); name++) //NOLINT
+#define pda_foreach_0(array, ...)       pda_foreach_1(array, it)
+#define pda_foreach_check_has_name(args) PSTD_CONCAT(pda_foreach_, args)
+#define pda_foreach_(array, ...)   pda_foreach_check_has_name(PSTD_HAS_SECOND(array, ## __VA_ARGS__))(array, ## __VA_ARGS__)
 
-
+#define pda_foreach_i_1(array, name) \
+    for( __auto_type name = pda_end(array) - 1; name != pda_begin(array) - 1; name--) //NOLINT
+#define pda_foreach_i_0(array, ...)        pda_foreach_i_1(array, it)
+#define pda_foreach_i_check_has_name(args) PSTD_CONCAT(pda_foreach_i_, args)
+#define pda_foreach_i_(array, ...)   pda_foreach_i_check_has_name(PSTD_HAS_SECOND(array, ## __VA_ARGS__))(array, ## __VA_ARGS__)
 
 
 #define pda_create_dynarray_implementaion(name, datatype)   \
@@ -204,7 +216,7 @@
     __typeof(arr) pda_copy_dynarray_tmp = { 0 };                                        \
     pda_copy_dynarray_tmp.data = pallocate( (arr).size );                               \
     memcpy(pda_copy_dynarray_tmp.data, (arr).data, sizeof(*(arr).data) * (arr).size);   \
-    pda_copy_dynarray_tmp.size = pCopypdynarray_t_tmp.end_of_storage = (arr).size;      \
+    pda_copy_dynarray_tmp.size = pda_copy_dynarray_tmp.end_of_storage = (arr).size;     \
     pda_copy_dynarray_tmp;                                                              \
 })
 
