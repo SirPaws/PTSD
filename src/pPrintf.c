@@ -5,86 +5,83 @@
 #define PIO_STATIC PSTD_UNUSED static inline 
 
 #define BASE_10 10
-#define BASE_8   8
-#define BASE_16 16
 
-
-typedef struct AdvUserCallback AdvUserCallback; 
-struct AdvUserCallback {
-    String format;
-    FormatCallbackAdv *callback;
+typedef struct padv_user_callback_t padv_user_callback_t; 
+struct padv_user_callback_t {
+    pstring_t format;
+    pformat_callback_adv_t *callback;
 };
 
-typedef struct UserCallback UserCallback; 
-struct UserCallback {
-    String format;
-    FormatCallback *callback;
+typedef struct puser_callback_t puser_callback_t; 
+struct puser_callback_t {
+    pstring_t format;
+    pformat_callback_t *callback;
 };
 
-typedef struct BinaryStringReturn BinaryStringReturn;
-struct BinaryStringReturn {
+typedef struct pbinary_string_return_t pbinary_string_return_t;
+struct pbinary_string_return_t {
     u8 *buffer;
-    String str;
-    pBool iszero;
+    pstring_t str;
+    pbool_t iszero;
 };
 
-static AdvUserCallback *stretchy advcallbacks = NULL;
-static UserCallback    *stretchy callbacks    = NULL;
+static padv_user_callback_t *stretchy advcallbacks = NULL;
+static puser_callback_t     *stretchy callbacks    = NULL;
 
 // forward declaration
-static pBool color_output;
+static pbool_t color_output;
 
-PIO_STATIC void pPrintf_handle_length(pPrintfInfo *info, pFormattingSpecification *spec);
-PIO_STATIC void pPrintf_handle_plus(pPrintfInfo *info, pFormattingSpecification *spec);
-PIO_STATIC void pPrintf_handle_minus(pPrintfInfo *info, pFormattingSpecification *spec);
-PIO_STATIC void pPrintf_handle_space(pPrintfInfo *info, pFormattingSpecification *spec);
-PIO_STATIC void pPrintf_handle_zero(pPrintfInfo *info, pFormattingSpecification *spec);
-PIO_STATIC void pPrintf_handle_hash(pPrintfInfo *info, pFormattingSpecification *spec);
-PIO_STATIC void pPrintf_handle_dot(pPrintfInfo *info, pFormattingSpecification *spec);
-PIO_STATIC void pPrintf_handle_number(pPrintfInfo *info, pFormattingSpecification *spec);
+PIO_STATIC void pprintf_handle_length(pprintf_info_t *info, pformatting_specification_t *spec);
+PIO_STATIC void pprintf_handle_plus(pprintf_info_t *info, pformatting_specification_t *spec);
+PIO_STATIC void pprintf_handle_minus(pprintf_info_t *info, pformatting_specification_t *spec);
+PIO_STATIC void pprintf_handle_space(pprintf_info_t *info, pformatting_specification_t *spec);
+PIO_STATIC void pprintf_handle_zero(pprintf_info_t *info, pformatting_specification_t *spec);
+PIO_STATIC void pprintf_handle_hash(pprintf_info_t *info, pformatting_specification_t *spec);
+PIO_STATIC void pprintf_handle_dot(pprintf_info_t *info, pformatting_specification_t *spec);
+PIO_STATIC void pprintf_handle_number(pprintf_info_t *info, pformatting_specification_t *spec);
 
-PIO_STATIC void pPrintf_handle_char(pPrintfInfo *info, pBool wide);
-PIO_STATIC void pPrintf_handle_string(pPrintfInfo *info, pFormattingSpecification *spec, pBool cstr);
-PIO_STATIC void pPrintf_handle_int(pPrintfInfo *info, pFormattingSpecification *spec, char printtype);
-PIO_STATIC void pPrintf_handle_float(pPrintfInfo *info, pFormattingSpecification *spec);
-PIO_STATIC void pPrintf_handle_pointer(pPrintfInfo *info, pFormattingSpecification *spec);
-PIO_STATIC void pPrintf_handle_characters_written(pPrintfInfo *info, pFormattingSpecification *spec);
+PIO_STATIC void pprintf_handle_char(pprintf_info_t *info, pbool_t wide);
+PIO_STATIC void pprintf_handle_string(pprintf_info_t *info, pformatting_specification_t *spec, pbool_t cstr);
+PIO_STATIC void pprintf_handle_int(pprintf_info_t *info, pformatting_specification_t *spec, char printtype);
+PIO_STATIC void pprintf_handle_float(pprintf_info_t *info, pformatting_specification_t *spec);
+PIO_STATIC void pprintf_handle_pointer(pprintf_info_t *info, pformatting_specification_t *spec);
+PIO_STATIC void pprintf_handle_characters_written(pprintf_info_t *info, pformatting_specification_t *spec);
 
-PIO_STATIC void pPrintf_handle_binary(pPrintfInfo *info, pFormattingSpecification *spec);
-PIO_STATIC void pPrintf_handle_background_color(pPrintfInfo *info);
-PIO_STATIC void pPrintf_handle_foreground_color(pPrintfInfo *info);
-PIO_STATIC void pPrintf_handle_color_clear(pPrintfInfo *info);
+PIO_STATIC void pprintf_handle_binary(pprintf_info_t *info, pformatting_specification_t *spec);
+PIO_STATIC void pprintf_handle_background_color(pprintf_info_t *info);
+PIO_STATIC void pprintf_handle_foreground_color(pprintf_info_t *info);
+PIO_STATIC void pprintf_handle_color_clear(pprintf_info_t *info);
 
-PIO_STATIC u64 pPrintf_print_justified(GenericStream *stream, pFormattingSpecification *spec, String str);
-PIO_STATIC void pPrintf_get_rgb(const char *restrict* fmt, String RGB[3]);
+PIO_STATIC u64 pprintf_print_justified(pgeneric_stream_t *stream, pformatting_specification_t *spec, pstring_t str);
+PIO_STATIC void pprintf_get_rgb(const char *restrict* fmt, pstring_t rgb[3]);
 
 #if defined(PSTD_USE_ALLOCATOR)
-struct BinaryStringReturn MakeBinaryString(u64 bitcount, u64 num, Allocator *cb);
+struct pbinary_string_return_t pmake_binary_string(u64 bitcount, u64 num, pallocator_t *cb);
 #else
-struct BinaryStringReturn MakeBinaryString(u64 bitcount, u64 num);
+struct pbinary_string_return_t pmake_binary_string(u64 bitcount, u64 num);
 #endif
 
-u32 pVBPrintf(GenericStream *stream, const char *restrict fmt, va_list list) {
+u32 pvbprintf(pgeneric_stream_t *stream, const char *restrict fmt, va_list list) {
     u32 printcount = 0;
 
     while(*fmt) {
         if (PSTD_EXPECT(*fmt != '%', 1)) {
             const char *restrict fmt_next = fmt;
-            while (pCharAnyOf(*fmt_next, 2, (char[2]){ '%', '\0'}) == false) fmt_next++;
-            pStreamWriteString(stream, pString( (u8 *)fmt, (usize)(fmt_next - fmt)));
+            while (pchar_anyof(*fmt_next, 2, (char[2]){ '%', '\0'}) == false) fmt_next++;
+            pstream_write_string(stream, pstring( (u8 *)fmt, (usize)(fmt_next - fmt)));
             printcount += fmt_next - fmt;
             fmt = fmt_next;
         }
         else {
-            pBool failed = false;
-            struct pFormattingSpecification jinfo = {
+            pbool_t failed = false;
+            struct pformatting_specification_t jinfo = {
                 .right_justified = false,
                 .justification_count = 0,
                 .prefix_zero = false,
                 .length = PFL_DEFAULT,
             };
             const char* restrict fmt_next = fmt + 1;
-            pPrintfInfo pinfo = {
+            pprintf_info_t pinfo = {
                 .stream = stream,
                 .fmt = fmt_next,
                 .count = printcount,
@@ -93,11 +90,11 @@ u32 pVBPrintf(GenericStream *stream, const char *restrict fmt, va_list list) {
             va_copy(pinfo.list, list);
 
 #define SetBitCount(n, increment) bitcount = n; bitcountset = true; fmt_next += increment
-            pBool found_format = false;
-            for (usize i = 0; i < pSize(callbacks); i++) {
+            pbool_t found_format = false;
+            for (usize i = 0; i < psb_size(callbacks); i++) {
                 if ((u8)*fmt_next == callbacks[i].format.c_str[0]) {
                     found_format = true;
-                    String format = callbacks[i].format;
+                    pstring_t format = callbacks[i].format;
                     for (usize j = 1; j < format.length; j++)
                         if (format.c_str[j] != (u8)fmt_next[j]) { found_format = false; break; }
 
@@ -108,49 +105,49 @@ u32 pVBPrintf(GenericStream *stream, const char *restrict fmt, va_list list) {
             }
             if (!found_format) {
                 switch (*fmt_next) {
-                case 'n': pPrintf_handle_characters_written(&pinfo, &jinfo); break;
-                case '-': pPrintf_handle_minus(&pinfo, &jinfo); break;
-                case '+': pPrintf_handle_plus( &pinfo, &jinfo); break;
-                case '0': pPrintf_handle_zero( &pinfo, &jinfo); break;
-                case '#': pPrintf_handle_hash( &pinfo, &jinfo); break;
-                case '.': pPrintf_handle_dot(  &pinfo, &jinfo); break;
-                case ' ': pPrintf_handle_space(&pinfo, &jinfo); break;
+                case 'n': pprintf_handle_characters_written(&pinfo, &jinfo); break;
+                case '-': pprintf_handle_minus(&pinfo, &jinfo); break;
+                case '+': pprintf_handle_plus( &pinfo, &jinfo); break;
+                case '0': pprintf_handle_zero( &pinfo, &jinfo); break;
+                case '#': pprintf_handle_hash( &pinfo, &jinfo); break;
+                case '.': pprintf_handle_dot(  &pinfo, &jinfo); break;
+                case ' ': pprintf_handle_space(&pinfo, &jinfo); break;
 
                 case '1': case '2':
                 case '3': case '4':
                 case '5': case '6':
                 case '7': case '8':
-                case '9': case '*': pPrintf_handle_number(&pinfo, &jinfo); break;
+                case '9': case '*': pprintf_handle_number(&pinfo, &jinfo); break;
 
                 case 'h': case 'l':
                 case 'j': case 'z':
-                case 't': case 'L': pPrintf_handle_length(&pinfo, &jinfo); break;
+                case 't': case 'L': pprintf_handle_length(&pinfo, &jinfo); break;
 
                 case 's': case 'S': 
-                    pPrintf_handle_string(&pinfo, &jinfo, *fmt_next == 's' ? true : false); break;
+                    pprintf_handle_string(&pinfo, &jinfo, *fmt_next == 's' ? true : false); break;
 
                 case 'f': case 'F':
                 case 'e': case 'E':
                 case 'a': case 'A':
-                case 'g': case 'G': pPrintf_handle_float(&pinfo, &jinfo); break;
+                case 'g': case 'G': pprintf_handle_float(&pinfo, &jinfo); break;
 
                 case 'u':
                 case 'x': case 'X':
-                case 'i': case 'd':  pPrintf_handle_int(&pinfo, &jinfo, *fmt_next); break;
-                case 'p': pPrintf_handle_pointer(&pinfo, &jinfo); break;
-                case 'b': pPrintf_handle_binary(&pinfo, &jinfo); break;
-                case 'c': pPrintf_handle_char(&pinfo, false);   break;
+                case 'i': case 'd':  pprintf_handle_int(&pinfo, &jinfo, *fmt_next); break;
+                case 'p': pprintf_handle_pointer(&pinfo, &jinfo); break;
+                case 'b': pprintf_handle_binary(&pinfo, &jinfo); break;
+                case 'c': pprintf_handle_char(&pinfo, false);   break;
                 case 'C': {
                         if (memcmp(fmt_next, "Cc", 2) == 0) { 
-                            pPrintf_handle_color_clear(&pinfo); 
+                            pprintf_handle_color_clear(&pinfo); 
                             break; 
                         }
                         else if (memcmp(fmt_next, "Cbg", 3) == 0) { 
-                            pPrintf_handle_background_color(&pinfo);
+                            pprintf_handle_background_color(&pinfo);
                             break;
                         }
                         else if (memcmp(fmt_next, "Cfg", 3) == 0) { 
-                            pPrintf_handle_foreground_color(&pinfo); 
+                            pprintf_handle_foreground_color(&pinfo); 
                             break; 
                         }
                     }
@@ -160,7 +157,7 @@ u32 pVBPrintf(GenericStream *stream, const char *restrict fmt, va_list list) {
                 }
             }
             if (failed) {
-                pStreamWriteString(stream, pString((u8*)fmt, pinfo.fmt - fmt));
+                pstream_write_string(stream, pstring((u8*)fmt, pinfo.fmt - fmt));
                 fmt = pinfo.fmt + 1;
             }
             fmt = pinfo.fmt + 1;
@@ -172,17 +169,17 @@ u32 pVBPrintf(GenericStream *stream, const char *restrict fmt, va_list list) {
 }
 
 #if defined(PSTD_USE_ALLOCATOR)
-PIO_STATIC BinaryStringReturn MakeBinaryString(u64 bitcount, u64 num, Allocator *cb) {
+PIO_STATIC pbinary_string_return_t pmake_binary_string(u64 bitcount, u64 num, pallocator_t *cb) {
 #else
-PIO_STATIC BinaryStringReturn MakeBinaryString(u64 bitcount, u64 num) {
+PIO_STATIC pbinary_string_return_t pmake_binary_string(u64 bitcount, u64 num) {
 #endif
-    struct BinaryStringReturn ret = { 0 };
+    struct pbinary_string_return_t ret = { 0 };
 
     u64 bit = 1ULL << (bitcount - 1);
 #if defined(PSTD_USE_ALLOCATOR)
     ret.buffer = cb->allocator(cb, ALLOCATE, bitcount + 1, NULL);
 #else
-    ret.buffer = pAllocate(bitcount + 1);
+    ret.buffer = pallocate(bitcount + 1);
 #endif
     for (u64 i = 0; i < bitcount; i++) {
        ret.buffer[i] = (u8)'0' + ((num & bit) ? 1 : 0); 
@@ -207,12 +204,12 @@ PIO_STATIC BinaryStringReturn MakeBinaryString(u64 bitcount, u64 num) {
 
 
 
-PIO_STATIC u64 pPrintf_print_justified(GenericStream *stream, pFormattingSpecification *spec, String string) {
+PIO_STATIC u64 pprintf_print_justified(pgeneric_stream_t *stream, pformatting_specification_t *spec, pstring_t string) {
     s64 space_count = spec->justification_count; 
     s64 zero_count  = spec->zero_justification_count; 
     s64 count = space_count + zero_count;
 #if defined(PSTD_USE_ALLOCATOR)
-    Allocator cb = stream->cb;
+    pallocator_t cb = stream->cb;
 #endif
 
     s64 test = count - (s64)string.length;
@@ -225,43 +222,43 @@ PIO_STATIC u64 pPrintf_print_justified(GenericStream *stream, pFormattingSpecifi
         u8 *spaces = cb.allocator(&cb, ALLOCATE, space_size, NULL);
         u8 *zeros  = cb.allocator(&cb, ALLOCATE, zero_size, NULL);
 #else
-        u8 *spaces = pAllocate(space_size);
-        u8 *zeros  = pAllocate(zero_size);
+        u8 *spaces = pallocate(space_size);
+        u8 *zeros  = pallocate(zero_size);
 #endif
         if (space_count > 0)  memset(spaces, ' ', space_count);
         if (zero_count  > 0)  memset(zeros,  '0', zero_count);
 
         if (PSTD_EXPECT(!spec->right_justified, 1)) {
-            if (space_count > 0) pStreamWriteString(stream, pString( spaces, space_count ));
-            if (zero_count > 0)  pStreamWriteString(stream, pString( zeros, zero_count ));
-            pStreamWriteString(stream, string);
+            if (space_count > 0) pstream_write_string(stream, pstring( spaces, space_count ));
+            if (zero_count > 0)  pstream_write_string(stream, pstring( zeros, zero_count ));
+            pstream_write_string(stream, string);
         } else {
-            if (zero_count > 0)  pStreamWriteString(stream, pString( zeros, zero_count ));
-            pStreamWriteString(stream, string);
-            if (space_count > 0) pStreamWriteString(stream, pString( spaces, space_count ));
+            if (zero_count > 0)  pstream_write_string(stream, pstring( zeros, zero_count ));
+            pstream_write_string(stream, string);
+            if (space_count > 0) pstream_write_string(stream, pstring( spaces, space_count ));
         }
 #if defined(PSTD_USE_ALLOCATOR)
         cb.allocator(&cb, SIZED_FREE, space_size, spaces);
         cb.allocator(&cb, SIZED_FREE, zero_size, zeros);
 #else
-        pSizedFree(space_size, spaces);
-        pSizedFree(zero_size, zeros);
+        psized_free(space_size, spaces);
+        psized_free(zero_size, zeros);
 #endif
         return string.length + (u64)test;
     } else {
-        pStreamWriteString(stream, string);
+        pstream_write_string(stream, string);
         return string.length;
     }
 }
 
-PIO_STATIC pBool IsRGBWhitespace(char chr) {
+PIO_STATIC pbool_t pis_rgb_whitespace(char chr) {
      return chr == ' ' 
          || chr == '\t' 
          || chr == '\r' 
          || chr == '\n';
 }
 
-PIO_STATIC void pPrintf_get_rgb(const char *restrict* fmtptr, String RGB[3]) {
+PIO_STATIC void pprintf_get_rgb(const char *restrict* fmtptr, pstring_t RGB[3]) {
     const char *restrict fmt = *fmtptr;
     int n = 0;
     while(*fmt != ')') {
@@ -270,17 +267,17 @@ PIO_STATIC void pPrintf_get_rgb(const char *restrict* fmtptr, String RGB[3]) {
         u8 *end   = (u8*)fmt + 1;
         // we check if there is any whitespace that needs to be skipped
         // this allows %Cfg( 255 , 255 , 255 )
-        while( IsRGBWhitespace(*end) ) begin++, end++;
+        while( pis_rgb_whitespace(*end) ) begin++, end++;
         while( *end >= '0' && *end <= '9') end++;
-        RGB[n++] = pString( begin, (usize)(end - begin) ); 
-        while( IsRGBWhitespace(*end) ) end++;
+        RGB[n++] = pstring( begin, (usize)(end - begin) ); 
+        while( pis_rgb_whitespace(*end) ) end++;
 
         fmt = (char *)end;
     }
     *fmtptr = fmt;
 }
 
-PIO_STATIC void pPrintf_handle_binary(pPrintfInfo *info, pFormattingSpecification *spec) {
+PIO_STATIC void pprintf_handle_binary(pprintf_info_t *info, pformatting_specification_t *spec) {
 #define NUM_BITS_IN_BYTE 8
     u32 numbits[] = {
         [PFL_DEFAULT] = sizeof(u32)       * NUM_BITS_IN_BYTE,
@@ -295,7 +292,7 @@ PIO_STATIC void pPrintf_handle_binary(pPrintfInfo *info, pFormattingSpecificatio
 #undef NUM_BITS_IN_BYTE
 
 #if defined(PSTD_USE_ALLOCATOR)
-    Allocator *cb = &info->stream->cb;
+    pallocator_t *cb = &info->stream->cb;
 #endif
 
     if (spec->length == PFL_128) {
@@ -309,19 +306,19 @@ PIO_STATIC void pPrintf_handle_binary(pPrintfInfo *info, pFormattingSpecificatio
         conv.ld = ld;
 
 #if defined(PSTD_USE_ALLOCATOR)
-        BinaryStringReturn high = MakeBinaryString(numbits[PFL_LL], conv.high, cb);
-        BinaryStringReturn low  = MakeBinaryString(numbits[PFL_LL], conv.low,  cb);
-#else
-        BinaryStringReturn high = MakeBinaryString(numbits[PFL_LL], conv.high);
-        BinaryStringReturn low  = MakeBinaryString(numbits[PFL_LL], conv.low);
+        pbinary_string_return_t high = pmake_binary_string(numbits[PFL_LL], conv.high, cb);
+        pbinary_string_return_t low  = pmake_binary_string(numbits[PFL_LL], conv.low,  cb);
+#else                                       
+        pbinary_string_return_t high = pmake_binary_string(numbits[PFL_LL], conv.high);
+        pbinary_string_return_t low  = pmake_binary_string(numbits[PFL_LL], conv.low);
 #endif
         if (spec->zero_justification_count == 0 && spec->prefix_zero) {
             spec->zero_justification_count = numbits[PFL_LL];
-            info->count += pPrintf_print_justified(info->stream, spec, high.str);
-            pStreamWriteString(info->stream, low.str);
+            info->count += pprintf_print_justified(info->stream, spec, high.str);
+            pstream_write_string(info->stream, low.str);
         } else {
-            pPrintf_print_justified(info->stream, spec, high.str);
-            pStreamWriteString(info->stream, low.str);
+            pprintf_print_justified(info->stream, spec, high.str);
+            pstream_write_string(info->stream, low.str);
         }
 
         info->count += low.str.length; 
@@ -329,8 +326,8 @@ PIO_STATIC void pPrintf_handle_binary(pPrintfInfo *info, pFormattingSpecificatio
         cb->allocator(cb, SIZED_FREE, numbits[PFL_LL], high.buffer);
         cb->allocator(cb, SIZED_FREE, numbits[PFL_LL], low.buffer);
 #else
-        pSizedFree(numbits[PFL_LL], high.buffer);
-        pSizedFree(numbits[PFL_LL], low.buffer);
+        psized_free(numbits[PFL_LL], high.buffer);
+        psized_free(numbits[PFL_LL], low.buffer);
 #endif
     } else {
         u64 num;
@@ -352,39 +349,39 @@ PIO_STATIC void pPrintf_handle_binary(pPrintfInfo *info, pFormattingSpecificatio
         }
         
 #if defined(PSTD_USE_ALLOCATOR)
-        BinaryStringReturn binary = MakeBinaryString(numbits[ spec->length ], num, cb);
+        pbinary_string_return_t binary = pmake_binary_string(numbits[ spec->length ], num, cb);
 #else
-        BinaryStringReturn binary = MakeBinaryString(numbits[ spec->length ], num);
+        pbinary_string_return_t binary = pmake_binary_string(numbits[ spec->length ], num);
 #endif
         if (spec->zero_justification_count == 0 && spec->prefix_zero) {
             spec->zero_justification_count = binary.iszero ? 0 : numbits[ spec->length ]; 
-            info->count += pPrintf_print_justified(info->stream, spec, binary.str);
+            info->count += pprintf_print_justified(info->stream, spec, binary.str);
         } else {
-            info->count += pPrintf_print_justified(info->stream, spec, binary.str);
+            info->count += pprintf_print_justified(info->stream, spec, binary.str);
         }
 #if defined(PSTD_USE_ALLOCATOR)
         cb->allocator(cb, SIZED_FREE, numbits[ spec->length ], binary.buffer);
 #else
-        pSizedFree(numbits[ spec->length ], binary.buffer);
+        psized_free(numbits[ spec->length ], binary.buffer);
 #endif
     }
 }
 
-PIO_STATIC void pPrintf_handle_background_color(pPrintfInfo *info) {
+PIO_STATIC void pprintf_handle_background_color(pprintf_info_t *info) {
         info->fmt += 3;
         if (*info->fmt != '(') return;
         
-        String RGB[3];
-        pPrintf_get_rgb(&info->fmt, RGB);
+        pstring_t RGB[3];
+        pprintf_get_rgb(&info->fmt, RGB);
     if (PSTD_EXPECT(color_output, 1)) {
-        String header = pCreateString("\x1b[48;2;");
-        pStreamWriteString(info->stream, header);
-        pStreamWriteString(info->stream, RGB[0]);
-        pStreamWriteChar(info->stream, ';');
-        pStreamWriteString(info->stream, RGB[1]);
-        pStreamWriteChar(info->stream, ';');
-        pStreamWriteString(info->stream, RGB[2]);
-        pStreamWriteChar(info->stream, 'm');
+        static const pstring_t header = pcreate_const_string("\x1b[48;2;");
+        pstream_write_string(info->stream, header);
+        pstream_write_string(info->stream, RGB[0]);
+        pstream_write_char(info->stream, ';');
+        pstream_write_string(info->stream, RGB[1]);
+        pstream_write_char(info->stream, ';');
+        pstream_write_string(info->stream, RGB[2]);
+        pstream_write_char(info->stream, 'm');
         info->count += RGB[0].length 
             +  RGB[1].length 
             +  RGB[2].length
@@ -393,21 +390,21 @@ PIO_STATIC void pPrintf_handle_background_color(pPrintfInfo *info) {
     }
 }
 
-PIO_STATIC void pPrintf_handle_foreground_color(pPrintfInfo *info) {
+PIO_STATIC void pprintf_handle_foreground_color(pprintf_info_t *info) {
     info->fmt += 3;
     if (*info->fmt != '(') return;
-    String RGB[3];
-    pPrintf_get_rgb(&info->fmt, RGB);
+    pstring_t RGB[3];
+    pprintf_get_rgb(&info->fmt, RGB);
 
     if (PSTD_EXPECT(color_output, 1)) {
-        String header = pCreateString("\x1b[38;2;");
-        pStreamWriteString(info->stream, header);
-        pStreamWriteString(info->stream, RGB[0]);
-        pStreamWriteChar(info->stream, ';');
-        pStreamWriteString(info->stream, RGB[1]);
-        pStreamWriteChar(info->stream, ';');
-        pStreamWriteString(info->stream, RGB[2]);
-        pStreamWriteChar(info->stream, 'm');
+        static const pstring_t header = pcreate_const_string("\x1b[38;2;");
+        pstream_write_string(info->stream, header);
+        pstream_write_string(info->stream, RGB[0]);
+        pstream_write_char(info->stream, ';');
+        pstream_write_string(info->stream, RGB[1]);
+        pstream_write_char(info->stream, ';');
+        pstream_write_string(info->stream, RGB[2]);
+        pstream_write_char(info->stream, 'm');
         info->count += RGB[0].length 
             +  RGB[1].length 
             +  RGB[2].length
@@ -416,63 +413,63 @@ PIO_STATIC void pPrintf_handle_foreground_color(pPrintfInfo *info) {
     }
 }
 
-PIO_STATIC void pPrintf_handle_char(pPrintfInfo *info, pBool wide) {
+PIO_STATIC void pprintf_handle_char(pprintf_info_t *info, pbool_t wide) {
     if (PSTD_EXPECT(wide == false, 1)){
         int character = va_arg(info->list, int);
-        pStreamWriteChar(info->stream, (char)character);
+        pstream_write_char(info->stream, (char)character);
         info->count++;
     } else {
         char *character = va_arg(info->list, char *);
-        u32 len = pGetUtf8Length(character);
-        pStreamWriteString(info->stream, pString( (u8 *)character, len));
+        u32 len = pget_utf8_length(character);
+        pstream_write_string(info->stream, pstring( (u8 *)character, len));
         info->count += len;
     }
 }
 
-PIO_STATIC void pPrintf_handle_string(pPrintfInfo *info, pFormattingSpecification *spec, pBool cstring) {
-    String str;
+PIO_STATIC void pprintf_handle_string(pprintf_info_t *info, pformatting_specification_t *spec, pbool_t cstring) {
+    pstring_t str;
     if (cstring){
         char *c_str = va_arg(info->list, char *);
-        str = pString((u8 *)c_str, strlen(c_str) );
+        str = pstring((u8 *)c_str, strlen(c_str) );
     } else { 
-        str = va_arg(info->list, String); 
+        str = va_arg(info->list, pstring_t); 
     }
-    info->count += pPrintf_print_justified(info->stream, spec, str);
+    info->count += pprintf_print_justified(info->stream, spec, str);
 }
 
-PIO_STATIC void pPrintf_handle_color_clear(pPrintfInfo *info) {
-    String reset = pCreateString("\x1b[0m");
+PIO_STATIC void pprintf_handle_color_clear(pprintf_info_t *info) {
+    static const pstring_t reset = pcreate_const_string("\x1b[0m");
     if (PSTD_EXPECT(color_output, 1)) {
-        pStreamWriteString(info->stream, reset);
+        pstream_write_string(info->stream, reset);
         info->count += reset.length; 
     }
     info->fmt++;
 }
 
-PIO_STATIC void pPrintf_handle_hash(pPrintfInfo *info, pFormattingSpecification *spec) {
+PIO_STATIC void pprintf_handle_hash(pprintf_info_t *info, pformatting_specification_t *spec) {
     spec->alternative_form = true;
     info->fmt++;
 
     switch(*info->fmt) {
-    case '-': return pPrintf_handle_minus(info, spec);
-    case '0': return pPrintf_handle_zero(info, spec);
-    case '.': return pPrintf_handle_dot(info, spec);
+    case '-': return pprintf_handle_minus(info, spec);
+    case '0': return pprintf_handle_zero(info, spec);
+    case '.': return pprintf_handle_dot(info, spec);
     case '1': case '2':
     case '3': case '4':
     case '5': case '6':
     case '7': case '8':
-    case '9': case '*': return pPrintf_handle_number(info, spec);
+    case '9': case '*': return pprintf_handle_number(info, spec);
     case 'f': case 'F':
     case 'e': case 'E':
     case 'a': case 'A':
-    case 'g': case 'G': return pPrintf_handle_float(info, spec);
+    case 'g': case 'G': return pprintf_handle_float(info, spec);
     case 'o':
-    case 'x': case 'X': pPrintf_handle_int(info, spec, *info->fmt);
+    case 'x': case 'X': pprintf_handle_int(info, spec, *info->fmt);
     default: return;
     }
 }
 
-PIO_STATIC void pPrintf_handle_number(pPrintfInfo *info, pFormattingSpecification *spec) { 
+PIO_STATIC void pprintf_handle_number(pprintf_info_t *info, pformatting_specification_t *spec) { 
     const char *restrict begin = info->fmt;
     char *end;
     if (*info->fmt != '*')
@@ -485,28 +482,28 @@ PIO_STATIC void pPrintf_handle_number(pPrintfInfo *info, pFormattingSpecificatio
     info->fmt = end; 
 
     switch (*info->fmt) {
-    case '.': return pPrintf_handle_dot(info, spec);
-    case 's': case 'S': return pPrintf_handle_string(info, spec, *info->fmt == 's' ? true : false);
+    case '.': return pprintf_handle_dot(info, spec);
+    case 's': case 'S': return pprintf_handle_string(info, spec, *info->fmt == 's' ? true : false);
     
     case 'h': case 'l':
     case 'j': case 'z':
-    case 't': case 'L': return pPrintf_handle_length(info, spec); break;
+    case 't': case 'L': return pprintf_handle_length(info, spec); break;
 
     case 'f': case 'F':
     case 'e': case 'E':
     case 'a': case 'A':
-    case 'g': case 'G': return pPrintf_handle_float(info, spec);
+    case 'g': case 'G': return pprintf_handle_float(info, spec);
 
     case 'u': case 'o': 
     case 'x': case 'X':
-    case 'i': case 'd': return pPrintf_handle_int(info, spec, *info->fmt);
-    case 'p': return pPrintf_handle_pointer(info, spec);
-    case 'b': return pPrintf_handle_binary(info, spec);
+    case 'i': case 'd': return pprintf_handle_int(info, spec, *info->fmt);
+    case 'p': return pprintf_handle_pointer(info, spec);
+    case 'b': return pprintf_handle_binary(info, spec);
     default: *info->failflag = true; 
     }
 }
 
-PIO_STATIC void pPrintf_handle_dot(pPrintfInfo *info, pFormattingSpecification *spec) { 
+PIO_STATIC void pPrintf_handle_dot(pprintf_info_t *info, pformatting_specification_t *spec) { 
     const char *restrict begin = info->fmt + 1;
     char *end;
     if (*begin >= '1' && *begin <= '9')
@@ -521,28 +518,28 @@ PIO_STATIC void pPrintf_handle_dot(pPrintfInfo *info, pFormattingSpecification *
     spec->prefix_zero = true; 
 
     switch (*info->fmt) {
-    case '.': return pPrintf_handle_dot(info, spec);
-    case 's': case 'S': return pPrintf_handle_string(info, spec, *info->fmt == 's' ? true : false);
+    case '.': return pprintf_handle_dot(info, spec);
+    case 's': case 'S': return pprintf_handle_string(info, spec, *info->fmt == 's' ? true : false);
 
     case 'h': case 'l':
     case 'j': case 'z': 
-    case 't': case 'L': return pPrintf_handle_length(info, spec);
+    case 't': case 'L': return pprintf_handle_length(info, spec);
 
     case 'f': case 'F':
     case 'e': case 'E':
     case 'a': case 'A':
-    case 'g': case 'G': return pPrintf_handle_float(info, spec);
+    case 'g': case 'G': return pprintf_handle_float(info, spec);
 
     case 'u': case 'o': 
     case 'x': case 'X':
-    case 'i': case 'd': return pPrintf_handle_int(info, spec, *info->fmt);
-    case 'p': return pPrintf_handle_pointer(info, spec);
-    case 'b': return pPrintf_handle_binary(info, spec);
+    case 'i': case 'd': return pprintf_handle_int(info, spec, *info->fmt);
+    case 'p': return pprintf_handle_pointer(info, spec);
+    case 'b': return pprintf_handle_binary(info, spec);
     default: *info->failflag = true; 
     }
 }
 
-PIO_STATIC void pPrintf_handle_zero(pPrintfInfo *info, pFormattingSpecification *spec) { 
+PIO_STATIC void pPrintf_handle_zero(pprintf_info_t *info, pformatting_specification_t *spec) { 
     const char *restrict begin = info->fmt + 1;
     char *end;
     if (*begin >= '1' && *begin <= '9')
@@ -557,50 +554,50 @@ PIO_STATIC void pPrintf_handle_zero(pPrintfInfo *info, pFormattingSpecification 
     spec->prefix_zero = true; 
 
     switch (*info->fmt) {
-    case '.': return pPrintf_handle_dot(info, spec);
-    case 's': case 'S': return pPrintf_handle_string(info, spec, *info->fmt == 's' ? true : false);
+    case '.': return pprintf_handle_dot(info, spec);
+    case 's': case 'S': return pprintf_handle_string(info, spec, *info->fmt == 's' ? true : false);
 
     case 'h': case 'l':
     case 'j': case 'z': 
-    case 't': case 'L': return pPrintf_handle_length(info, spec);
+    case 't': case 'L': return pprintf_handle_length(info, spec);
     
     case 'f': case 'F':
     case 'e': case 'E':
     case 'a': case 'A':
-    case 'g': case 'G': return pPrintf_handle_float(info, spec);
+    case 'g': case 'G': return pprintf_handle_float(info, spec);
 
     case 'u': case 'o': 
     case 'x': case 'X':
-    case 'i': case 'd': return pPrintf_handle_int(info, spec, *info->fmt);
-    case 'p': return pPrintf_handle_pointer(info, spec);
-    case 'b': return pPrintf_handle_binary(info, spec);
+    case 'i': case 'd': return pprintf_handle_int(info, spec, *info->fmt);
+    case 'p': return pprintf_handle_pointer(info, spec);
+    case 'b': return pprintf_handle_binary(info, spec);
     default: *info->failflag = true; 
     }
 }
 
-PIO_STATIC void pPrintf_handle_space(pPrintfInfo *info, pFormattingSpecification *spec) { 
+PIO_STATIC void pPrintf_handle_space(pprintf_info_t *info, pformatting_specification_t *spec) { 
     while (*info->fmt == ' ') info->fmt++;
 
     switch( *info->fmt ) {
-    case '-': return pPrintf_handle_minus(info, spec);
-    case '0': return pPrintf_handle_zero(info, spec);
-    case '.': return pPrintf_handle_dot(info, spec);
+    case '-': return pprintf_handle_minus(info, spec);
+    case '0': return pprintf_handle_zero(info, spec);
+    case '.': return pprintf_handle_dot(info, spec);
     case '1': case '2':
     case '3': case '4':
     case '5': case '6':
     case '7': case '8':
-    case '9': case '*': return pPrintf_handle_number(info, spec);
+    case '9': case '*': return pprintf_handle_number(info, spec);
     case 'f': case 'F':
     case 'e': case 'E':
     case 'a': case 'A':
-    case 'g': case 'G': return pPrintf_handle_float(info, spec);
+    case 'g': case 'G': return pprintf_handle_float(info, spec);
     case 'o':
-    case 'x': case 'X': pPrintf_handle_int(info, spec, *info->fmt);
+    case 'x': case 'X': pprintf_handle_int(info, spec, *info->fmt);
     default: *info->failflag = true; 
     }
 }
 
-PIO_STATIC void pPrintf_handle_length(pPrintfInfo *info, pFormattingSpecification *spec) { 
+PIO_STATIC void pprintf_handle_length(pprintf_info_t *info, pformatting_specification_t *spec) { 
     const char *fmt = info->fmt;
 
     switch(*info->fmt) {
@@ -618,82 +615,82 @@ PIO_STATIC void pPrintf_handle_length(pPrintfInfo *info, pFormattingSpecificatio
         case 'f': case 'F':
         case 'e': case 'E':
         case 'a': case 'A':
-        case 'g': case 'G': return pPrintf_handle_float(info, spec);
+        case 'g': case 'G': return pprintf_handle_float(info, spec);
 
         case 'u': case 'o': 
         case 'x': case 'X':
-        case 'i': case 'd': return pPrintf_handle_int(info, spec, *info->fmt);
-        case 'b': return pPrintf_handle_binary(info, spec);
-        case 'n': return pPrintf_handle_characters_written(info, spec);
+        case 'i': case 'd': return pprintf_handle_int(info, spec, *info->fmt);
+        case 'b': return pprintf_handle_binary(info, spec);
+        case 'n': return pprintf_handle_characters_written(info, spec);
         default: *info->failflag = true; return;
         }
     } else {
-        return pPrintf_handle_char(info, true);
+        return pprintf_handle_char(info, true);
     }
 }
 
-PIO_STATIC void pPrintf_handle_plus(pPrintfInfo *info, pFormattingSpecification *spec) { 
+PIO_STATIC void pprintf_handle_plus(pprintf_info_t *info, pformatting_specification_t *spec) { 
     spec->force_sign = true;
     
     info->fmt++;
     switch( *info->fmt ) {
-    case '-': return pPrintf_handle_minus(info, spec);
-    case '0': return pPrintf_handle_zero(info, spec);
-    case '.': return pPrintf_handle_dot(info, spec);
+    case '-': return pprintf_handle_minus(info, spec);
+    case '0': return pprintf_handle_zero(info, spec);
+    case '.': return pprintf_handle_dot(info, spec);
     case '1': case '2':
     case '3': case '4':
     case '5': case '6':
     case '7': case '8':
-    case '9': case '*': return pPrintf_handle_number(info, spec);
+    case '9': case '*': return pprintf_handle_number(info, spec);
     case 'f': case 'F':
     case 'e': case 'E':
     case 'a': case 'A':
-    case 'g': case 'G': return pPrintf_handle_float(info, spec);
+    case 'g': case 'G': return pprintf_handle_float(info, spec);
     case 'u': case 'o': 
     case 'x': case 'X':
-    case 'i': case 'd': return pPrintf_handle_int(info, spec, *info->fmt);
+    case 'i': case 'd': return pprintf_handle_int(info, spec, *info->fmt);
     default: *info->failflag = true; 
     }
 }
 
-PIO_STATIC void pPrintf_handle_minus(pPrintfInfo *info, pFormattingSpecification *spec) { 
+PIO_STATIC void pprintf_handle_minus(pprintf_info_t *info, pformatting_specification_t *spec) { 
     spec->right_justified = true; 
     
     info->fmt++;
     switch( *info->fmt ) {
-    case '+': return pPrintf_handle_plus(info, spec);
-    case '0': return pPrintf_handle_zero(info, spec);
-    case '.': return pPrintf_handle_dot(info, spec);
-    case '#': return pPrintf_handle_hash(info, spec);
-    case 's': case 'S': return pPrintf_handle_string(info, spec, *info->fmt == 's' ? true : false);
+    case '+': return pprintf_handle_plus(info, spec);
+    case '0': return pprintf_handle_zero(info, spec);
+    case '.': return pprintf_handle_dot(info, spec);
+    case '#': return pprintf_handle_hash(info, spec);
+    case 's': case 'S': return pprintf_handle_string(info, spec, *info->fmt == 's' ? true : false);
     case '1': case '2':
     case '3': case '4':
     case '5': case '6':
     case '7': case '8':
-    case '9': case '*': return pPrintf_handle_number(info, spec);
+    case '9': case '*': return pprintf_handle_number(info, spec);
     case 'f': case 'F':
     case 'e': case 'E':
     case 'a': case 'A':
-    case 'g': case 'G': return pPrintf_handle_float(info, spec);
+    case 'g': case 'G': return pprintf_handle_float(info, spec);
     case 'u': case 'o': 
     case 'x': case 'X':
-    case 'i': case 'd': return pPrintf_handle_int(info, spec, *info->fmt);
+    case 'i': case 'd': return pprintf_handle_int(info, spec, *info->fmt);
     default: *info->failflag = true; 
     }
 }
 
 
-PIO_STATIC void pPrintf_handle_signedint(
-        pPrintfInfo *info, pFormattingSpecification *spec, s64 num, pBool always_print_sign);
-PIO_STATIC void pPrintf_handle_octalint(
-        pPrintfInfo *info, pFormattingSpecification *spec, s64 num, pBool always_print_sign);
-PIO_STATIC void pPrintf_handle_hexadecimalint(
-        pPrintfInfo *info, pFormattingSpecification *spec, u64 num, 
-        pBool always_print_sign, pBool uppercase);
-PIO_STATIC void pPrintf_handle_unsignedint(
-        pPrintfInfo *info, pFormattingSpecification *spec, u64 num, pBool always_print_sign);
+PIO_STATIC void pprintf_handle_signedint(
+        pprintf_info_t *info, pformatting_specification_t *spec, s64 num, pbool_t always_print_sign);
+PIO_STATIC void pprintf_handle_octalint(
+        pprintf_info_t *info, pformatting_specification_t *spec, s64 num, pbool_t always_print_sign);
+PIO_STATIC void pprintf_handle_hexadecimalint(
+        pprintf_info_t *info, pformatting_specification_t *spec, u64 num, 
+        pbool_t always_print_sign, pbool_t uppercase);
+PIO_STATIC void pprintf_handle_unsignedint(
+        pprintf_info_t *info, pformatting_specification_t *spec, u64 num, pbool_t always_print_sign);
 
-PIO_STATIC void pPrintf_handle_int(pPrintfInfo *info, pFormattingSpecification *spec, char printtype) {
+PIO_STATIC void pprintf_handle_int(pprintf_info_t *info, pformatting_specification_t *spec, char printtype) {
     u64 num = 0;
 
     if ( PSTD_EXPECT( spec->length == PFL_DEFAULT, 1) ) {
@@ -713,11 +710,11 @@ PIO_STATIC void pPrintf_handle_int(pPrintfInfo *info, pFormattingSpecification *
     }
 
     switch (printtype) {
-    case 'd': case 'i': return pPrintf_handle_signedint(info, spec, (s64)num, spec->force_sign);
-    case 'o':           return pPrintf_handle_octalint(info, spec, (s64)num, spec->force_sign); 
+    case 'd': case 'i': return pprintf_handle_signedint(info, spec, (s64)num, spec->force_sign);
+    case 'o':           return pprintf_handle_octalint( info, spec, (s64)num, spec->force_sign); 
     case 'x': case 'X': 
-        return pPrintf_handle_hexadecimalint(info, spec, (s64)num, spec->force_sign, printtype == 'X');
-    case 'u': return pPrintf_handle_unsignedint(info, spec, (s64)num, spec->force_sign);
+        return pprintf_handle_hexadecimalint(info, spec, (s64)num, spec->force_sign, printtype == 'X');
+    case 'u': return pprintf_handle_unsignedint(info, spec, (s64)num, spec->force_sign);
     default: break;
     }
 
@@ -726,71 +723,71 @@ PIO_STATIC void pPrintf_handle_int(pPrintfInfo *info, pFormattingSpecification *
 #define STRING_BUFFER_SIZE 25
 
 PIO_STATIC 
-void pPrintf_handle_signedint(
-        pPrintfInfo *info, pFormattingSpecification *spec, s64 num, pBool always_print_sign) 
+void pprintf_handle_signedint(
+        pprintf_info_t *info, pformatting_specification_t *spec, s64 num, pbool_t always_print_sign) 
 {
     u32 count;
     char buf[STRING_BUFFER_SIZE];
 
-    count = pSignedDecimalToString(buf, num);
+    count = psigned_decimal_to_string(buf, num);
     char *printbuf = buf;
     if (num && num > 0 && !always_print_sign) { printbuf++; count--; }
-    info->count += pPrintf_print_justified(info->stream, spec, pString( (u8 *)printbuf, count ));
+    info->count += pprintf_print_justified(info->stream, spec, pstring( (u8 *)printbuf, count ));
 }
 
 PIO_STATIC 
-void pPrintf_handle_unsignedint(
-        pPrintfInfo *info, pFormattingSpecification *spec, u64 num, pBool always_print_sign) 
+void pprintf_handle_unsignedint(
+        pprintf_info_t *info, pformatting_specification_t *spec, u64 num, pbool_t always_print_sign) 
 {
     u32 count;
     char buf[STRING_BUFFER_SIZE];
-    count = pUnsignedDecimalToString(buf, num);
+    count = punsigned_decimal_to_string(buf, num);
     
     if (always_print_sign)
-        pStreamWriteChar(info->stream, '+');
+        pstream_write_char(info->stream, '+');
 
-    info->count += pPrintf_print_justified(info->stream, spec, pString( (u8 *)buf, count )) + 1;
+    info->count += pprintf_print_justified(info->stream, spec, pstring( (u8 *)buf, count )) + 1;
 }
 
 PIO_STATIC 
-void pPrintf_handle_octalint(
-        pPrintfInfo *info, pFormattingSpecification *spec, s64 num, pBool always_print_sign)
+void pprintf_handle_octalint(
+        pprintf_info_t *info, pformatting_specification_t *spec, s64 num, pbool_t always_print_sign)
 {
     u32 count;
     char buf[STRING_BUFFER_SIZE];
-    count = pSignedOctalToString(buf, num);
+    count = psigned_octal_to_string(buf, num);
     
     char *printbuf = buf;
     if (num > 0 && !always_print_sign) { printbuf++; count--; }
     
     if (spec->alternative_form && num != 0) {
-        String str = pCreateString("0o");
+        static const pstring_t str = pcreate_const_string("0o");
         if (spec->prefix_zero) {
             u32 zeros = spec->zero_justification_count;
             spec->zero_justification_count = 0;
-            info->count += pPrintf_print_justified(info->stream, spec, str) + 1;
+            info->count += pprintf_print_justified(info->stream, spec, str) + 1;
             spec->justification_count = 0; 
             spec->zero_justification_count = zeros;
-            pPrintf_print_justified( info->stream, spec, pString( (u8 *)printbuf, count ) );
+            pprintf_print_justified( info->stream, spec, pstring( (u8 *)printbuf, count ) );
         } else {
-            info->count += pPrintf_print_justified(info->stream, spec, str) + 1;
+            info->count += pprintf_print_justified(info->stream, spec, str) + 1;
             info->count += count;
-            pStreamWriteString( info->stream, pString( (u8 *)printbuf, count ) );
+            pstream_write_string( info->stream, pstring( (u8 *)printbuf, count ) );
         }
     }
     else {
-        info->count += pPrintf_print_justified(info->stream, spec, pString( (u8 *)printbuf, count )) + 1;
+        info->count += pprintf_print_justified(info->stream, spec, pstring( (u8 *)printbuf, count )) + 1;
     }
 }
 
 PIO_STATIC 
-void pPrintf_handle_hexadecimalint(
-        pPrintfInfo *info, pFormattingSpecification *spec, 
-        u64 num, pBool always_print_sign, pBool uppercase) 
+void pprintf_handle_hexadecimalint(
+        pprintf_info_t *info, pformatting_specification_t *spec, 
+        u64 num, pbool_t always_print_sign, pbool_t uppercase) 
 {
     u32 count;
     char buf[STRING_BUFFER_SIZE];
-    count = pUnsignedHexToString(buf, num);
+    count = punsigned_hex_to_string(buf, num);
    
     if (uppercase) {
         for (u32 i = 0; i < count + 1; i++) {
@@ -799,34 +796,34 @@ void pPrintf_handle_hexadecimalint(
     }
 
     if (always_print_sign)
-        pStreamWriteChar(info->stream, '+');
+        pstream_write_char(info->stream, '+');
 
     if (spec->alternative_form && num != 0) {
-        String str[2] = { pCreateString("0x"), pCreateString("0X") };
+        static const pstring_t str[2] = { pcreate_const_string("0x"), pcreate_const_string("0X") };
         if (spec->prefix_zero) {
             u32 zeros = spec->zero_justification_count;
             spec->zero_justification_count = 0;
-            info->count += pPrintf_print_justified(info->stream, spec, str[uppercase]) + 1;
+            info->count += pprintf_print_justified(info->stream, spec, str[uppercase]) + 1;
             spec->justification_count = 0; 
             spec->zero_justification_count = zeros;
-            pPrintf_print_justified( info->stream, spec, pString( (u8 *)buf, count ) );
+            pprintf_print_justified( info->stream, spec, pstring( (u8 *)buf, count ) );
         } else {
-            info->count += pPrintf_print_justified(info->stream, spec, str[uppercase]) + 1;
+            info->count += pprintf_print_justified(info->stream, spec, str[uppercase]) + 1;
             info->count += count;
-            pStreamWriteString( info->stream, pString( (u8 *)buf, count ) );
+            pstream_write_string( info->stream, pstring( (u8 *)buf, count ) );
         }
     }
     else {
-        info->count += pPrintf_print_justified(info->stream, spec, pString( (u8 *)buf, count )) + 1;
+        info->count += pprintf_print_justified(info->stream, spec, pstring( (u8 *)buf, count )) + 1;
     }
 }
 
 //TODO: this is stupid and needs replacing
-PIO_STATIC void pPrintf_handle_float(pPrintfInfo *info, pFormattingSpecification *spec) {
+PIO_STATIC void pprintf_handle_float(pprintf_info_t *info, pformatting_specification_t *spec) {
     (void)spec;
 #if PSTD_HAS_VLA
 #else
-    Allocator *cb = &info->stream.cb;
+    pallocator_t *cb = &info->stream.cb;
 #endif
     const char *restrict begin = info->fmt; 
     while (*begin != '%') begin--;
@@ -852,14 +849,14 @@ PIO_STATIC void pPrintf_handle_float(pPrintfInfo *info, pFormattingSpecification
 #endif
     
     info->count += vsnprintf(out, count, buf, info->list);
-    pStreamWriteString(info->stream, pString((u8*)out, count - 1));
+    pstream_write_string(info->stream, pstring((u8*)out, count - 1));
 #if defined(PSTD_GNU_COMPATIBLE)
 #else
     cb->allocator(cb, FREE, count + 1, out);
 #endif
 }
 
-PIO_STATIC void pPrintf_handle_pointer(pPrintfInfo *info, pFormattingSpecification *spec) {
+PIO_STATIC void pprintf_handle_pointer(pprintf_info_t *info, pformatting_specification_t *spec) {
 #if defined(PSTD_32)
     spec->length = PFL_DEFAULT;
 #elif defined(PSTD_64)
@@ -872,15 +869,15 @@ PIO_STATIC void pPrintf_handle_pointer(pPrintfInfo *info, pFormattingSpecificati
 
     void *ptr = va_arg(info->list, void *);
     if (!ptr) {
-        const String null = (String){.c_str = (u8*)"nullptr",.length = sizeof("nullptr") - 1};
-        pStreamWriteString(info->stream, null);
+        static const pstring_t null = pcreate_const_string("nullptr");
+        pstream_write_string(info->stream, null);
         info->count += null.length;
         return;
     }
-    return pPrintf_handle_hexadecimalint(info, spec, (usize)ptr, false, false);
+    return pprintf_handle_hexadecimalint(info, spec, (usize)ptr, false, false);
 }
 
-PIO_STATIC void pPrintf_handle_characters_written(pPrintfInfo *info, pFormattingSpecification *spec) {
+PIO_STATIC void pprintf_handle_characters_written(pprintf_info_t *info, pformatting_specification_t *spec) {
     if ( PSTD_EXPECT( spec->length == PFL_DEFAULT, 1) ) {
         s32 *count = va_arg(info->list, s32*);
         *count = info->count;
@@ -902,40 +899,40 @@ PIO_STATIC void pPrintf_handle_characters_written(pPrintfInfo *info, pFormatting
 
 // CUSTOM FORMATTING
 
-void pFormatPushImpl(String fmt, FormatCallback *callback) {
-    if (pSize(callbacks)) {
-        for (usize i = 0; i < pSize(callbacks); i++)
-            if (pStringCmp(fmt, callbacks[i].format))
+void pformat_push_impl(pstring_t fmt, pformat_callback_t *callback) {
+    if (psb_size(callbacks)) {
+        for (usize i = 0; i < psb_size(callbacks); i++)
+            if (pcmp_string(fmt, callbacks[i].format))
                 return;
     }
-    struct UserCallback usercb = { fmt, callback };
-    pPushBack(callbacks, usercb);
+    struct puser_callback_t usercb = { fmt, callback };
+    psb_pushback(callbacks, usercb);
 }
 
-void pFormatPushAdvImpl(String fmt, FormatCallbackAdv *callback) {
-    if (pSize(advcallbacks)) {
-        for (usize i = 0; i < pSize(advcallbacks); i++)
-            if (pStringCmp(fmt, advcallbacks[i].format))
+void pformat_push_adv_impl(pstring_t fmt, pformat_callback_adv_t *callback) {
+    if (psb_size(advcallbacks)) {
+        for (usize i = 0; i < psb_size(advcallbacks); i++)
+            if (pcmp_string(fmt, advcallbacks[i].format))
                 return;
     }
-    struct AdvUserCallback usercb = { fmt, callback };
-    pPushBack(advcallbacks, usercb);
+    struct padv_user_callback_t usercb = { fmt, callback };
+    psb_pushback(advcallbacks, usercb);
 }
 
-void pFormatPopImpl(String fmt) {
-    struct UserCallback *remove = NULL;
-    for (usize i = 0; i < pSize(callbacks); i++)
-        if (pStringCmp(fmt, callbacks[i].format))
+void pformat_pop_impl(pstring_t fmt) {
+    struct puser_callback_t *remove = NULL;
+    for (usize i = 0; i < psb_size(callbacks); i++)
+        if (pcmp_string(fmt, callbacks[i].format))
             remove = callbacks + i;
     
-    if (remove) pRemove(callbacks, remove);
+    if (remove) psb_remove(callbacks, remove);
 }
 
-void pFormatPopAdvImpl(String fmt) {
-    struct AdvUserCallback *remove = NULL;
-    for (usize i = 0; i < pSize(advcallbacks); i++)
-        if (pStringCmp(fmt, advcallbacks[i].format))
+void pformat_pop_adv_impl(pstring_t fmt) {
+    struct padv_user_callback_t *remove = NULL;
+    for (usize i = 0; i < psb_size(advcallbacks); i++)
+        if (pcmp_string(fmt, advcallbacks[i].format))
             remove = advcallbacks + i;
     
-    if (remove) pRemove(advcallbacks, remove);
+    if (remove) psb_remove(advcallbacks, remove);
 }

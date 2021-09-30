@@ -25,17 +25,17 @@ include/stretchy_buffer.h           |  ⭕  |
 include/util.h                      |  ⭕  |
 include/hash_map.h                  |  ⭕  |
 include/dynarray.h                  |  ⭕  |
-include/pio.h                       |  ❌  |
+include/smart_mem.h                 |  ❌  |
+include/pio.h                       |  ⭕  |
 include/pmath.h                     |  ❌  |
 include/dynalg.h                    |  ❌  |
 include/generic_sse.h               |  ❌  |
-include/smart_mem.h                 |  ❌  |
 include/pwindow.h                   |  ❌  |
 include/string_buffer.h             |  ❌  |
 ------------------------------------|------|
-src/pio.c                           |  ❌  |
+src/pio.c                           |  ⭕  |
 src/pplatform.c                     |  ⭕  |
-src/pPrintf.c                       |  ❌  |
+src/pPrintf.c                       |  ⭕  |
 src/pScanf.c                        |  ❌  |
 src/pstring.c                       |  ⭕  |
 src/ptime.c                         |  ⭕  |

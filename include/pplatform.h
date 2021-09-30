@@ -8,6 +8,7 @@
 #endif
 
 typedef struct phandle_t phandle_t;
+typedef pstring_t pbuffer_t;
 
 phandle_t *pnull_handle(void);
 
@@ -37,8 +38,15 @@ phandle_t *pfile_create(const char*, pfile_access_t);
 
 void pfile_close(phandle_t *);
 
-pbool_t pfile_write(phandle_t*, pstring_t);
-pbool_t pfile_read(phandle_t*, pstring_t);
+pbool_t pfile_write(phandle_t*, const pstring_t);
+
+// pbuffer_t is equivalent to a pstring_t
+// where: 
+// 'c_str' is a pointer to a memory buffer
+// 'size'  is how many bytes we want to read
+// 
+// if this function fails it returns false
+pbool_t pfile_read(phandle_t*, pbuffer_t);
 
 void *pmemory_map_file(phandle_t*, pfile_access_t, u64 size, u64 offset);
 pbool_t punmap_file(void *);
@@ -52,7 +60,9 @@ enum pseek_mode_t {
 pbool_t pseek(phandle_t*, isize size, enum pseek_mode_t mode);
 
 // if the system supports colored output we enable it
-// if it doesn't this function will do nothing
+// if it doesn't this function will do nothing.
+// on windows this function is tecnhically volatile as it
+// changes the console mode, but we don't give a flying huha
 pbool_t penable_console_color_output(void);
 
 #endif // PPLATFORM_HEADER

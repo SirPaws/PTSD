@@ -23,8 +23,8 @@
 
 #if defined(PSTD_USE_ALLOCATOR)
 // creates a new array with a given allocator
-#define psb_create_stretchy_buffer(data_type, allocator) \
-    psb_create_stretchy_buffer_implementation(data_type, allocator)
+#define psb_create(data_type, allocator) \
+    psb_create_implementation(data_type, allocator)
 #endif
 
 // sets the capacity of the current buffer to hold exactly 'count' elements
@@ -93,6 +93,9 @@
 // in GNU compatible this is equivalent to sizeof(__typeof(value))
 #define psb_sizeof(value)          psb_sizeof_implementation(value)
 
+#define psb_foreach(array, .../*[optiona] name*/)   psb_foreach_(array, __VA_ARGS__)
+#define psb_foreach_r(array, .../*[optiona] name*/) psb_foreach_r_(array, __VA_ARGS__)
+#define psb_foreach_i(array, .../*[optiona] name*/) psb_foreach_i_(array, __VA_ARGS__)
 
 
 
@@ -152,14 +155,10 @@ const static pallocator_t PSTD_DEFAULT_HASH_MAP_ALLOCATOR = {
 };
 #endif
 
-#define psb_foreach(array, ...)   psb_foreach_(array,  ## __VA_ARGS__)(array, ## __VA_ARGS__)
-#define psb_foreach_i(array, ...) psb_foreach_i_(array, ## __VA_ARGS__)(array, ## __VA_ARGS__)
-#define psb_foreach_r(array, ...) psb_foreach_i_(array, ## __VA_ARGS__)(array, ## __VA_ARGS__)
-
 #if defined(PSTD_GNU_COMPATIBLE) // not an msvc compiler
 
 #if defined(PSTD_USE_ALLOCATOR)
-#define psb_create_stretchy_buffer_implementation(data_type, allocator) ({                  \
+#define psb_create_implementation(data_type, allocator) ({                  \
      __auto_type _buf = psb_get_metadata(NULL, psb_sizeof(data_type), true, (allocator));  \
      (data_type *)(_buf + 1);                                                               \
      })
@@ -324,13 +323,13 @@ const static pallocator_t PSTD_DEFAULT_HASH_MAP_ALLOCATOR = {
     for( __auto_type name = psb_begin(array); name != psb_end(array); name++) //NOLINT
 #define psb_foreach_0(array)       psb_foreach_1(array, it)
 #define psb_foreach__(array, args) PSTD_CONCAT(psb_foreach, args)
-#define psb_foreach_(array, ...)   psb_foreach__(array, pHas2Args( array, ## __VA_ARGS__ ))
+#define psb_foreach_(array, ...)   psb_foreach__(array, pHas2Args( array, ## __VA_ARGS__ ))(array, ## __VA_ARGS__)
 
 #define psb_foreach_i_1(array, name) \
     for( __auto_type name = psb_end(array) - 1; name != psb_begin(array) - 1; name++) //NOLINT
 #define psb_foreach_i_0(array)       psb_foreach_i_1(array, it)
 #define psb_foreach_i__(array, args) PSTD_CONCAT(psb_foreach_i, args)
-#define psb_foreach_i_(array, ...)   psb_foreach_i__(array, pHas2Args( array, ## __VA_ARGS__ ))
+#define psb_foreach_i_(array, ...)   psb_foreach_i__(array, pHas2Args( array, ## __VA_ARGS__ ))(array, ## __VA_ARGS__)
 
 typedef void pfree_func_t(void*);
 typedef struct pstretchy_buffer_t pstretchy_buffer_t;
