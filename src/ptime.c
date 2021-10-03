@@ -49,7 +49,7 @@ ptimepoint_t pget_tick(enum pclocktype_t type) {
             return tp.tv_sec * PSTD_TIME_SECONDS + tp.tv_nsec;
         }
     case PSTD_SYSTEM_CLOCK:
-    case PSTD_HIGH_RESOLUTION_CLOCK: return pSystemTime();
+    case PSTD_HIGH_RESOLUTION_CLOCK: return psystem_time();
     }
 #else
     return 0;
