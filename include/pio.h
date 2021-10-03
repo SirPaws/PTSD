@@ -211,10 +211,17 @@ void pstream_write_char(pgeneric_stream_t *stream, const char chr);
 // eof: (if null it's ignored) set to true if the stream is at the end 
 void  pstream_read(pgeneric_stream_t *stream, void *buf, usize size);
 
+#ifndef PSTD_LINUX
 PSTD_UNUSED
 static inline void pread(void *buf, usize size) {
     pstream_read(pget_stream(), buf, size);
 }
+#else
+static inline void pread_impl(void *buf, usize size) {
+    pstream_read(pget_stream(), buf, size);
+}
+#define pread pread_impl
+#endif
 
 // line needs to be freed
 pstring_t pstream_read_line(pgeneric_stream_t *stream);
