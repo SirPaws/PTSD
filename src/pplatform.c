@@ -138,7 +138,7 @@ void pfile_close(phandle_t *handle) {
 #if defined(PSTD_WINDOWS)
     CloseHandle(handle);
 #elif  defined(PSTD_LINUX) || defined(PSTD_WASM)
-    u32 fh = (u32)((void *)handle);
+    u64 fh = (u64)((void *)handle);
     close(fh);
 #endif
 }
@@ -215,22 +215,17 @@ void *pmemory_map_file(phandle_t *handle, pfile_access_t access, u64 size, u64 o
     void *mapping = MapViewOfFile(mapped_file, file_access, i.HighPart, i.LowPart, size);
     CloseHandle(mapped_file);
     return mapping;
-#elif  defined(PSTD_LINUX) || defined(PSTD_WASM)
-    u32 wmode;
-    switch (mode) {
-    case P_SEEK_SET: wmode = SEEK_SET; break;
-    case P_SEEK_END: wmode = SEEK_END; break;
-    case P_SEEK_CURRENT:
-    default: wmode = SEEK_CUR;
-    }
-
-    off_t offset = lseek((u64)(void*)handle, size, mode);
-    return offset != -1;
+#elif defined(PSTD_LINUX) || defined(PSTD_WASM)
+    assert(false);
+    return NULL;
 #endif
-    
 }
 pbool_t punmap_file(void *handle) {
+#if defined(PSTD_WINDOWS)
     if (UnmapViewOfFile(handle)) 
          return true;
     else return false;
+#elif  defined(PSTD_LINUX) || defined(PSTD_WASM)
+    return true;
+#endif
 }

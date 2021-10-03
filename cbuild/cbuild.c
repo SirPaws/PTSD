@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include <errno.h>
 
 #define STRETCHY_BUFFER_IMPLEMENTATION
 #include "cbuild.h"
@@ -12,8 +13,14 @@
 #define PATH_MAX 4096
 #undef mkdir
 #define mkdir _mkdir
+#else
+#include <sys/stat.h>
+#define mkdir(x) mkdir(x, 0777)
 #endif
 
+#ifndef PATH_MAX
+#define PATH_MAX 4096
+#endif
 
 void pmaybe_convert_backslash(pstring_t filepath) {
     for (usize i = 0; i < filepath.length; i++) {
