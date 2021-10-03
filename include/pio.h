@@ -337,7 +337,7 @@ void pformat_pop_adv_impl(pstring_t fmt);
 
 #if defined(PSTD_C11)
 #define pstream_write(stream, ...) _Generic(__VA_ARGS__, int: pstream_write_char, \
-    char: pStreamWriteChar, pstring_t: pstream_write_string)(stream, __VA_ARGS__)
+    char: pstream_write_char, pstring_t: pstream_write_string)(stream, __VA_ARGS__)
 
 #elif defined(__cplusplus)
 }

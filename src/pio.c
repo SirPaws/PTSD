@@ -18,7 +18,8 @@
 
 #define invalid_stream ((pgeneric_stream_t){.is_valid = false});
 
-struct {
+#ifndef PSTD_IO_GLOBAL_T_DEFINED
+struct pio_global_t {
     pstd_stream_t           std_stream;
     u32                     default_code_page;
     pgeneric_stream_t       current_stream;
@@ -26,7 +27,11 @@ struct {
 #if defined(PSTD_WINDOWS)
     u32                     console_mode;
 #endif
-} static PIO_GLOBALS = {};
+};
+#define PSTD_IO_GLOBAL_T_DEFINED
+#endif
+
+static struct pio_global_t PIO_GLOBALS = {};
 /*
 static pstd_stream_t standard_stream = {0};
 static u32 default_code_page = 0;
@@ -38,13 +43,13 @@ static u32 console_mode = 0;
 #endif
 */
 
-void pSetStream(pgeneric_stream_t *new_stream, pgeneric_stream_t *old_stream)
+void pset_stream(pgeneric_stream_t *new_stream, pgeneric_stream_t *old_stream)
 {
     if (old_stream) *old_stream = PIO_GLOBALS.current_stream;
     if (!new_stream->is_valid) return;
     PIO_GLOBALS.current_stream = *new_stream;
 }
-pgeneric_stream_t *pGetStream(void) { return &PIO_GLOBALS.current_stream; }
+pgeneric_stream_t *pget_stream(void) { return &PIO_GLOBALS.current_stream; }
 
 void pinitialize_std_stream(void) {
 #if defined(PSTD_WINDOWS)
@@ -56,9 +61,7 @@ void pinitialize_std_stream(void) {
     u32 mode_output = PIO_GLOBALS.console_mode | ENABLE_PROCESSED_OUTPUT | ENABLE_VIRTUAL_TERMINAL_PROCESSING;
 
     BOOL did_succeed = SetConsoleMode(GetStdHandle(STD_OUTPUT_HANDLE), mode_output);
-    if (!did_succeed) {
-        PIO_GLOBALS.colored_output = false;
-    }
+    PIO_GLOBALS.colored_output = did_succeed != 0;
 #elif defined(PSTD_WASM)
     PIO_GLOBALS.color_output = false;
 #endif
@@ -447,4 +450,5 @@ u32 punsigned_octal_to_string(char *buf, u64 num) {
     return punsigned_int_to_string(buf, num, BASE_8, (char *)pmod8, pmod64, pmod512);
 }
 
+#include "pPrintf.c" //NOLINT
 

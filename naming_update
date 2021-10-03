@@ -8,7 +8,7 @@ templates/vector_math.h             |  ❌  |
 templates/vector_sse.h              |  ❌  |
 ------------------------------------|------|
 examples/dynarraytest.c             |  ⭕  |
-examples/formatting.c               |  ❌  |
+examples/formatting.c               |  ⭕  |
 examples/hash_map.c                 |  ⭕  |
 examples/matrix.c                   |  ❌  |
 examples/memexpandtest.c            |  ⭕  |

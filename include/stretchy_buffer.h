@@ -319,17 +319,19 @@ const static pallocator_t PSTD_DEFAULT_HASH_MAP_ALLOCATOR = {
     psb_copyarray_tmp;                                      \
 })
 
-#define psb_foreach_1(array, name) \
+#define psb_foreach1(array, name) \
     for( __auto_type name = psb_begin(array); name != psb_end(array); name++) //NOLINT
-#define psb_foreach_0(array)       psb_foreach_1(array, it)
+#define psb_foreach0(array, name) psb_foreach1(array, it)
 #define psb_foreach__(array, args) PSTD_CONCAT(psb_foreach, args)
-#define psb_foreach_(array, ...)   psb_foreach__(array, pHas2Args( array, ## __VA_ARGS__ ))(array, ## __VA_ARGS__)
+#define psb_foreach_(array, ...)   \
+    psb_foreach__(array, PSTD_HAS_SECOND( array, ## __VA_ARGS__ ))(array, __VA_ARGS__)
 
-#define psb_foreach_i_1(array, name) \
+#define psb_foreach_i1(array, name) \
     for( __auto_type name = psb_end(array) - 1; name != psb_begin(array) - 1; name++) //NOLINT
-#define psb_foreach_i_0(array)       psb_foreach_i_1(array, it)
+#define psb_foreach_i0(array)       psb_foreach_i1(array, it)
 #define psb_foreach_i__(array, args) PSTD_CONCAT(psb_foreach_i, args)
-#define psb_foreach_i_(array, ...)   psb_foreach_i__(array, pHas2Args( array, ## __VA_ARGS__ ))(array, ## __VA_ARGS__)
+#define psb_foreach_i_(array, ...)   \
+    psb_foreach_i__(array, PSTD_HAS_SECOND( array, ## __VA_ARGS__ ))(array, ## __VA_ARGS__)
 
 typedef void pfree_func_t(void*);
 typedef struct pstretchy_buffer_t pstretchy_buffer_t;

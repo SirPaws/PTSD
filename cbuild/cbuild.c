@@ -3,657 +3,25 @@
 #include <string.h>
 #include <assert.h>
 
+#define STRETCHY_BUFFER_IMPLEMENTATION
 #include "cbuild.h"
+#include "../src/pplatform.c" //NOLINT
 
-// DYNARRAY HEADER
-#ifndef P_STRECHY_BUFFER_GROWTH_COUNT
-#define P_STRECHY_BUFFER_GROWTH_COUNT 2
-#endif
-
-#if defined(CBUILD_GNU_COMPATIBLE) // not an msvc compiler
-
-#define pSizeof(value) (sizeof(__typeof(value)))
-
-#define pGetMeta(array) ({                                              \
-            StrechyBufferMeta *pGetMeta_meta =                          \
-                pGetArrayMetaData((array), pSizeof((array)[0]), false); \
-            (array) = (void*)(pGetMeta_meta + 1);                       \
-            pGetMeta_meta;                                              \
-        })
-
-#define pGetMetaOrCreate(array) ({                                  \
-            StrechyBufferMeta *pGetMeta_meta =                      \
-            pGetArrayMetaData((array), pSizeof((array)[0]), true);  \
-            (array) = (void*)(pGetMeta_meta + 1);                   \
-            pGetMeta_meta;                                          \
-        })
-
-#define pSize(array)   (pGetMeta(array)->size) 
-#define pLength(array) (pGetMeta(array)->size)
-#define pLen(array)    (pGetMeta(array)->size)
-
-#define pFreeStrechyBuffer(array) pFreeBuffer(pGetMeta(array))
-#define pSetCapacity(array, count) ({                                               \
-    if (!(array)) {                                                                 \
-        StrechyBufferMeta *pSetCapacity_meta = pZeroAllocateBuffer(                 \
-                    (pSizeof((array)[0]) * (count)) + sizeof(StrechyBufferMeta));   \
-        pSetCapacity_meta->endofstorage = (pSizeof((array)[0]) * (count));          \
-        (array) = (void*)(pSetCapacity_meta + 1);                                   \
-    } else {                                                                        \
-        __auto_type pSetCapacity_meta = pGetMeta(array);                            \
-        void *pSetCapacity_tmp = pReallocateBuffer(pSetCapacity_meta,               \
-                (pSizeof((array)[0]) * (count)) + sizeof(StrechyBufferMeta));       \
-        pSetCapacity_meta = pSetCapacity_tmp;                                       \
-        (array) = (void*)(pSetCapacity_meta + 1);                                   \
-    }                                                                               \
-    (array);                                                                        \
-})
-
-
-#define pSetCap     pSetCapacity
-#define pSetCount   pSetCapacity
-#define pSetSize    pSetCapacity
-#define pSetLength  pSetCapacity
-#define pReserve    pSetCapacity
-
-#define pPushBack(array, value) ({                                 \
-    pGetMetaOrCreate(array);                                       \
-    pMaybeGrowStrechyBuffer(&(array), pSizeof((array)[0]));        \
-    __auto_type pPushBack_ret = (array) + pSize(array)++;          \
-    *pPushBack_ret = (value);                                      \
-    pPushBack_ret;                                                 \
-})
-
-#define pPushBytes(array, value, bytes) ({              \
-    pGetMetaOrCreate(array);                            \
-    pMaybeByteGrowStrechyBuffer(&(array), (bytes));     \
-    memcpy((array) + pSize(array), (value), (bytes));   \
-    __auto_type pPushBack_ret = (array) + pSize(array); \
-    pSize(array) += (bytes);                            \
-    pPushBack_ret;                                      \
-})
-
-#define pBegin(array) ({ (array); })
-#define pEnd(array) ({ (array) + pSize(array); })
-
-#define pInsert(array, position, value) ({                                                      \
-    __auto_type pInsert_array = pGetMetaOrCreate(array);                                        \
-    usize pInsert_size = pSizeof( value );                                                      \
-    usize pInsert_offset = (position) - pBegin(array);                                          \
-    __typeof(value) *pInsert_result = NULL;                                                     \
-    if (pInsert_array->size && pInsert_offset >= pInsert_array->size) {}                        \
-    else {                                                                                      \
-        pMaybeGrowStrechyBuffer(&(array), pInsert_size);                                        \
-        /* first we extract all elements after the place where we want                        */\
-        /* to insert and then we shift them one element forward                               */\
-        /* here is an example we wan't to insert 6 at the place pointed to below              */\
-        /* [1, 2, 3, 4]                                                                       */\
-        /*     ^                                                                              */\
-        /* we make a new array that holds [2, 3, 4]                                           */\
-        /* we insert that into the array                                                      */\
-        /* [1, 2, 2, 3, 4]                                                                    */\
-        /* then we insert the value                                                           */\
-        /* [1, 6, 2, 3, 4]                                                                    */\
-        usize pInsert_elems = pInsert_array->size - pInsert_offset;                             \
-        if (pInsert_elems) {                                                                    \
-            memmove((array) + pInsert_offset + 1,                                               \
-                    (array) + pInsert_offset, pInsert_elems * pInsert_size);                    \
-        }                                                                                       \
-                                                                                                \
-        pInsert_array->size++;                                                                  \
-        (array)[pInsert_offset] = value;                                                        \
-        pInsert_result = (array) + pInsert_offset;                                              \
-    }                                                                                           \
-    pInsert_result;                                                                             \
-})
-
-
-#define pPopBack(array) ({                                      \
-            __typeof((array)[0]) pPopBack_result = {0};         \
-            if (pSize(array) == 0) {}                           \
-            else {                                              \
-                pPopBack_result = (array)[(pSize(array)--) - 1];\
-            }                                                   \
-            pPopBack_result;                                    \
-        })
-
-#define pRemove(array, position) ({                                                 \
-    __typeof((array)[0]) pRemove_result = (__typeof((array)[0])){0};                \
-    usize pRemove_offset = (position) - pBegin(array);                              \
-    if (pRemove_offset >= pSize(array)) {}                                          \
-    else if (pRemove_offset == pSize(array) - 1) {                                  \
-        pSize(array)--;                                                             \
-        pRemove_result = (array)[pRemove_offset];                                   \
-    } else {                                                                        \
-        pRemove_result = (array)[pRemove_offset];                                   \
-        usize pRemove_elems = pSize(array) - pRemove_offset;                        \
-        memmove((array) + pRemove_offset, (array) + pRemove_offset + 1,             \
-                pRemove_elems * pSizeof((array)[0]));                               \
-        pSize(array)--;                                                             \
-    }                                                                               \
-    pRemove_result;                                                                 \
-})
-
-// arr:  another dynamic array
-#define pCopyStrechyBuffer(arr) ({\
-    __auto_type pCopyStrechyBuffer_array  = pGetMeta(array);                            \
-    usize pCopyStrechyBuffer_size = pSizeof((arr)[0]) * pCopyStrechyBuffer_array->size; \
-    StrechyBufferMeta *pCopyStrechyBuffer_copy =                                        \
-        pAllocateBuffer(sizeof(StrechyBufferMeta) * pCopyStrechyBuffer_size)            \
-    pCopyStrechyBuffer_copy->endofstorage = pCopyStrechyBuffer_size;                    \
-    pCopyStrechyBuffer_copy->size = pCopyStrechyBuffer_array->size;                     \
-    memcpy((arr), pCopyStrechyBuffer_array + 1, pCopyStrechyBuffer_size;                \
-    (__typeof((arr)[0])*)( pCopyStrechyBuffer_copy + 1);                                \
-})
-
-// type: the type of array we want
-// arr:  a static array
-#define pCopyArray(type, arr) ({                    \
-    type pCopyArray_tmp = NULL;                     \
-    pReserve(pCopyArray_tmp, countof(arr));         \
-    memcpy(pCopyArray_tmp, (arr), sizeof(arr));     \
-    pGetMeta(pCopyArray_tmp)->size = countof(arr);  \
-    pCopyArray_tmp;                                 \
-})
-
-
-
-typedef struct StrechyBufferMeta StrechyBufferMeta;
-struct StrechyBufferMeta {
-    usize size;
-    usize endofstorage;
-};
-
-// how many elements we should add
-static void pStrechyBufferByteGrow(void* array, usize bytes);
-static void pStrechyBufferGrow(void* array, usize datasize, usize count);
-
-CBUILD_UNUSED
-static void pMaybeByteGrowStrechyBuffer(void* array, usize bytes) {
-    StrechyBufferMeta** meta_ptr = array;
-    StrechyBufferMeta* meta = (*meta_ptr) - 1;
-
-    if (meta->size + bytes > meta->endofstorage) {
-        pStrechyBufferByteGrow(array, bytes);
-    }
-}
-
-CBUILD_UNUSED
-static void pMaybeGrowStrechyBuffer(void* array, usize datasize) {
-    StrechyBufferMeta** meta_ptr = array;
-    StrechyBufferMeta* meta = (*meta_ptr) - 1;
-
-    if ((meta->size + 1) * datasize > meta->endofstorage) {
-        pStrechyBufferGrow(array, datasize, P_STRECHY_BUFFER_GROWTH_COUNT);
-    }
-}
-
-static void pStrechyBufferByteGrow(void* array_ptr, usize bytes) {
-    if (!bytes || !array_ptr) return;
-    u8* array = *(u8**)array_ptr;
-    StrechyBufferMeta* meta = ((StrechyBufferMeta*)array) - 1;
-
-
-    void* tmp = pReallocateBuffer(meta, sizeof(StrechyBufferMeta) + meta->endofstorage + bytes);
-    assert(tmp); meta = tmp;
-    meta->endofstorage += bytes;
-    *(u8**)array_ptr = (void*)(meta + 1);
-}
-
-static void pStrechyBufferGrow(void* array_ptr, usize datasize, usize count) {
-    if (!count || !array_ptr || !datasize) return;
-    u8* array = *(u8**)array_ptr;
-    StrechyBufferMeta* meta = ((StrechyBufferMeta*)array) - 1;
-
-    usize array_size = meta->endofstorage + (datasize * count);
-    usize size = sizeof(StrechyBufferMeta) + array_size;
-    void* tmp = pReallocateBuffer(meta, size);
-    assert(tmp); meta = tmp;
-    meta->endofstorage += datasize * count;
-    *(u8**)array_ptr = (void*)(meta + 1);
-}
-StrechyBufferMeta* pGetArrayMetaData(void* array, usize data_size, pBool create) {
-    if (!array) {
-        if (!create) { // should probably just return NULL
-            static StrechyBufferMeta nil = { 0 };
-            nil = (StrechyBufferMeta){ 0 };
-            return &nil;
-        }
-        StrechyBufferMeta* meta = pZeroAllocateBuffer(sizeof(StrechyBufferMeta) + data_size);
-        meta->endofstorage = data_size;
-        meta->size = 0;
-        array = (meta + 1);
-    }
-
-    return ((StrechyBufferMeta*)array) - 1;
-}
-
-#if !defined(NDEBUG)
-StrechyBufferMeta* _debug_GetMeta(void* array) { //NOLINT
-    StrechyBufferMeta* address = array;
-    return address - 1;
-}
-#endif
-#else // using mvsc compiler
-#define pSizeof(value) (sizeof(value))
-
-#define pGetMetaOrCreate(array)                                                         \
-    ((array) = (void*) pGetArrayMetaData((array), pSizeof((array)[0]),true),            \
-            (array) = ((StrechyBufferMeta*)array) + 1, ((StrechyBufferMeta*)array) - 1)
-
-#define pGetMeta(array) (pGetArrayMetaData((array), pSizeof((array)[0]), false))
-
-
-#define pSize(array)   (pGetMeta(array)->size) 
-#define pLength(array) (pGetMeta(array)->size)
-#define pLen(array)    (pGetMeta(array)->size)
-
-#define pFreeStrechyBuffer(array) pFreeBuffer(pGetMeta(array))
-
-#define pSetCapacity(array, count)   \
-    (pSetArraySize(pGetMetaOrCreate(array), &(array), (pSizeof((array)[0]) * (count))), array) 
-
-
-#define pSetCap     pSetCapacity
-#define pSetCount   pSetCapacity
-#define pSetSize    pSetCapacity
-#define pSetLength  pSetCapacity
-#define pReserve    pSetCapacity
-
-#define pPushBack(array, value) \
-    (pGetMetaOrCreate(array), pMaybeGrowStrechyBuffer(&(array), pSizeof((array)[0])),\
-        *((array)+pSize(array)) = (value), pGetMeta(array)->size++, ((array)+(pSize(array)-1)))
-
-#define pBegin(array) (array)
-#define pEnd(array) ((array) + pSize(array))
-
-#define pInsert(array, position, value)\
-    (pGetMetaOrCreate(array), (((position) - pBegin(array)) >= pSize(array) ? NULL :              \
-        ((position) = pInsertAtLocation(pGetMeta(array), &(array), &(position), pSizeof(value)))),\
-        (*(position) = (value)), position)
-
-
-
-#define pPopBack(array) /*due to not having any typeof we just return msvc (trash) on size 0*/\
-    (pSize(array) == 0 ? (array)[-9034] : (pGetMeta(array)->size--, (array)[pSize(array)]))   \
-
-#define pRemove(array, position)                                            \
-    (((position) - pBegin(array)) >= pSize(array) ? *(position) :             \
-    ((((position) - pBegin(array)) == pSize(array) - 1) ? pPopBack(array) : \
-                (array)[pSwapAndPop(pGetMeta(array), &(array), &(position), pSizeof((array)[0]))]))
-
-#define pCopyStrechyBuffer(array)    \
-    (pCopyBuffer(pGetMeta(array), pSizeof((array)[0]))) 
-
-#define pCopyArray(array) \
-    (pCopyStaticArray((array), pSizeof((array)[0]), sizeof((array)))
-
-
-typedef struct StrechyBufferMeta StrechyBufferMeta;
-struct StrechyBufferMeta {
-    usize size;
-    usize endofstorage;
-};
-
-// how many elements we should add
-static void pStrechyBufferGrow(void* array, usize datasize, usize count);
-
-static void pMaybeGrowStrechyBuffer(void* array, usize datasize) {
-    StrechyBufferMeta** meta_ptr = array;
-    StrechyBufferMeta* meta = (*meta_ptr) - 1;
-
-    if ((meta->size + 1) * datasize > meta->endofstorage) {
-        pStrechyBufferGrow(array, datasize, P_STRECHY_BUFFER_GROWTH_COUNT);
-    }
-}
-
-static void pStrechyBufferGrow(void* array_ptr, usize datasize, usize count) {
-    if (!count || !array_ptr || !datasize) return;
-    u8* array = *(u8**)array_ptr;
-    StrechyBufferMeta* meta = ((StrechyBufferMeta*)array) - 1;
-
-    usize array_size = meta->endofstorage + (datasize * count);
-    usize size = sizeof(StrechyBufferMeta) + array_size;
-    void* tmp = pReallocateBuffer(meta, size);
-    assert(tmp); meta = tmp;
-    meta->endofstorage += datasize * count;
-    *(u8**)array_ptr = (void*)(meta + 1);
-}
-
-static StrechyBufferMeta p_strechy_buffer_nil = { 0 };
-static StrechyBufferMeta* pGetArrayMetaData(void* array, usize data_size, pBool should_create) {
-    if (!array) {
-        if (!should_create) {
-            p_strechy_buffer_nil = (StrechyBufferMeta){ 0 };
-            return &p_strechy_buffer_nil;
-        }
-        StrechyBufferMeta* meta = pZeroAllocateBuffer(sizeof(StrechyBufferMeta) + data_size);
-        meta->endofstorage = data_size;
-        meta->size = 0;
-        array = (meta + 1);
-    }
-
-    return ((StrechyBufferMeta*)array) - 1;
-}
-
-static StrechyBufferMeta* pSetArraySize(StrechyBufferMeta* meta, void* array_ptr, usize new_size) {
-    void* tmp = pReallocateBuffer(meta, (new_size)+sizeof(StrechyBufferMeta));
-    assert(tmp); meta = tmp;
-    meta->endofstorage = new_size;
-    *((void**)array_ptr) = meta + 1;
-    return meta;
-}
-
-static void* pCopyBuffer(StrechyBufferMeta* src, usize data_size) {
-    if (src->size != 0) {
-        StrechyBufferMeta* meta = 
-            pZeroAllocateBuffer((data_size * src->size)+ sizeof(StrechyBufferMeta));
-        meta->endofstorage = src->size * data_size;
-        meta->size = src->size;
-        memcpy(meta + 1, src + 1, src->size * data_size);
-        return meta + 1;
-    }
-    else {
-        void* arr;
-        StrechyBufferMeta* meta = pNewArray(&arr, data_size);
-        return arr;
-    }
-}
-
-static void* pCopyStaticArray(void* array, usize data_size, usize count) {
-    if (count != 0) {
-        StrechyBufferMeta* meta = 
-            pZeroAllocateBuffer((data_size * count) + sizeof(StrechyBufferMeta));
-        meta->endofstorage = count * data_size;
-        meta->size = count;
-        memcpy(meta + 1, array, count * data_size);
-        return meta + 1;
-    }
-    else {
-        void* arr;
-        StrechyBufferMeta* meta = pNewArray(&arr, data_size);
-        return arr;
-    }
-}
-
-static void* pInsertAtLocation(StrechyBufferMeta* meta, void* array, void* location, usize data_size) {
-    pMaybeGrowStrechyBuffer(array, data_size);
-
-    /* first we extract all elements after the place where we want
-     * to insert and then we shift them one element forward
-     * here is an example we wan't to insert 6 at the place pointed to below
-     * [1, 2, 3, 4]
-     *     ^
-     * we make a new array that holds [2, 3, 4]
-     * we insert that into the array
-     * [1, 2, 2, 3, 4]
-     * then we insert the value
-     * [1, 6, 2, 3, 4]
-     */
-
-    u8* array_ = *(void**)array;
-    usize offset = (((u8*)(*(void**)location)) - array_) / data_size;
-    usize elems = meta->size - offset;
-    memmove(array_ + ((offset + 1) * data_size), (array_)+(offset * data_size), elems * data_size);
-    meta->size++;
-    return array_ + (offset * data_size);
-}
-
-static usize pSwapAndPop(StrechyBufferMeta* meta, void* array, void* location, usize data_size) {
-    u8* buffer = malloc(data_size);
-    u8* data_start = *(void**)location;
-    memmove(buffer, data_start, data_size);
-
-    u8* array_ = *(void**)array;
-    usize offset = (((u8*)(*(void**)location)) - array_) / data_size;
-    usize elems = meta->size - offset;
-    memmove(data_start, data_start + data_size, elems * data_size);
-    memmove(array_ + (--meta->size) * data_size, buffer, data_size);
-    free(buffer);
-    return meta->size;
-}
-#endif
-
-// CBUILD_MACRO_UTIL_HEADER
-#define pHas2Args_(_0, a, b, _3, answer, _5, ...) answer
-#define pHas2Args(a, ...) pHas2Args_(0, a, ## __VA_ARGS__, 1, 1, 0, 1) 
-
-#define CBUILD_CONCAT_( a, b ) a##b
-#define CBUILD_CONCAT( a, b ) CBUILD_CONCAT_( a, b )
-
-#define CBUILD_STRINGIFY_(x) #x
-#define CBUILD_STRINGIFY(x) CBUILD_STRINGIFY_(x)
-
-// DYNALG HEADER
-#define pForEach(array, ...)     pForEach_(array, ## __VA_ARGS__)(array, ## __VA_ARGS__)
-#define pForEachI(array, ...)    pForEachR_(array, ## __VA_ARGS__)(array, ## __VA_ARGS__)
-
-#define pForEach1(array, name)  for( __auto_type name = pBegin(array); name != pEnd(array); name++) // NOLINT
-#define pForEach0(array)        pForEach1(array, it)
-#define pForEach__(array, args) CBUILD_CONCAT(pForEach, args)
-#define pForEach_(array, ...)    pForEach__(array, pHas2Args( array, ## __VA_ARGS__ ))
-
-#define pForEachR1(array, name)  for( __auto_type name = pEnd(array) - 1; name != pBegin(array) - 1; name++) // NOLINT
-#define pForEachR0(array)        pForEachR1(array, it)
-#define pForEachR__(array, args) CBUILD_CONCAT(pForEachR, args)
-#define pForEachR_(array, ...)   pForEachR__(array, pHas2Args( array, ## __VA_ARGS__ ))
-
-#define pForEach(array, ...)     pForEach_(array, ## __VA_ARGS__)(array, ## __VA_ARGS__)
-#define pForEachI(array, ...)    pForEachR_(array, ## __VA_ARGS__)(array, ## __VA_ARGS__)
-
-// PPLATFORM HEADER
-typedef struct pHandle pHandle;
-
-pHandle *pNullHandle(void);
-
-pHandle *pGetSTDOutHandle(void);
-pHandle *pGetSTDInHandle(void);
-
-typedef struct pFileStat pFileStat;
-struct pFileStat {
-    pBool exists;
-    u64 filesize;
-    u64 creationtime;
-    u64 accesstime;
-    u64 writetime;
-};
-
-pFileStat pGetFileStat(const char *file);
-
-typedef u8 pFileAccess;
-enum pFileAccess {
-    P_WRITE_ACCESS = 0b01,
-    P_READ_ACCESS  = 0b10,
-};
-
-pHandle *pFileOpen(const char *file,   pFileAccess access);
-pHandle *pFileCreate(const char *file, pFileAccess access);
-
-void pFileClose(pHandle *handle);
-
-pBool pFileWrite(pHandle *handle, String buf);
-pBool pFileRead(pHandle *handle, String buf);
-
-enum pSeekMode {
-    P_SEEK_SET,
-    P_SEEK_CURRENT,
-    P_SEEK_END,
-};
-
-pBool pSeek(pHandle *handle, isize size, enum pSeekMode mode);
-
-// if the system supports colored output we enable it
-// if it doesn't this function will do nothing
-pBool pEnableConsoleColorOutput(void);
-// PPLATFORM SOURCE
-#if defined(CBUILD_WINDOWS)
-#include <Windows.h>
-#elif defined(CBUILD_LINUX)
-#include <unistd.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#elif defined(__APPLE__)
-#error support for mac has to been implemented
-#endif
-
-pHandle *pNullHandle(void) {
-#if defined(CBUILD_WINDOWS)
-    return NULL; 
-#else
-    return (void*)((u32) -1);
-#endif
-}
-
-pBool pEnableConsoleColorOutput(void) {
-#if defined(CBUILD_WINDOWS)
-    BOOL result = SetConsoleMode(GetModuleHandle(NULL), ENABLE_VIRTUAL_TERMINAL_PROCESSING);
-    return result != 0;
-#else
-#endif
-}
-
-pHandle *pGetSTDOutHandle(void) {
-#if defined(CBUILD_WINDOWS)
-    return GetStdHandle(STD_OUTPUT_HANDLE); 
-#else
-    return (void*)((u32) 1);
-#endif
-}
-
-pHandle *pGetSTDInHandle(void) {
-#if defined(CBUILD_WINDOWS)
-    return GetStdHandle(STD_INPUT_HANDLE); 
-#else
-    return (void*)((u32) 0);
-#endif
-}
-
-pFileStat pGetFileStat(const char *file) {
-    pFileStat result;
-#if defined(CBUILD_WINDOWS)
-#define WIN32_COMBINE_HIGH_LOW( high, low ) ((u64)(high) << 31 | (low)) 
-    WIN32_FILE_ATTRIBUTE_DATA data;
-    result.exists   = GetFileAttributesEx(file, GetFileExInfoStandard, &data);
-
-    result.filesize = WIN32_COMBINE_HIGH_LOW(data.nFileSizeHigh, data.nFileSizeLow);
-
-    result.creationtime = WIN32_COMBINE_HIGH_LOW(data.ftCreationTime.dwHighDateTime, 
-            data.ftCreationTime.dwLowDateTime);
-    result.accesstime   = WIN32_COMBINE_HIGH_LOW(data.ftLastAccessTime.dwHighDateTime,
-            data.ftLastAccessTime.dwLowDateTime);
-    result.writetime    = WIN32_COMBINE_HIGH_LOW(data.ftLastWriteTime.dwHighDateTime, 
-            data.ftLastWriteTime.dwLowDateTime);
-#undef WIN32_COMBINE_HIGH_LOW
-#else
-    struct stat data;
-    s32 statret = stat(file, &data);
-    result.exists = statret == -1 ? false : true; 
-    result.filesize = data.st_size;
-    result.creationtime = data.st_ctim.tv_nsec; 
-    result.accesstime   = data.st_atim.tv_nsec;
-    result.writetime    = data.st_mtim.tv_nsec;
-#endif
-    return result;
-}
-
-pHandle *pFileOpen(const char *filename, pFileAccess access) {
-#if defined(CBUILD_WINDOWS)
-    DWORD file_access;
-    file_access  = access & P_READ_ACCESS  ? GENERIC_READ  : 0;
-    file_access |= access & P_WRITE_ACCESS ? GENERIC_WRITE : 0;
-    return CreateFile(filename, file_access, 0, 
-            NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-#else
-    int file_access;
-    file_access = access & P_READ_ACCESS  ? O_RDONLY : 0;
-    file_access = access & P_WRITE_ACCESS ? (access ? O_RDWR : O_WRONLY ) : 0;
-    return (void*)(u64)open(filename, file_access);
-#endif
-}
-pHandle *pFileCreate(const char *filename, pFileAccess access) {
-#if defined(CBUILD_WINDOWS)
-    DWORD file_access;
-    file_access  = access & P_READ_ACCESS  ? GENERIC_READ  : 0;
-    file_access |= access & P_WRITE_ACCESS ? GENERIC_WRITE : 0;
-    return CreateFile(filename, file_access, 0, 
-            NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-#else
-    int file_access;
-    file_access = access & P_READ_ACCESS  ? O_RDONLY : 0;
-    file_access = access & P_WRITE_ACCESS ? (access ? O_RDWR : O_WRONLY ) : 0;
-    file_access|= O_CREAT;
-    return (void*)(u64)open(filename, file_access);
-#endif
-}
-
-void pFileClose(pHandle *handle) {
-#if defined(CBUILD_WINDOWS)
-    CloseHandle(handle);
-#else
-    u32 fh = (u32)((void *)handle);
-    close(fh);
-#endif
-}
-
-pBool pFileWrite(pHandle *handle, String buf) {
-#if defined(CBUILD_WINDOWS)
-    return WriteFile(handle, buf.c_str, (u32)buf.length, NULL, NULL);
-#else
-    s32 result = write((u64)(void*)handle, buf.c_str, (u32)buf.length);
-    return result == -1 ? false : true;
-#endif
-}
-
-pBool pFileRead(pHandle *handle, String buf) {
-#if defined(CBUILD_WINDOWS)
-    DWORD bytes_read = 0;
-    ReadFile(handle, buf.c_str, buf.length, &bytes_read, NULL);
-    return bytes_read != 0;
-#else
-    s32 result = read((u64)(void*)handle, buf.c_str, buf.length);
-    return result == -1 ? false : true;
-#endif
-}
-
-pBool pSeek(pHandle *handle, isize size, enum pSeekMode mode) {
-#if defined(CBUILD_WINDOWS)
-    
-    DWORD wmode;
-    switch (mode) {
-    case P_SEEK_SET: wmode = FILE_BEGIN; break;
-    case P_SEEK_END: wmode = FILE_END;   break;
-    case P_SEEK_CURRENT:
-    default: wmode = FILE_CURRENT;
-    }
-
-    DWORD result = SetFilePointer(handle, size, 0, wmode);
-    return result != INVALID_SET_FILE_POINTER;
-#else
-    u32 wmode;
-    switch (mode) {
-    case P_SEEK_SET: wmode = SEEK_SET; break;
-    case P_SEEK_END: wmode = SEEK_END; break;
-    case P_SEEK_CURRENT:
-    default: wmode = SEEK_CUR;
-    }
-
-    off_t offset = lseek((u64)(void*)handle, size, mode);
-    return offset != -1;
-#endif
-}
-
-
-#if defined(CBUILD_WINDOWS)
+#if defined(PSTD_WINDOWS)
 #include <direct.h>
+#define PATH_MAX 4096
+#undef mkdir
+#define mkdir _mkdir
 #endif
 
-void maybeConvertBackslash(String filepath) {
+
+void pmaybe_convert_backslash(pstring_t filepath) {
     for (usize i = 0; i < filepath.length; i++) {
         if (filepath.c_str[i] == '\\')
             filepath.c_str[i] = '/';
     }
 }
-usize findCommonPath(usize len, char str[len], String fullpath) {
+usize pfind_common_path(usize len, char str[len], pstring_t fullpath) {
     
     u8 *last  = fullpath.c_str + (fullpath.length - 1); 
     u8 *first = last; 
@@ -666,71 +34,76 @@ usize findCommonPath(usize len, char str[len], String fullpath) {
     return last - first;
 }
 
-void buildReset(BuildContext *ctx) {
-    buildFree(ctx);
-    buildSetDefaults(ctx);
+void pbuild_reset(pbuild_context_t *ctx) {
+    pbuild_free(ctx);
+    pbuild_set_defaults(ctx);
 }
-void buildFree(BuildContext *ctx) {
-#define maybefree(array) if ((array)) pFreeStrechyBuffer((array)) 
-    maybefree(ctx->flags);
-    maybefree(ctx->includes);
-    maybefree(ctx->lib_dirs);
-    maybefree(ctx->libs);
-    maybefree(ctx->files);
-#undef maybefree
+void pbuild_free(pbuild_context_t *ctx) {
+#define maybe_free(array) if ((array)) psb_free((array)) 
+    maybe_free(ctx->flags);
+    maybe_free(ctx->includes);
+    maybe_free(ctx->lib_dirs);
+    maybe_free(ctx->libs);
+    maybe_free(ctx->files);
+#undef maybe_free
     memset(ctx, 0, sizeof *ctx);
 }
 
-void buildSetDefaults(BuildContext *ctx) {
-#define initArray(array, count) \
-    (array) = NULL; pReserve(array, count)\
+void pbuild_set_defaults(pbuild_context_t *ctx) {
+#define init_array(array, count) \
+    (array) = NULL; psb_reserve(array, count)\
 
-    initArray(ctx->flags, 10);
-    initArray(ctx->includes, 10);
-    initArray(ctx->lib_dirs, 10);
-    initArray(ctx->libs, 10);
-    initArray(ctx->files, 50);
-#undef initArray
+    init_array(ctx->flags, 10);
+    init_array(ctx->includes, 10);
+    init_array(ctx->lib_dirs, 10);
+    init_array(ctx->libs, 10);
+    init_array(ctx->files, 50);
+#undef init_Array
 
+#if defined(PSTD_WINDOWS)
     ctx->int_dir = ".\\bin\\int";
     ctx->out_dir = ".\\bin";
+#else
+    ctx->int_dir = "./bin/int";
+    ctx->out_dir = "./bin";
+#endif
     ctx->working_dir = ".";
     ctx->out_name = "out";
     ctx->compiler = CLANG;
 }
 
-void setBuildType(BuildContext *ctx, enum BuildType type) {
+void pset_build_type(pbuild_context_t *ctx, enum pbuild_type_t type) {
     ctx->type = type;
 } 
 
-void setBuildMode(BuildContext *ctx, enum BuildMode mode) {
+void pset_build_mode(pbuild_context_t *ctx, enum pbuild_mode_t mode) {
     ctx->mode = mode;
 }
 
-void setCompiler(BuildContext *ctx, enum Compiler compiler) {
+void pset_compiler(pbuild_context_t *ctx, enum pcompiler_t compiler) {
     ctx->compiler = compiler;
 }
 
-void setWorkingDir(BuildContext *ctx, char *path) {
+void pset_working_dir(pbuild_context_t *ctx, char *path) {
     ctx->working_dir = path;  
 }
-void setIntemidiaryDir(BuildContext *ctx, char *path) {
+void pset_intemidiary_dir(pbuild_context_t *ctx, char *path) {
     ctx->int_dir = path; 
 }
-void setOutputDir(BuildContext *ctx, char *path) {
+void pset_output_dir(pbuild_context_t *ctx, char *path) {
     ctx->out_dir = path; 
 }
-void setOutputName(BuildContext *ctx, char *name) {
+void pset_output_name(pbuild_context_t *ctx, char *name) {
     ctx->out_name = name; 
 }
 
-void constructCompileCommands(BuildContext *ctx) {
-#define pPushStr(array, str) pPushBytes((array), (str), sizeof(str) - 1)
+void pconstruct_compile_commands(pbuild_context_t *ctx) {
+#define ppush_str(array, str) psb_pushbytes((array), (str), sizeof(str) - 1)
     u8 *command = NULL;
     switch (ctx->compiler) {
-    case CLANG: pPushStr(command, "clang "); break;
-    case GCC:   pPushStr(command, "gcc "); break;
-    case EMCC:  pPushStr(command, 
+    case CLANG: ppush_str(command, "clang "); break;
+    case GCC:   ppush_str(command, "gcc "); break;
+    case EMCC:  ppush_str(command, 
                     "clang "
                     "-nostdinc -nostdlib "
                     "-isystem C:/Users/Jacob/AppData/Local/emsdk/upstream/emscripten/system/include "
@@ -741,43 +114,45 @@ void constructCompileCommands(BuildContext *ctx) {
     case MSVC:  printf("msvc is not supported yet!"); return;
     }
 
-    pForEach(ctx->flags, flag) {
+    psb_foreach(ctx->flags, flag) {
         usize len = strlen(*flag);
-        pPushBytes(command, *flag, len); 
-        pPushStr(command, " ");
+        psb_pushbytes(command, *flag, len); 
+        ppush_str(command, " ");
     }
 
-    pForEach(ctx->includes, include) {
+    psb_foreach(ctx->includes, include) {
         usize len = strlen(*include);
-        pPushStr(command, "-I"); 
-        pPushBytes(command, *include, len); 
-        pPushStr(command, " ");
+        ppush_str(command, "-I"); 
+        psb_pushbytes(command, *include, len); 
+        ppush_str(command, " ");
     }
-    pPushStr(command, "-I. ");
+    ppush_str(command, "-I. ");
 
 
 
     switch(ctx->mode) {
-    case MODE_DEBUG:   pPushStr(command, "-g -O0 -Wall -Wextra -DDEBUG ");  break;
-    case MODE_RELEASE: pPushStr(command, "-O2 -Ofast -DRELEASE -DNDEBUG "); break;
+    case MODE_DEBUG:   ppush_str(command, "-g -O0 -Wall -Wextra -DDEBUG ");  break;
+    case MODE_RELEASE: ppush_str(command, "-O2 -Ofast -DRELEASE -DNDEBUG "); break;
     case MODE_RELEASE_WITH_DEBUG: 
-                  pPushStr(command, "-g -O2 -Ofast -DRELEASE -DDEBUG -DREL_WITH_DEBUG "); break;
+                  ppush_str(command, "-g -O2 -Ofast -DRELEASE -DDEBUG -DREL_WITH_DEBUG "); break;
     default: break;
     }
 
-    pHandle *compile_commands = pFileCreate((char*)"compile_commands.json", 
+    phandle_t *compile_commands = pfile_create("compile_commands.json", 
             P_READ_ACCESS|P_WRITE_ACCESS);
-    char buf[4096]; // NOLINT
+    char buf[PATH_MAX]; // NOLINT
     char *filepart = NULL; // NOLINT
 
-#define createString(str) ((String){ .length = sizeof(str) - 1, (u8*)(str) }) 
+    pfile_write(compile_commands, pcreate_const_string("[\n"));
 
-    pFileWrite(compile_commands, createString("[\n"));
-
-    char **last_file = ctx->files + pSize(ctx->files) - 1;
-    pForEach(ctx->files) {
+    char **last_file = ctx->files + psb_size(ctx->files) - 1;
+    psb_foreach(ctx->files, it) {
+#if defined(PSTD_WINDOWS)
         GetFullPathName(*it, 4096, buf, NULL); // NOLINT
-        String fullpath = {
+#else
+        realpath(*it, buf);
+#endif
+        pstring_t fullpath = {
             .length = strlen(buf),
         };
         fullpath.c_str = malloc(fullpath.length + 1);
@@ -786,105 +161,106 @@ void constructCompileCommands(BuildContext *ctx) {
 
 
 
-        maybeConvertBackslash(fullpath);
+        pmaybe_convert_backslash(fullpath);
         usize len = strlen(*it);
-        len = findCommonPath(len, *it, fullpath);
+        len = pfind_common_path(len, *it, fullpath);
 
 
         fullpath.length -= len + 1;
 
-        pFileWrite(compile_commands, createString("\t{\n"));
+        pfile_write(compile_commands, pcreate_const_string("\t{\n"));
 
-        pFileWrite(compile_commands, createString("\t\t\"directory\": \""));
-        pFileWrite(compile_commands, fullpath);
-        pFileWrite(compile_commands, createString("\",\n"));
+        pfile_write(compile_commands, pcreate_const_string("\t\t\"directory\": \""));
+        pfile_write(compile_commands, fullpath);
+        pfile_write(compile_commands, pcreate_const_string("\",\n"));
 
-        pFileWrite(compile_commands, createString("\t\t\"command\": \""));
-        pFileWrite(compile_commands, (String){ pSize(command), command});
-        pFileWrite(compile_commands, (String){ strlen(*it), (u8*)*it});
+        pfile_write(compile_commands, pcreate_const_string("\t\t\"command\": \""));
+        pfile_write(compile_commands, (pstring_t){ psb_size(command), command});
+        pfile_write(compile_commands, (pstring_t){ strlen(*it), (u8*)*it});
 
-        pFileWrite(compile_commands, createString("\",\n"));
+        pfile_write(compile_commands, pcreate_const_string("\",\n"));
 
         fullpath.length += len + 1;
-        pFileWrite(compile_commands, createString("\t\t\"file\": \""));
-        pFileWrite(compile_commands, fullpath);
-        pFileWrite(compile_commands, createString("\"\n"));
+        pfile_write(compile_commands, pcreate_const_string("\t\t\"file\": \""));
+        pfile_write(compile_commands, fullpath);
+        pfile_write(compile_commands, pcreate_const_string("\"\n"));
 
-        pFileWrite(compile_commands, createString("\t}"));
+        pfile_write(compile_commands, pcreate_const_string("\t}"));
         if (it != last_file)
-            pFileWrite(compile_commands, createString(",\n"));
-        else pFileWrite(compile_commands, createString("\n"));
+            pfile_write(compile_commands, pcreate_const_string(",\n"));
+        else pfile_write(compile_commands, pcreate_const_string("\n"));
 
         free(fullpath.c_str);
     }
-    pFileWrite(compile_commands, createString("]"));
-    pFileClose(compile_commands);
+    pfile_write(compile_commands, pcreate_const_string("]"));
+    pfile_close(compile_commands);
+    if (command) psb_free(command);
 }
 
 
-void addElementsToStringArray(StrechyCharBuffer *buf, usize n, char *str[n]) { 
-    if (__builtin_expect(pSize(*buf) == 0, 1)) {
-        if (n > pGetMeta(*buf)->endofstorage/sizeof(char*)) {
-            void *tmp = realloc(pGetMeta(*buf), n * sizeof(char*));
-            assert(tmp); *buf = (void*)((u8*)tmp + sizeof(StrechyBufferMeta));
-            pGetMeta(*buf)->endofstorage = n * sizeof(char*);
+void padd_elements_to_char_buffer(pchar_buffer_t *buf, usize n, char *str[n]) { 
+    if (__builtin_expect(psb_size(*buf) == 0, 1)) {
+        if (n > psb_get_meta(*buf)->endofstorage/sizeof(char*)) {
+            void *tmp = realloc(psb_get_meta(*buf), n * sizeof(char*));
+            assert(tmp); *buf = (void*)((u8*)tmp + sizeof(pstretchy_buffer_t));
+            psb_get_meta(*buf)->endofstorage = n * sizeof(char*);
         }
         
         memcpy(*buf, str, n * sizeof(char*));
-        pSize(*buf) = n;
+        psb_size(*buf) = n;
         return;
     } else {
-        if (n > pGetMeta(*buf)->endofstorage/sizeof(char*)) {
-            if (n > pGetMeta(*buf)->endofstorage/sizeof(char*)) {
-                void *tmp = realloc(pGetMeta(*buf), n * sizeof(char*));
-                assert(tmp); *buf = (void*)((u8*)tmp + sizeof(StrechyBufferMeta));
-                pGetMeta(*buf)->endofstorage = n * sizeof(char*);
+        if (n > psb_get_meta(*buf)->endofstorage/sizeof(char*)) {
+            if (n > psb_get_meta(*buf)->endofstorage/sizeof(char*)) {
+                void *tmp = realloc(psb_get_meta(*buf), n * sizeof(char*));
+                assert(tmp); *buf = (void*)((u8*)tmp + sizeof(pstretchy_buffer_t));
+                psb_get_meta(*buf)->endofstorage = n * sizeof(char*);
             }
         }
         for (usize i = 0; i < n; i++) {
-            pPushBack(*buf, str[i]);
+            psb_pushback(*buf, str[i]);
         }
     }
 }
 
 
 
-void setBuildFlag(BuildContext *ctx, char *flag) {
-    pPushBack(ctx->flags, flag);
+void pset_build_flag(pbuild_context_t *ctx, char *flag) {
+    psb_pushback(ctx->flags, flag);
 }
-void setBuildFlags(BuildContext *ctx, usize count, char *flags[]) {
-    addElementsToStringArray(&ctx->flags, count, flags);
-}
-
-void addBuildFile(BuildContext *ctx, char *filepath) {
-    pPushBack(ctx->files, filepath);
-}
-void addBuildFiles(BuildContext *ctx, usize count, char *filepaths[count]) {
-    addElementsToStringArray(&ctx->files, count, filepaths);
+void pset_build_flags(pbuild_context_t *ctx, usize count, char *flags[]) {
+    padd_elements_to_char_buffer(&ctx->flags, count, flags);
 }
 
-void addIncludeDir(BuildContext *ctx, char *filepath){
-    pPushBack(ctx->includes, filepath);
+void padd_build_file(pbuild_context_t *ctx, char *filepath) {
+    psb_pushback(ctx->files, filepath);
 }
-void addIncludeDirs(BuildContext *ctx, usize count, char *filepaths[count]) {
-    addElementsToStringArray(&ctx->includes, count, filepaths);
-}
-
-void addLibraryDir(BuildContext *ctx, char *filepath) {
-    pPushBack(ctx->lib_dirs, filepath);
-}
-void addLibraryDirs(BuildContext *ctx, usize count, char *filepaths[count]) {
-    addElementsToStringArray(&ctx->lib_dirs, count, filepaths);
+void padd_build_files(pbuild_context_t *ctx, usize count, char *filepaths[count]) {
+    padd_elements_to_char_buffer(&ctx->files, count, filepaths);
 }
 
-void addLibrary(BuildContext *ctx, char *name) {
-    pPushBack(ctx->libs, name);
+void padd_include_dir(pbuild_context_t *ctx, char *filepath){
+    psb_pushback(ctx->includes, filepath);
 }
-void addLibraries(BuildContext *ctx,usize count, char *filepaths[count]) {
-    addElementsToStringArray(&ctx->libs, count, filepaths);
+void padd_include_dirs(pbuild_context_t *ctx, usize count, char *filepaths[count]) {
+    padd_elements_to_char_buffer(&ctx->includes, count, filepaths);
 }
 
-pBool anyOf(char check, usize count, const u8 character[static count]) {
+void padd_library_dir(pbuild_context_t *ctx, char *filepath) {
+    psb_pushback(ctx->lib_dirs, filepath);
+}
+void padd_library_dirs(pbuild_context_t *ctx, usize count, char *filepaths[count]) {
+    padd_elements_to_char_buffer(&ctx->lib_dirs, count, filepaths);
+}
+
+void padd_library(pbuild_context_t *ctx, char *name) {
+    psb_pushback(ctx->libs, name);
+}
+void padd_libraries(pbuild_context_t *ctx,usize count, char *filepaths[count]) {
+    padd_elements_to_char_buffer(&ctx->libs, count, filepaths);
+}
+
+pbool_t pany_of(char check, usize count, const u8 character[static count]) {
     
     for (usize i = 0; i < count; i++) {
         if ((u8)check == character[i]) return true;
@@ -892,19 +268,19 @@ pBool anyOf(char check, usize count, const u8 character[static count]) {
     return false;
 }
 
-void handleCurrentDir(u8 **pos) {
+void phandle_current_dir(u8 **pos) {
     u8 *begin = *pos;
-    if (*begin == '.' && anyOf(*(begin + 1), 2, (u8[]){ '/', '\\' }))
+    if (*begin == '.' && pany_of(*(begin + 1), 2, (u8[]){ '/', '\\' }))
         begin += 2;
     *pos = begin;
 }
 
-void handlePreviousDir(u8 **pos) {
+void phandle_previous_dir(u8 **pos) {
     u8 *begin = *pos;
 
     if (*begin == '.' && *(begin+1) == '.')
         begin += 2;
-    if (anyOf(*begin, 2, (u8[]){ '/', '\\' }))
+    if (pany_of(*begin, 2, (u8[]){ '/', '\\' }))
         begin++;
  
     *pos = begin;
@@ -912,7 +288,7 @@ void handlePreviousDir(u8 **pos) {
 
 
 
-pBool makeDirectoryRecursive(String path) {
+pbool_t pmake_directory_recursive(pstring_t path) {
     u8 *buf = malloc(path.length + 1);
     memcpy(buf, path.c_str, path.length);
     buf[path.length] = '\0';
@@ -921,8 +297,8 @@ pBool makeDirectoryRecursive(String path) {
     u8 *begin = (u8*)path.c_str;
     while (*begin != '\0') {
         if (*begin == '.') {
-            handleCurrentDir(&begin);
-            handlePreviousDir(&begin);
+            phandle_current_dir(&begin);
+            phandle_previous_dir(&begin);
         }
         u8 *end = begin;
         while (!(*end == '\\' || *end == '/')) {
@@ -932,7 +308,7 @@ pBool makeDirectoryRecursive(String path) {
 
         char tmp = buf[end - path_begin];
         buf[end - path_begin] = '\0';
-        _mkdir((char*)buf);
+        mkdir((char*)buf);
         if (errno == ENOENT) {
             return false;
         }
@@ -942,7 +318,7 @@ pBool makeDirectoryRecursive(String path) {
     return true;
 }
 
-u8 *getFileExtensionAndName(u8 *path, usize length, u8 **extension) {
+u8 *pget_file_extension_and_name(u8 *path, usize length, u8 **extension) {
     u8 *extension_marker = path + (length-1);
     while (*extension_marker != '.') {
         extension_marker--;
@@ -950,7 +326,7 @@ u8 *getFileExtensionAndName(u8 *path, usize length, u8 **extension) {
     }
     u8 *file = (u8*)path;
 
-    while (!anyOf(*file, 2, (u8[]){'/', '\\'})) {
+    while (!pany_of(*file, 2, (u8[]){'/', '\\'})) {
         if (file == path) break;
         file--;
     }
@@ -961,68 +337,70 @@ u8 *getFileExtensionAndName(u8 *path, usize length, u8 **extension) {
     else return file + 1;
 }
 
-void execute(BuildContext *ctx) { // NOLINT
+void pexecute(pbuild_context_t *ctx) { // NOLINT
 
-    String intermediate = {
+    pstring_t intermediate = {
         .length = strlen(ctx->int_dir),
         .c_str  = (u8*)ctx->int_dir
     };
 
-    String out = {
+    pstring_t out = {
         .length = strlen(ctx->out_dir),
         .c_str  = (u8*)ctx->out_dir
     };
 
+#if defined(PSTD_WINDOWS)
     SetCurrentDirectory(ctx->working_dir);
-    if (!makeDirectoryRecursive(intermediate)) {
+#else
+    chdir(ctx->working_dir);
+#endif
+    if (!pmake_directory_recursive(intermediate)) {
         puts("could not create intermediate directory");
         exit(-1);
     }
-    if (!makeDirectoryRecursive(out)) {
+    if (!pmake_directory_recursive(out)) {
         puts("could not create intermediate directory");
         exit(-1);
     }
 
-
-#define pPushStr(array, str) pPushBytes((array), (str), sizeof(str) - 1)
     u8 *command = NULL;
     switch (ctx->compiler) {
-    case CLANG: pPushStr(command, "clang "); break;
-    case GCC:   pPushStr(command, "gcc "); break;
+    case CLANG: ppush_str(command, "clang "); break;
+    case GCC:   ppush_str(command, "gcc "); break;
     case MSVC:  printf("msvc is not supported yet!"); return;
-    case EMCC:  pPushStr(command, "emcc "); break;
+    case EMCC:  ppush_str(command, "emcc "); break;
     }
 
-    pForEach(ctx->flags, flag) {
+    psb_foreach(ctx->flags, flag) {
         usize len = strlen(*flag);
-        pPushBytes(command, *flag, len); 
-        pPushStr(command, " ");
+        psb_pushbytes(command, *flag, len); 
+        ppush_str(command, " ");
     }
 
-    pForEach(ctx->includes, include) {
+    psb_foreach(ctx->includes, include) {
         usize len = strlen(*include);
-        pPushStr(command, "-I"); 
-        pPushBytes(command, *include, len); 
-        pPushStr(command, " ");
+        ppush_str(command, "-I"); 
+        psb_pushbytes(command, *include, len); 
+        ppush_str(command, " ");
     }
-    pPushStr(command, "-I. ");
+    ppush_str(command, "-I. ");
 
-#if defined(CBUILD_WINDOWS)
+#if defined(PSTD_WINDOWS)
         // these shouldn't be constants
         char archiver[] = "llvm-lib /OUT:";
         char extension[] = ".lib";
         
-        char dll_archiver[] = "llvm-lib /DLL /OUT:";
+        const pstring_t dll_archiver = pcreate_const_string("llvm-lib /DLL /OUT:");
         char dll_extension[] = ".dll";
 #else
         char archiver[] = "ar rcs lib";
         char extension[] = ".a";
 
-        char dll_archiver[17];
+        pstring_t dll_archiver = {0};
         switch (ctx->compiler) {
-        case CLANG: dll_archiver = "clang -shared -o"; break;
-        case GCC:   dll_archiver = "gcc   -shared -o"; break;
-        case EMCC:  dll_archiver = "emcc  -shared -o"; break;
+        case CLANG: dll_archiver = pcreate_const_string("clang -shared -o"); break;
+        case GCC:   dll_archiver = pcreate_const_string("gcc   -shared -o"); break;
+        case EMCC:  dll_archiver = pcreate_const_string("emcc  -shared -o"); break;
         case MSVC:  printf("msvc is not supported yet!"); return;
         }
 
@@ -1031,16 +409,16 @@ void execute(BuildContext *ctx) { // NOLINT
 
 
     switch(ctx->mode) {
-    case MODE_DEBUG:   pPushStr(command, "-g -O0 -Wall -Wextra -DDEBUG ");  break;
-    case MODE_RELEASE: pPushStr(command, "-O2 -Ofast -DRELEASE -DNDEBUG "); break;
+    case MODE_DEBUG:   ppush_str(command, "-g -O0 -Wall -Wextra -DDEBUG ");  break;
+    case MODE_RELEASE: ppush_str(command, "-O2 -Ofast -DRELEASE -DNDEBUG "); break;
     case MODE_RELEASE_WITH_DEBUG: 
-        pPushStr(command, "-g -O2 -Ofast -DRELEASE -DDEBUG -DREL_WITH_DEBUG "); break;
+        ppush_str(command, "-g -O2 -Ofast -DRELEASE -DDEBUG -DREL_WITH_DEBUG "); break;
     default: break;
     }
 
     if (ctx->type & UNITY_BUILD) {
         usize dirlen = strlen(ctx->int_dir);
-        if (anyOf(ctx->int_dir[dirlen - 1], 2, (u8[]){ '/', '\\' }))
+        if (pany_of(ctx->int_dir[dirlen - 1], 2, (u8[]){ '/', '\\' }))
             dirlen--;
 
         usize filepath_len = dirlen + sizeof("/unity_build.c") - 1;
@@ -1052,8 +430,8 @@ void execute(BuildContext *ctx) { // NOLINT
         filepath[filepath_len] = '\0';
 
         // remove the UNITY_BUILD flag
-        pHandle *build_file = pFileCreate((char*)filepath, P_READ_ACCESS|P_WRITE_ACCESS);
-        pForEach(ctx->files) {
+        phandle_t *build_file = pfile_create((char*)filepath, P_READ_ACCESS|P_WRITE_ACCESS);
+        psb_foreach(ctx->files, it) {
             usize length = strlen(*it);
             u8 *file = (u8*)*it;
             u8 *extension_marker = file + (length-1);
@@ -1063,106 +441,106 @@ void execute(BuildContext *ctx) { // NOLINT
             }
             if (memcmp(extension_marker, ".c", 2) != 0) continue;
 
-            String prepend = {
+            pstring_t prepend = {
                 .length  = sizeof("#include \"") - 1,
                 .c_str = (u8*)"#include \""
             };
-            String append = {
+            pstring_t append = {
                 .length  = sizeof("\" // NOLINT\n") - 1,
                 .c_str = (u8*)"\" // NOLINT\n"
             };
 
-            pFileWrite(build_file, prepend);
-            pFileWrite(build_file, (String){ length, file });
-            pFileWrite(build_file, append);
+            pfile_write(build_file, prepend);
+            pfile_write(build_file, (pstring_t){ length, file });
+            pfile_write(build_file, append);
         }
-        pFileClose(build_file);
+        pfile_close(build_file);
 
-        pForEach(ctx->lib_dirs, dirs) {
-            pPushStr(command, "-L");
-            pPushBytes(command, *dirs, strlen(*dirs));
-            pPushStr(command, " ");
+        psb_foreach(ctx->lib_dirs, dirs) {
+            ppush_str(command, "-L");
+            psb_pushbytes(command, *dirs, strlen(*dirs));
+            ppush_str(command, " ");
         }
 
-        u8 *iterator = pPushStr(command, "-c ");
+        u8 *iterator = ppush_str(command, "-c ");
         usize idx = iterator - command;
 
-        pPushBytes(command, filepath, filepath_len);
-        pPushStr(command, " -o ");
+        psb_pushbytes(command, filepath, filepath_len);
+        ppush_str(command, " -o ");
         filepath[filepath_len - 1] = 'o';
-        pPushBytes(command, filepath, filepath_len);
-        pPushStr(command, " ");
-        pPushBytes(command, &(char){'\0'}, 1);
+        psb_pushbytes(command, filepath, filepath_len);
+        ppush_str(command, " ");
+        psb_pushbytes(command, &(char){'\0'}, 1);
        
         printf("running command:\n%s\n", command);
         // compile to object file
         system((char*)command); // NOLINT
 
         u8 *next_command = NULL;
-        pReserve(next_command, pGetMeta(command)->endofstorage);
+        psb_reserve(next_command, psb_get_meta(command)->endofstorage);
         memcpy(next_command, command, idx);
-        pSize(next_command) += idx;
+        psb_size(next_command) += idx;
 
         ctx->type &= 0b0111; // NOLINT
         switch(ctx->type) { // NOLINT
         case EXECUTABLE: {
-                pPushBytes(next_command, filepath, filepath_len);
-                pPushStr(next_command, " -o ");
+                psb_pushbytes(next_command, filepath, filepath_len);
+                ppush_str(next_command, " -o ");
                 
-                pPushBytes(next_command, out.c_str, out.length);
-                if (!anyOf(out.c_str[out.length - 1], 2, (u8[]) { '/', '\\' }))
-                    pPushStr(next_command, "/");
-                pPushBytes(next_command, ctx->out_name, strlen(ctx->out_name));
+                psb_pushbytes(next_command, out.c_str, out.length);
+                if (!pany_of(out.c_str[out.length - 1], 2, (u8[]) { '/', '\\' }))
+                    ppush_str(next_command, "/");
+                psb_pushbytes(next_command, ctx->out_name, strlen(ctx->out_name));
 
-#if defined(CBUILD_WINDOWS)
-                pPushStr(next_command, ".exe");
+#if defined(PSTD_WINDOWS)
+                ppush_str(next_command, ".exe");
 #endif
-                pPushStr(next_command, " ");
-                pForEach(ctx->libs, lib) {
-                    pPushStr(next_command, "-l");
-                    pPushBytes(next_command, *lib, strlen(*lib));
-                    pPushStr(next_command, " ");
+                ppush_str(next_command, " ");
+                psb_foreach(ctx->libs, lib) {
+                    ppush_str(next_command, "-l");
+                    psb_pushbytes(next_command, *lib, strlen(*lib));
+                    ppush_str(next_command, " ");
                 }
-                pPushBytes(next_command, &(char){'\0'}, 1);
+                psb_pushbytes(next_command, &(char){'\0'}, 1);
                 
                 printf("running command:\n%s\n", next_command);
                 system((char*)next_command); // NOLINT
             } break;
         case STATIC_LIB: {
-                pSize(next_command) = 0;
-                pPushBytes(next_command, archiver, sizeof(archiver) - 1);
+                psb_size(next_command) = 0;
+                psb_pushbytes(next_command, archiver, sizeof(archiver) - 1);
 
-                pPushBytes(next_command, out.c_str, out.length);
-                if (!anyOf(out.c_str[out.length - 1], 2, (u8[]) { '/', '\\' }))
-                    pPushStr(next_command, "/");
+                psb_pushbytes(next_command, out.c_str, out.length);
+                if (!pany_of(out.c_str[out.length - 1], 2, (u8[]) { '/', '\\' }))
+                    ppush_str(next_command, "/");
 
-                pPushBytes(next_command, ctx->out_name, strlen(ctx->out_name));
-                pPushBytes(next_command, extension, sizeof(extension) - 1); 
+                psb_pushbytes(next_command, ctx->out_name, strlen(ctx->out_name));
+                psb_pushbytes(next_command, extension, sizeof(extension) - 1); 
             
-                pPushStr(next_command, " ");
+                ppush_str(next_command, " ");
 
-                pPushBytes(next_command, filepath, filepath_len);
-                pPushBytes(next_command, &(char){'\0'}, 1);
+                psb_pushbytes(next_command, filepath, filepath_len);
+                psb_pushbytes(next_command, &(char){'\0'}, 1);
 
                 printf("running command:\n%s\n", next_command);
                 system((char*)next_command); // NOLINT
             } break;
         case DYNAMIC_LIB: {
-                pSize(next_command) = 0;
-                pPushBytes(next_command, dll_archiver,  sizeof(dll_archiver) - 1);
+                psb_size(next_command) = 0;
+                psb_pushbytes(next_command, dll_archiver.c_str,  dll_archiver.length);
                 
-                pPushBytes(next_command, out.c_str, out.length);
-                if (!anyOf(out.c_str[out.length - 1], 2, (u8[]) { '/', '\\' }))
-                    pPushStr(next_command, "/");
+                psb_pushbytes(next_command, out.c_str, out.length);
+                if (!pany_of(out.c_str[out.length - 1], 2, (u8[]) { '/', '\\' }))
+                    ppush_str(next_command, "/");
 
-                pPushBytes(next_command, ctx->out_name, strlen(ctx->out_name));
+                psb_pushbytes(next_command, ctx->out_name, strlen(ctx->out_name));
 
-                pPushBytes(next_command, dll_extension, sizeof(dll_extension) - 1); 
+                psb_pushbytes(next_command, dll_extension, sizeof(dll_extension) - 1); 
 
-                pPushStr(next_command, " ");
+                ppush_str(next_command, " ");
 
-                pPushBytes(next_command, filepath, filepath_len);
-                pPushBytes(next_command, &(char){'\0'}, 1);
+                psb_pushbytes(next_command, filepath, filepath_len);
+                psb_pushbytes(next_command, &(char){'\0'}, 1);
 
                 printf("running command:\n%s\n", next_command);
                 system((char*)next_command); // NOLINT
@@ -1171,113 +549,113 @@ void execute(BuildContext *ctx) { // NOLINT
         }
 
         
-        pFreeStrechyBuffer(next_command);
-        pFreeStrechyBuffer(command);
+        psb_free(next_command);
+        psb_free(command);
     } else {
         u8 *libs = NULL;
-        pForEach(ctx->libs, lib) {
-            pPushStr(libs, " -l");
-            pPushBytes(libs, *lib, strlen(*lib));
+        psb_foreach(ctx->libs, lib) {
+            ppush_str(libs, " -l");
+            psb_pushbytes(libs, *lib, strlen(*lib));
         }
 
-        usize command_len = pSize(command);
-        pForEach(ctx->files) {
+        usize command_len = psb_size(command);
+        psb_foreach(ctx->files, it) {
             usize length = strlen(*it);
             u8 *file = (u8*)*it;
             u8 *extension = file + (length-1);
             
-            u8 *filename = getFileExtensionAndName(file, length, &extension);
+            u8 *filename = pget_file_extension_and_name(file, length, &extension);
             if (memcmp(extension, ".c", 2) != 0) continue;
             usize filename_len = length - (filename - file) - 2;
 
-            pPushStr(command, "-c ");
-            pPushBytes(command, file, length);
-            pPushStr(command, " -o ");
+            ppush_str(command, "-c ");
+            psb_pushbytes(command, file, length);
+            ppush_str(command, " -o ");
 
-            pPushBytes(command, intermediate.c_str, intermediate.length);
-            if (!anyOf(intermediate.c_str[intermediate.length - 1], 2, (u8[]) { '/', '\\' }))
-                pPushStr(command, "/");
+            psb_pushbytes(command, intermediate.c_str, intermediate.length);
+            if (!pany_of(intermediate.c_str[intermediate.length - 1], 2, (u8[]) { '/', '\\' }))
+                ppush_str(command, "/");
 
-            pPushBytes(command, filename, filename_len);
-            pPushStr(command, ".o");
-            pPushBytes(command, &(u8){'\0'}, 1);
+            psb_pushbytes(command, filename, filename_len);
+            ppush_str(command, ".o");
+            psb_pushbytes(command, &(u8){'\0'}, 1);
             
             system((char*)command); // NOLINT
-            pSize(command) = command_len;
+            psb_size(command) = command_len;
         }
         
-        pForEach(ctx->lib_dirs, dirs) {
-            pPushStr(command, "-L");
-            pPushBytes(command, *dirs, strlen(*dirs));
-            pPushStr(command, " ");
+        psb_foreach(ctx->lib_dirs, dirs) {
+            ppush_str(command, "-L");
+            psb_pushbytes(command, *dirs, strlen(*dirs));
+            ppush_str(command, " ");
         }
 
         u8 *next_command = NULL;
-        pReserve(next_command, pGetMeta(command)->endofstorage);
+        psb_reserve(next_command, psb_get_meta(command)->endofstorage);
         memcpy(next_command, command, command_len);
-        pSize(next_command) += command_len;
+        psb_size(next_command) += command_len;
 
         switch(ctx->type) { // NOLINT
         case EXECUTABLE: {
-                pPushBytes(next_command, intermediate.c_str, intermediate.length);
-                if (!anyOf(intermediate.c_str[intermediate.length - 1], 2, (u8[]) { '/', '\\' }))
-                    pPushStr(next_command, "/");
-                pPushStr(next_command, "*.o ");
+                psb_pushbytes(next_command, intermediate.c_str, intermediate.length);
+                if (!pany_of(intermediate.c_str[intermediate.length - 1], 2, (u8[]) { '/', '\\' }))
+                    ppush_str(next_command, "/");
+                ppush_str(next_command, "*.o ");
 
-                pPushStr(next_command, "-o ");
-                pPushBytes(next_command, ctx->out_name, strlen(ctx->out_name));
-#if defined(CBUILD_WINDOWS)
-                pPushStr(next_command, ".exe");
+                ppush_str(next_command, "-o ");
+                psb_pushbytes(next_command, ctx->out_name, strlen(ctx->out_name));
+#if defined(PSTD_WINDOWS)
+                ppush_str(next_command, ".exe");
 #endif
-                pPushStr(next_command, " ");
-                pForEach(ctx->libs, lib) {
-                    pPushStr(next_command, "-l");
-                    pPushBytes(next_command, *lib, strlen(*lib));
-                    pPushStr(next_command, " ");
+                ppush_str(next_command, " ");
+                psb_foreach(ctx->libs, lib) {
+                    ppush_str(next_command, "-l");
+                    psb_pushbytes(next_command, *lib, strlen(*lib));
+                    ppush_str(next_command, " ");
                 }
-                pPushBytes(next_command, &(char){'\0'}, 1);
+                psb_pushbytes(next_command, &(char){'\0'}, 1);
                 system((char*)next_command); // NOLINT
             } break;
         case STATIC_LIB: {
-                pSize(next_command) = 0;
-                pPushBytes(next_command, archiver, sizeof(archiver) - 1);
+                psb_size(next_command) = 0;
+                psb_pushbytes(next_command, archiver, sizeof(archiver) - 1);
 
-                pPushBytes(next_command, out.c_str, out.length);
-                if (!anyOf(out.c_str[out.length - 1], 2, (u8[]) { '/', '\\' }))
-                    pPushStr(next_command, "/");
+                psb_pushbytes(next_command, out.c_str, out.length);
+                if (!pany_of(out.c_str[out.length - 1], 2, (u8[]) { '/', '\\' }))
+                    ppush_str(next_command, "/");
 
-                pPushBytes(next_command, ctx->out_name, strlen(ctx->out_name));
-                pPushBytes(next_command, extension, sizeof(extension) - 1); 
+                psb_pushbytes(next_command, ctx->out_name, strlen(ctx->out_name));
+                psb_pushbytes(next_command, extension, sizeof(extension) - 1); 
             
-                pPushStr(next_command, " ");
+                ppush_str(next_command, " ");
 
-                pPushBytes(next_command, intermediate.c_str, intermediate.length);
-                if (!anyOf(intermediate.c_str[intermediate.length - 1], 2, (u8[]) { '/', '\\' }))
-                    pPushStr(next_command, "/");
-                pPushStr(next_command, "*.o ");
-                pPushBytes(next_command, &(char){'\0'}, 1);
+                psb_pushbytes(next_command, intermediate.c_str, intermediate.length);
+                if (!pany_of(intermediate.c_str[intermediate.length - 1], 2, (u8[]) { '/', '\\' }))
+                    ppush_str(next_command, "/");
+                ppush_str(next_command, "*.o ");
+                psb_pushbytes(next_command, &(char){'\0'}, 1);
 
                 system((char*)next_command); // NOLINT
             } break;
         case DYNAMIC_LIB: {
-                pSize(next_command) = 0;
-                pPushBytes(next_command, dll_archiver,  sizeof(dll_archiver) - 1);
+                psb_size(next_command) = 0;
+                psb_pushbytes(next_command, dll_archiver.c_str,  dll_archiver.length);
                 
-                pPushBytes(next_command, out.c_str, out.length);
-                if (!anyOf(out.c_str[out.length - 1], 2, (u8[]) { '/', '\\' }))
-                    pPushStr(next_command, "/");
+                psb_pushbytes(next_command, out.c_str, out.length);
+                if (!pany_of(out.c_str[out.length - 1], 2, (u8[]) { '/', '\\' }))
+                    ppush_str(next_command, "/");
 
-                pPushBytes(next_command, ctx->out_name, strlen(ctx->out_name));
+                psb_pushbytes(next_command, ctx->out_name, strlen(ctx->out_name));
 
-                pPushBytes(next_command, dll_extension, sizeof(dll_extension) - 1); 
+                psb_pushbytes(next_command, dll_extension, sizeof(dll_extension) - 1); 
 
-                pPushStr(next_command, " ");
+                ppush_str(next_command, " ");
 
-                pPushBytes(next_command, intermediate.c_str, intermediate.length);
-                if (!anyOf(intermediate.c_str[intermediate.length - 1], 2, (u8[]) { '/', '\\' }))
-                    pPushStr(next_command, "/");
-                pPushStr(next_command, "*.o ");
-                pPushBytes(next_command, &(char){'\0'}, 1);
+                psb_pushbytes(next_command, intermediate.c_str, intermediate.length);
+                if (!pany_of(intermediate.c_str[intermediate.length - 1], 2, (u8[]) { '/', '\\' }))
+                    ppush_str(next_command, "/");
+                ppush_str(next_command, "*.o ");
+                psb_pushbytes(next_command, &(char){'\0'}, 1);
 
                 system((char*)next_command); // NOLINT
             } break;

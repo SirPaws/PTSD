@@ -14,11 +14,12 @@ char *files[] = {
     "include/stretchy_buffer.h",
     "include/util.h",
     "src/pio.c",
-    "src/pPrintf.c",
+  //  "src/pPrintf.c",
   //  "src/pScanf.c",
     "src/pplatform.c",
     "src/pstring.c",
     "src/util.c",
+    "src/ptime.c",
 };
 
 char *cargs[] = {
@@ -31,23 +32,27 @@ char *cargs[] = {
 }; 
 
 int main(int argc, char *argv[argc]) {
-    BuildContext ctx = {0};
-    buildSetDefaults(&ctx);
+    enum pbuild_mode_t build_mode = MODE_DEBUG;
+    pbuild_context_t ctx = {0};
+    pbuild_set_defaults(&ctx);
     for (int i = 0; i < argc; i++) {
         if (strcmp(argv[i], "-emcc") == 0)
-            setCompiler(&ctx, EMCC);
+            pset_compiler(&ctx, EMCC);
+        if (strcmp(argv[i], "-debug") == 0)     build_mode = MODE_DEBUG;
+        if (strcmp(argv[i], "-release") == 0)   build_mode = MODE_RELEASE;
+        if (strcmp(argv[i], "-rel-debug") == 0) build_mode = MODE_RELEASE_WITH_DEBUG;
     }
 
-    setOutputName(&ctx, "pstd");
-    setBuildType(&ctx, STATIC_LIB|UNITY_BUILD);
-    setBuildMode(&ctx, MODE_DEBUG);
-    setBuildFlags(&ctx, countof(cargs), cargs);
+    pset_output_name(&ctx, "pstd");
+    pset_build_type(&ctx, STATIC_LIB|UNITY_BUILD);
+    pset_build_mode(&ctx, build_mode);
+    pset_build_flags(&ctx, countof(cargs), cargs);
 
-    addIncludeDirs(&ctx, countof(include_directories), include_directories);
-    addBuildFiles(&ctx, countof(files), files);
+    padd_include_dirs(&ctx, countof(include_directories), include_directories);
+    padd_build_files(&ctx, countof(files), files);
 
-    constructCompileCommands(&ctx);
-    execute(&ctx);
+    pconstruct_compile_commands(&ctx);
+    pexecute(&ctx);
     return 0;
 }
 
