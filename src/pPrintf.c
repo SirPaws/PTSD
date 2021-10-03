@@ -69,9 +69,9 @@ PIO_STATIC u64 pprintf_print_justified(pgeneric_stream_t *stream, pformatting_sp
 PIO_STATIC void pprintf_get_rgb(const char *restrict* fmt, pstring_t rgb[3]);
 
 #if defined(PSTD_USE_ALLOCATOR)
-struct pbinary_string_return_t pmake_binary_string(u64 bitcount, u64 num, pallocator_t *cb);
+PIO_STATIC struct pbinary_string_return_t pmake_binary_string(u64 bitcount, u64 num, pallocator_t *cb);
 #else
-struct pbinary_string_return_t pmake_binary_string(u64 bitcount, u64 num);
+PIO_STATIC struct pbinary_string_return_t pmake_binary_string(u64 bitcount, u64 num);
 #endif
 
 u32 pvbprintf(pgeneric_stream_t *stream, const char *restrict fmt, va_list list) {
