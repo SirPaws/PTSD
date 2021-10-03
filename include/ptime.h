@@ -1,8 +1,8 @@
 #pragma once
 
-#ifndef PSTD_UTIL_HEADER
-#define PSTD_UTIL_HEADER
-#ifndef PSTD_UTIL_STANDALONE
+#ifndef PSTD_TIME_HEADER
+#define PSTD_TIME_HEADER
+#ifndef PSTD_TIME_STANDALONE
 #include "general.h"
 #else
 #error not implemented yet

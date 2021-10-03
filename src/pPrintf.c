@@ -29,7 +29,20 @@ static padv_user_callback_t *stretchy advcallbacks = NULL;
 static puser_callback_t     *stretchy callbacks    = NULL;
 
 // forward declaration
-static pbool_t color_output;
+#ifndef PSTD_IO_GLOBAL_T_DEFINED
+struct pio_global_t {
+    pstd_stream_t           std_stream;
+    u32                     default_code_page;
+    pgeneric_stream_t       current_stream;
+    pbool_t                 colored_output;
+#if defined(PSTD_WINDOWS)
+    u32                     console_mode;
+#endif
+};
+#define PSTD_IO_GLOBAL_T_DEFINED
+#endif
+
+static struct pio_global_t PIO_GLOBALS;
 
 PIO_STATIC void pprintf_handle_length(pprintf_info_t *info, pformatting_specification_t *spec);
 PIO_STATIC void pprintf_handle_plus(pprintf_info_t *info, pformatting_specification_t *spec);
@@ -373,7 +386,7 @@ PIO_STATIC void pprintf_handle_background_color(pprintf_info_t *info) {
         
         pstring_t RGB[3];
         pprintf_get_rgb(&info->fmt, RGB);
-    if (PSTD_EXPECT(color_output, 1)) {
+    if (PSTD_EXPECT(PIO_GLOBALS.colored_output, 1)) {
         static const pstring_t header = pcreate_const_string("\x1b[48;2;");
         pstream_write_string(info->stream, header);
         pstream_write_string(info->stream, RGB[0]);
@@ -396,7 +409,7 @@ PIO_STATIC void pprintf_handle_foreground_color(pprintf_info_t *info) {
     pstring_t RGB[3];
     pprintf_get_rgb(&info->fmt, RGB);
 
-    if (PSTD_EXPECT(color_output, 1)) {
+    if (PSTD_EXPECT(PIO_GLOBALS.colored_output, 1)) {
         static const pstring_t header = pcreate_const_string("\x1b[38;2;");
         pstream_write_string(info->stream, header);
         pstream_write_string(info->stream, RGB[0]);
@@ -439,7 +452,7 @@ PIO_STATIC void pprintf_handle_string(pprintf_info_t *info, pformatting_specific
 
 PIO_STATIC void pprintf_handle_color_clear(pprintf_info_t *info) {
     static const pstring_t reset = pcreate_const_string("\x1b[0m");
-    if (PSTD_EXPECT(color_output, 1)) {
+    if (PSTD_EXPECT(PIO_GLOBALS.colored_output, 1)) {
         pstream_write_string(info->stream, reset);
         info->count += reset.length; 
     }
@@ -503,7 +516,7 @@ PIO_STATIC void pprintf_handle_number(pprintf_info_t *info, pformatting_specific
     }
 }
 
-PIO_STATIC void pPrintf_handle_dot(pprintf_info_t *info, pformatting_specification_t *spec) { 
+PIO_STATIC void pprintf_handle_dot(pprintf_info_t *info, pformatting_specification_t *spec) { 
     const char *restrict begin = info->fmt + 1;
     char *end;
     if (*begin >= '1' && *begin <= '9')
@@ -539,7 +552,7 @@ PIO_STATIC void pPrintf_handle_dot(pprintf_info_t *info, pformatting_specificati
     }
 }
 
-PIO_STATIC void pPrintf_handle_zero(pprintf_info_t *info, pformatting_specification_t *spec) { 
+PIO_STATIC void pprintf_handle_zero(pprintf_info_t *info, pformatting_specification_t *spec) { 
     const char *restrict begin = info->fmt + 1;
     char *end;
     if (*begin >= '1' && *begin <= '9')
@@ -575,7 +588,7 @@ PIO_STATIC void pPrintf_handle_zero(pprintf_info_t *info, pformatting_specificat
     }
 }
 
-PIO_STATIC void pPrintf_handle_space(pprintf_info_t *info, pformatting_specification_t *spec) { 
+PIO_STATIC void pprintf_handle_space(pprintf_info_t *info, pformatting_specification_t *spec) { 
     while (*info->fmt == ' ') info->fmt++;
 
     switch( *info->fmt ) {

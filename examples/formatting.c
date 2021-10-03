@@ -3,126 +3,122 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#define PPLATFORM_HEADER_ONLY
+#include "ptime.h"
+
 #include "pplatform.h"
 
-#define PSTD_PSTRING_IMPLEMENTATION
 #include "pstring.h"
 
-void callback(pPrintfInfo *info) {
+
+void callback(pprintf_info_t *info) {
     int arrcount = va_arg(info->list, int);
     int *arr     = va_arg(info->list, int*);
 
-    pStreamWrite(info->stream, pCreateString("[ "));
+    pstream_write(info->stream, pcreate_const_string("[ "));
     info->count += 2;
 
     u8 buf[20];
     for (int i = 0; i < arrcount; i++) {
-        usize count = pSignedDecimalToString((char*)buf, arr[i]);
+        usize count = psigned_decimal_to_string((char*)buf, arr[i]);
         
         u8 *printbuf = buf;
         if (arr[i] > 0) printbuf++; count--;
 
-        pStreamWrite(info->stream, pString(printbuf, count));
+        pstream_write(info->stream, pstring(printbuf, count));
         info->count += count;
         if (i != arrcount - 1)
-            pStreamWrite(info->stream, pCreateString(", ")), info->count += 2;
+            pstream_write(info->stream, pcreate_const_string(", ")), info->count += 2;
     }
-    pStreamWrite(info->stream, pCreateString("]"));
+    pstream_write(info->stream, pcreate_const_string("]"));
     info->count++;
 }
 
 
 int main(void) {
-    pPrintf("Test\n");
-    StreamInfo fstream_info = {
+    pprintf("Test\n");
+    pstream_info_t fstream_info = {
         .type  = FILE_STREAM,
         .flags = STREAM_INPUT|STREAM_OUTPUT,
         .filename = "pio.s",
     };
-#if defined(BY_POINTER)
-    FileStream *fstream = (void *)pInitStream(fstream_info);
-    if (fstream) {
-#else
-    FileStream fstream = pInitStream(fstream_info);
+    pfile_stream_t fstream = pinit_stream(fstream_info);
     if (fstream.is_valid) {
-#endif 
         char arr[23];
-        pStreamRead(&fstream, arr, 23);
-        String read_from_file = pString((u8 *)arr, 23);
-        pPrintf("read this from a file: {\n%S\n}\n", read_from_file);
-        pFreeStream(&fstream);
+        pstream_read(&fstream, arr, 23);
+        pstring_t read_from_file = pstring((u8 *)arr, 23);
+        pprintf("read this from a file: {\n%S\n}\n", read_from_file);
+        pfree_stream(&fstream);
         
-        StreamInfo sstream_info = {
+        pstream_info_t sstream_info = {
             .type  = STRING_STREAM,
             .flags = STREAM_INPUT|STREAM_OUTPUT,
             .buffersize = 50
         };
 
-        StringStream sstream = pInitStream(sstream_info); 
+        pstring_stream_t sstream = pinit_stream(sstream_info); 
         {
-            pStreamWriteString(&sstream, read_from_file);
-            String sstream_string = pStreamToBufferString(&sstream);
-            pPrintf("string stream holds {\n%S\n}\n", sstream_string);
+            pstream_write_string(&sstream, read_from_file);
+            pstring_t sstream_string = pstream_to_buffer_string(&sstream);
+            pprintf("string stream holds {\n%S\n}\n", sstream_string);
         }
-        pFreeStream(&sstream);
+        pfree_stream(&sstream);
     }
     
-    String str = pCreateString("hello");
+    pstring_t str = pcreate_string("hello");
 
     u8 test = 0b1010;
-    pPrintf("BINARY:\n");
-    pPrintf("\t'%hhb'\n",  test);
-    pPrintf("\t'%0hhb'\n", test);
-    pPrintf("\t'%10b'\n",  test);
-    pPrintf("\t'%Lb'\n", 0b101010101LL);
+    pprintf("BINARY:\n");
+    pprintf("\t'%hhb'\n",  test);
+    pprintf("\t'%0hhb'\n", test);
+    pprintf("\t'%10b'\n",  test);
+    pprintf("\t'%Lb'\n", 0b101010101LL);
     
     float f = 0.15625f;
 
-    pPrintf("TEMP:\n");
-    pPrintf("\t'%0b'\n", *(int*)&f);
-    pPrintf("\t'%f'\n", 0.15625f); 
+    pprintf("TEMP:\n");
+    pprintf("\t'%0b'\n", *(int*)&f);
+    pprintf("\t'%f'\n", 0.15625f); 
     f *= -1;
-    pPrintf("\t'%0b'\n", *(int*)&f);
-    pPrintf("\t'%f'\n", -0.15625f);
+    pprintf("\t'%0b'\n", *(int*)&f);
+    pprintf("\t'%f'\n", -0.15625f);
 
-    pPrintf("CONST CHAR *:\n");
-    pPrintf("\t%s\n", "hello world!");
-    pPrintf("\twe have a string '%s'\n", "hello");
-    pPrintf("\twe have a string '%-10s' rjust\n", "hello");
-    pPrintf("\twe have a string '%10s' ljust\n", "hello");
+    pprintf("CONST CHAR *:\n");
+    pprintf("\t%s\n", "hello world!");
+    pprintf("\twe have a string '%s'\n", "hello");
+    pprintf("\twe have a string '%-10s' rjust\n", "hello");
+    pprintf("\twe have a string '%10s' ljust\n", "hello");
     
-    pPrintf("STRUCT STRING:\n");
-    pPrintf("\t%S\n", str);
-    pPrintf("\twe have a string '%S'\n", str);
-    pPrintf("\twe have a string '%-10S' rjust\n", str);
-    pPrintf("\twe have a string '%10S' ljust\n", str);
+    pprintf("STRUCT STRING:\n");
+    pprintf("\t%S\n", str);
+    pprintf("\twe have a string '%S'\n", str);
+    pprintf("\twe have a string '%-10S' rjust\n", str);
+    pprintf("\twe have a string '%10S' ljust\n", str);
 
-    pPrintf("COLOR:\n");
-    pPrintf("\t%Cfg(255,0,0)this text should be red!%Cc\n");
-    pPrintf("\t%Cbg(255,0,0)this background should be red!%Cc\n");
-    pPrintf("\tthis should not have any color\n");
-    pPrintf("\thow about colored string %Cfg(255,0,0)'%S'%Cc\n", str);
-    pPrintf("\t%Cfg(164, 190, 140)how about with space inbetween arguments%Cc\n");
+    pprintf("COLOR:\n");
+    pprintf("\t%Cfg(255,0,0)this text should be red!%Cc\n");
+    pprintf("\t%Cbg(255,0,0)this background should be red!%Cc\n");
+    pprintf("\tthis should not have any color\n");
+    pprintf("\thow about colored string %Cfg(255,0,0)'%S'%Cc\n", str);
+    pprintf("\t%Cfg(164, 190, 140)how about with space inbetween arguments%Cc\n");
     
-    pPrintf("CHAR/UNICODE:\n");
-    pPrintf("\tnow we print a single char '%c'\n", 'Y');
-    pPrintf("\tnow we print a unicode char '%lc'\n", "🙂");
+    pprintf("CHAR/UNICODE:\n");
+    pprintf("\tnow we print a single char '%c'\n", 'Y');
+    pprintf("\tnow we print a unicode char '%lc'\n", "🙂");
     
-    pPrintf("INTEGERS:\n");
-    pPrintf("\tnow we print a negative signed integer '%i'\n", -5394);
-    pPrintf("\tnow we print a positive signed integer '%5i'\n", 5394);
-    pPrintf("\tnow we print a positive signed integer '%+i'\n", 5394);
-    pPrintf("\tnow we print an unsigned integer '%u'\n", 5394);
+    pprintf("INTEGERS:\n");
+    pprintf("\tnow we print a negative signed integer '%i'\n", -5394);
+    pprintf("\tnow we print a positive signed integer '%5i'\n", 5394);
+    pprintf("\tnow we print a positive signed integer '%+i'\n", 5394);
+    pprintf("\tnow we print an unsigned integer '%u'\n", 5394);
 
     u32 buffer_length = 0;
     char buffer[30];
 #define STRINGIFY_(a) #a
 #define STRINGIFY(a) STRINGIFY_(a)
-#define BUF_TO_STRING pString((void*)buffer, buffer_length)
-#define TEST_DECIMAL_TO_STRING(num) buffer_length = pUnsignedDecimalToString(buffer, num); \
-    if (!pStringCmp(BUF_TO_STRING, pCreateString(#num))) \
-        pPrintf("%Cfg(174, 0, 0)expected: "#num", got: %S\n%Cc", BUF_TO_STRING);
+#define BUF_TO_STRING ((pstring_t){buffer_length, (void*)buffer})
+#define TEST_DECIMAL_TO_STRING(num) buffer_length = punsigned_decimal_to_string(buffer, num); \
+    if (!pcmp_string(BUF_TO_STRING, pcreate_const_string(#num))) \
+        pprintf("%Cfg(174, 0, 0)expected: "#num", got: %S\n%Cc", BUF_TO_STRING);
 
     TEST_DECIMAL_TO_STRING(1020);
     TEST_DECIMAL_TO_STRING(2785);
@@ -140,24 +136,23 @@ int main(void) {
     TEST_DECIMAL_TO_STRING(5881047);
     TEST_DECIMAL_TO_STRING(4062392);
 
-    pPrintf("\tlet's do %u random numbers\n", 10);
+    pprintf("\tlet's do %u random numbers\n", 10);
     for (int i = 0; i < 10; i++) {
-
-        srand(pGetTick(PSTD_HIGH_RESOLUTION_CLOCK)); 
+        srand(pget_tick(PSTD_HIGH_RESOLUTION_CLOCK)); 
         int num = rand();
-        pPrintf("\t\t% 2u: ( pPrintf: %5u, ", i,  num);
+        pprintf("\t\t% 2u: ( pPrintf: %5u, ", i,  num);
         printf("printf: %5u )\n", num);
     }
 
-    pPrintf("\tnow we print an unsigned long long integer '%llu'\n", 53945772LL);
+    pprintf("\tnow we print an unsigned long long integer '%llu'\n", 53945772LL);
     
-    pPrintf("CALLBACKS:\n");
+    pprintf("CALLBACKS:\n");
     
-    pFormatPush("v", callback);
+    pformat_push("v", callback);
     
-    pPrintf("%v", 10, (int[10]){ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 });
+    pprintf("%v", 10, (int[10]){ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 });
     
-    pFormatPop("v");
-    pPrintf("\n");
+    pformat_pop("v");
+    pprintf("\n");
     fflush(stdout);
 }
