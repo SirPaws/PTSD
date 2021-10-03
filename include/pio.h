@@ -217,10 +217,9 @@ static inline void pread(void *buf, usize size) {
     pstream_read(pget_stream(), buf, size);
 }
 #else
-static inline void pread_impl(void *buf, usize size) {
+static inline void pio_read(void *buf, usize size) {
     pstream_read(pget_stream(), buf, size);
 }
-#define pread pread_impl
 #endif
 
 // line needs to be freed
