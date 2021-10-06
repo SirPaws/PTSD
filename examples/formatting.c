@@ -94,6 +94,17 @@ int main(void) {
     pprintf("\twe have a string '%-10S' rjust\n", str);
     pprintf("\twe have a string '%10S' ljust\n", str);
 
+    pprintf("BOOL:\n");
+    pprintf("\t%B\n",    true);
+    pprintf("\t%B\n",    false);
+    pprintf("\t%#B\n",   true);
+    pprintf("\t%#B\n",   false);
+    pprintf("\t%llB\n",  (u64)true);
+    pprintf("\t%llB\n",  (u64)false);
+    pprintf("\t%ll#B\n", (u64)true);
+    pprintf("\t%ll#B\n", (u64)false);
+
+
     pprintf("COLOR:\n");
     pprintf("\t%Cfg(255,0,0)this text should be red!%Cc\n");
     pprintf("\t%Cbg(255,0,0)this background should be red!%Cc\n");

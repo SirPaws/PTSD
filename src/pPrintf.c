@@ -52,6 +52,7 @@ PIO_STATIC void pprintf_handle_zero(pprintf_info_t *info, pformatting_specificat
 PIO_STATIC void pprintf_handle_hash(pprintf_info_t *info, pformatting_specification_t *spec);
 PIO_STATIC void pprintf_handle_dot(pprintf_info_t *info, pformatting_specification_t *spec);
 PIO_STATIC void pprintf_handle_number(pprintf_info_t *info, pformatting_specification_t *spec);
+PIO_STATIC void pprintf_handle_bool(pprintf_info_t *info, pformatting_specification_t *spec);
 
 PIO_STATIC void pprintf_handle_char(pprintf_info_t *info, pbool_t wide);
 PIO_STATIC void pprintf_handle_string(pprintf_info_t *info, pformatting_specification_t *spec, pbool_t cstr);
@@ -148,8 +149,9 @@ u32 pvbprintf(pgeneric_stream_t *stream, const char *restrict fmt, va_list list)
                 case 'x': case 'X':
                 case 'i': case 'd':  pprintf_handle_int(&pinfo, &jinfo, *fmt_next); break;
                 case 'p': pprintf_handle_pointer(&pinfo, &jinfo); break;
-                case 'b': pprintf_handle_binary(&pinfo, &jinfo); break;
-                case 'c': pprintf_handle_char(&pinfo, false);   break;
+                case 'b': pprintf_handle_binary(&pinfo, &jinfo);  break;
+                case 'B': pprintf_handle_bool(&pinfo, &jinfo);    break;
+                case 'c': pprintf_handle_char(&pinfo, false);     break;
                 case 'C': {
                         if (memcmp(fmt_next, "Cc", 2) == 0) { 
                             pprintf_handle_color_clear(&pinfo); 
@@ -464,6 +466,9 @@ PIO_STATIC void pprintf_handle_hash(pprintf_info_t *info, pformatting_specificat
     info->fmt++;
 
     switch(*info->fmt) {
+    case 'h': case 'l':
+    case 'j': case 'z':
+    case 't': case 'L': return pprintf_handle_length(info, spec); break;
     case '-': return pprintf_handle_minus(info, spec);
     case '0': return pprintf_handle_zero(info, spec);
     case '.': return pprintf_handle_dot(info, spec);
@@ -478,6 +483,7 @@ PIO_STATIC void pprintf_handle_hash(pprintf_info_t *info, pformatting_specificat
     case 'g': case 'G': return pprintf_handle_float(info, spec);
     case 'o':
     case 'x': case 'X': pprintf_handle_int(info, spec, *info->fmt);
+    case 'B': pprintf_handle_bool(info, spec);
     default: return;
     }
 }
@@ -515,6 +521,36 @@ PIO_STATIC void pprintf_handle_number(pprintf_info_t *info, pformatting_specific
     default: *info->failflag = true; 
     }
 }
+
+PIO_STATIC void pprintf_handle_bool(pprintf_info_t *info, pformatting_specification_t *spec) {
+    static const pstring_t strings[] = {
+        pcreate_const_string("false"),
+        pcreate_const_string("true"),
+        pcreate_const_string("FALSE"),
+        pcreate_const_string("TRUE"),
+    };
+    u64 num = 0;
+    if ( PSTD_EXPECT( spec->length == PFL_DEFAULT, 1) ) {
+        num = va_arg(info->list, s32);
+    } else {
+        switch(spec->length) {
+            case PFL_HH: 
+            case PFL_H: 
+            case PFL_L:  num = va_arg(info->list, u32);       break;
+            case PFL_LL: num = va_arg(info->list, u64);       break;
+            case PFL_J:  num = va_arg(info->list, intmax_t);  break;
+            case PFL_Z:
+            case PFL_T:  num = va_arg(info->list, usize); break;
+            case PFL_DEFAULT: case PFL_128:
+            default: return;
+        }
+    }
+
+    pstring_t output = strings[(num != 0) + (2*spec->alternative_form)];
+    pstream_write_string(info->stream, output);
+    info->count += output.length;
+}
+
 
 PIO_STATIC void pprintf_handle_dot(pprintf_info_t *info, pformatting_specification_t *spec) { 
     const char *restrict begin = info->fmt + 1;
@@ -634,7 +670,9 @@ PIO_STATIC void pprintf_handle_length(pprintf_info_t *info, pformatting_specific
         case 'x': case 'X':
         case 'i': case 'd': return pprintf_handle_int(info, spec, *info->fmt);
         case 'b': return pprintf_handle_binary(info, spec);
+        case 'B': return pprintf_handle_bool(info, spec);
         case 'n': return pprintf_handle_characters_written(info, spec);
+        case '#': return pprintf_handle_hash(info, spec);
         default: *info->failflag = true; return;
         }
     } else {
