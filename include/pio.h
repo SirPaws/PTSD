@@ -43,6 +43,12 @@ extern "C" {
     |               | example would be "%hhb", 0b00001010       |
     |               | the example above would print 1010        |
     |-----------------------------------------------------------|
+    |B              | boolean. supports '#', length modifiers.  |
+    |               | this takes in an integer, if it's zero    |
+    |               | it prints 'false', if it's non zero       |
+    |               | prints 'true', if the '#' modifier is used|
+    |               | it will print them in uppercase           |
+    |-----------------------------------------------------------|
     |generic        | this is not a specifier but the pPrintf   | 
     |               | functions allows for custom specifiers    |
     |               | this is done through the `pFormatPush`    |
