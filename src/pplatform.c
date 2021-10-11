@@ -59,6 +59,7 @@ pfilestat_t pstat_file(phandle_t *handle) {
 #if defined(PSTD_WINDOWS)
     if (!handle || handle == INVALID_HANDLE_VALUE) return (pfilestat_t){0};
 #else
+    (void)handle;
 #endif
     return (pfilestat_t){0};
 }

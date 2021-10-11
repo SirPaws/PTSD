@@ -57,7 +57,7 @@ typedef pcli_option_t pcli_opt_t;
 #define pcli_init(opt, userdata)\
     pcli_init_implementation(countof(opt), opt, userdata)
 
-pcli_t pcli_init_implementation(usize count, pcli_opt_t opt[count], void *userdata);
+pcli_t pcli_init_implementation(usize count, const pcli_opt_t opt[count], void *userdata);
 
 void pcli_show_help(pcli_t *, int (*printer)(const char*, ...));
 void pcli_show_verbose_help(pcli_t *, pstring_t argument, int (*printer)(const char*, ...));

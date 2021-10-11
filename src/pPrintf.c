@@ -447,6 +447,11 @@ PIO_STATIC void pprintf_handle_string(pprintf_info_t *info, pformatting_specific
     } else { 
         str = va_arg(info->list, pstring_t); 
     }
+
+    if (spec->zero_justification_count) {
+        str.length = spec->zero_justification_count;
+        spec->zero_justification_count = 0;
+    }
     info->count += pprintf_print_justified(info->stream, spec, str);
 }
 
@@ -467,6 +472,7 @@ PIO_STATIC void pprintf_handle_hash(pprintf_info_t *info, pformatting_specificat
     case '-': return pprintf_handle_minus(info, spec);
     case '0': return pprintf_handle_zero(info, spec);
     case '.': return pprintf_handle_dot(info, spec);
+    case 'p': return pprintf_handle_pointer(info, spec);
     case '1': case '2':
     case '3': case '4':
     case '5': case '6':
@@ -878,6 +884,7 @@ PIO_STATIC void pprintf_handle_pointer(pprintf_info_t *info, pformatting_specifi
 #error neither 32 or 64 bit!
 #endif
 
+    pbool_t uppercase = spec->alternative_form;
     spec->alternative_form = true; 
 
     void *ptr = va_arg(info->list, void *);
@@ -887,7 +894,7 @@ PIO_STATIC void pprintf_handle_pointer(pprintf_info_t *info, pformatting_specifi
         info->count += null.length;
         return;
     }
-    return pprintf_handle_hexadecimalint(info, spec, (usize)ptr, false, false);
+    return pprintf_handle_hexadecimalint(info, spec, (usize)ptr, false, uppercase);
 }
 
 PIO_STATIC void pprintf_handle_characters_written(pprintf_info_t *info, pformatting_specification_t *spec) {

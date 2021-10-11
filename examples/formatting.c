@@ -87,12 +87,14 @@ int main(void) {
     pprintf("\twe have a string '%s'\n", "hello");
     pprintf("\twe have a string '%-10s' rjust\n", "hello");
     pprintf("\twe have a string '%10s' ljust\n", "hello");
+    pprintf("\tprint part of a string '%-10.3s'\n", "hello");
     
     pprintf("STRUCT STRING:\n");
     pprintf("\t%S\n", str);
     pprintf("\twe have a string '%S'\n", str);
     pprintf("\twe have a string '%-10S' rjust\n", str);
     pprintf("\twe have a string '%10S' ljust\n", str);
+    pprintf("\tprint part of a string '%-10.3S'\n", str);
 
     pprintf("COLOR:\n");
     pprintf("\t%Cfg(255,0,0)this text should be red!%Cc\n");
@@ -145,6 +147,10 @@ int main(void) {
     }
 
     pprintf("\tnow we print an unsigned long long integer '%llu'\n", 53945772LL);
+
+    pprintf("pointers:\n");
+    pprintf("\thow about a pointer '%#p'\n", buffer);
+    pprintf("\thow about a pointer '%p'\n", buffer);
     
     pprintf("CALLBACKS:\n");
     

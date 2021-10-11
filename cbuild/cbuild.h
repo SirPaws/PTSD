@@ -70,6 +70,8 @@ struct pbuild_context_t {
 };
 
 
+void pbuild_args(pbuild_context_t *, int argc, const char *argv[argc]);
+
 // equivalent to calling buildFree(&ctx); buildSetDefaults(&ctx);
 void pbuild_reset(pbuild_context_t *);
 
