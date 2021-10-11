@@ -540,12 +540,6 @@ void pexecute(pbuild_context_t *ctx) { // NOLINT
         }
         pfile_close(build_file);
 
-        psb_foreach(ctx->lib_dirs, dirs) {
-            ppush_str(command, "-L");
-            psb_pushbytes(command, *dirs, strlen(*dirs));
-            ppush_str(command, " ");
-        }
-
         u8 *iterator = ppush_str(command, "-c ");
         usize idx = iterator - command;
 
@@ -568,6 +562,12 @@ void pexecute(pbuild_context_t *ctx) { // NOLINT
         ctx->type &= 0b0111; // NOLINT
         switch(ctx->type) { // NOLINT
         case EXECUTABLE: {
+                psb_foreach(ctx->lib_dirs, dirs) {
+                    ppush_str(next_command, "-L");
+                    psb_pushbytes(next_command, *dirs, strlen(*dirs));
+                    ppush_str(next_command, " ");
+                }
+
                 psb_pushbytes(next_command, filepath, filepath_len);
                 ppush_str(next_command, " -o ");
                 
