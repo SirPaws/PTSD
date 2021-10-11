@@ -258,6 +258,3 @@ void pinitialize_state_array(usize count, u64 buffer[count]) {
         buffer[i] = pget_state_value(count);
     }
 }
-
-
-

@@ -22,6 +22,83 @@
 #define PATH_MAX 4096
 #endif
 
+#include "pcli.h"
+#include "../src/pcli.c" //NOLINT
+
+pbool_t pbuild_set_debug(struct pcli_t*, void *, pstring_t value);
+pbool_t pbuild_set_release(struct pcli_t*, void *, pstring_t value);
+pbool_t pbuild_set_relwdebug(struct pcli_t*, void *, pstring_t value);
+pbool_t pbuild_add_include_dir(struct pcli_t*, void *, pstring_t value);
+pbool_t pbuild_add_library_dir(struct pcli_t*, void *, pstring_t value);
+pbool_t pbuild_add_library(struct pcli_t*, void *, pstring_t value);
+pbool_t pbuild_set_output_name(struct pcli_t*, void *, pstring_t value);
+
+static const pcli_opt_t opt[] = {
+        pcli_toggle(-debug,           pbuild_set_debug),
+        pcli_toggle(-release,         pbuild_set_release),
+        pcli_toggle(-rel-with-debug,  pbuild_set_relwdebug),
+
+        pcli_equals(--name,           pbuild_set_output_name),
+
+        pcli_equals(-I,               pbuild_add_include_dir),
+        pcli_after (-I,               pbuild_add_include_dir),
+        pcli_next  (-I,               pbuild_add_include_dir),
+
+        pcli_equals(-L,               pbuild_add_library_dir),
+        pcli_after (-L,               pbuild_add_library_dir),
+        pcli_next  (-L,               pbuild_add_library_dir),
+
+        pcli_equals(-l,               pbuild_add_library),
+        pcli_after (-l,               pbuild_add_library),
+        pcli_next  (-l,               pbuild_add_library),
+    };
+
+void pbuild_args(pbuild_context_t *ctx, int argc, const char *argv[argc]) {
+    pcli_t cli = pcli_init(opt, ctx);
+    pcli_run(&cli, argc, argv);
+    pcli_free(&cli);
+}
+
+pbool_t pbuild_set_debug(struct pcli_t *, void *userdata, pstring_t) { 
+    ((pbuild_context_t*)userdata)->mode = MODE_DEBUG; 
+    return true;
+}
+
+pbool_t pbuild_set_release(struct pcli_t*, void *userdata, pstring_t) { 
+    ((pbuild_context_t*)userdata)->mode = MODE_RELEASE; 
+    return true;
+}
+
+pbool_t pbuild_set_relwdebug(struct pcli_t*, void *userdata, pstring_t) { 
+    ((pbuild_context_t*)userdata)->mode = MODE_RELEASE_WITH_DEBUG; 
+    return true;
+}
+
+pbool_t pbuild_add_include_dir(struct pcli_t*, void *userdata, pstring_t value) {
+    pbuild_context_t *ctx = userdata;
+    padd_include_dir(ctx, (void*)value.c_str);
+    return true;
+}
+
+pbool_t pbuild_add_library_dir(struct pcli_t*, void *userdata, pstring_t value) {
+    pbuild_context_t *ctx = userdata;
+    padd_library_dir(ctx, (void*)value.c_str);
+    return true;
+}
+
+pbool_t pbuild_add_library(struct pcli_t*, void *userdata, pstring_t value) {
+    pbuild_context_t *ctx = userdata;
+    padd_library(ctx, (void*)value.c_str);
+    return true;
+}
+
+pbool_t pbuild_set_output_name(struct pcli_t*, void *userdata, pstring_t value) {
+    pset_output_name(userdata, (void*)value.c_str);
+    return true;
+}
+
+
+
 void pmaybe_convert_backslash(pstring_t filepath) {
     for (usize i = 0; i < filepath.length; i++) {
         if (filepath.c_str[i] == '\\')

@@ -9,7 +9,7 @@
 // -1 is not found
 isize pcli_has_spelling(pcli_t *, pstring_t);
 
-pcli_t pcli_init_implementation(usize count, pcli_opt_t opt[count], void *userdata) {
+pcli_t pcli_init_implementation(usize count, const pcli_opt_t opt[count], void *userdata) {
     pcli_t ctx = {.userdata = userdata};
     for (usize i = 0; i < count; i++) {
         if (opt[i].kind == PCLI_INVALID) continue;
@@ -112,7 +112,6 @@ void pcli_run(pcli_t *ctx, int argc, const char *argv[argc]) {
 }
 
 void pcli_show_help(pcli_t *, int (*printer)(const char*, ...)) {
-    (void)printer;
     assert(false);
 }
 

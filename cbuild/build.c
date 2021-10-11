@@ -31,17 +31,11 @@ char *cargs[] = {
     "-fdeclspec",
 }; 
 
-int main(int argc, char *argv[argc]) {
+int main(int argc, const char *argv[argc]) {
     enum pbuild_mode_t build_mode = MODE_DEBUG;
     pbuild_context_t ctx = {0};
+
     pbuild_set_defaults(&ctx);
-    for (int i = 0; i < argc; i++) {
-        if (strcmp(argv[i], "-emcc") == 0)
-            pset_compiler(&ctx, EMCC);
-        if (strcmp(argv[i], "-debug") == 0)     build_mode = MODE_DEBUG;
-        if (strcmp(argv[i], "-release") == 0)   build_mode = MODE_RELEASE;
-        if (strcmp(argv[i], "-rel-debug") == 0) build_mode = MODE_RELEASE_WITH_DEBUG;
-    }
 
     pset_output_name(&ctx, "pstd");
     pset_build_type(&ctx, STATIC_LIB|UNITY_BUILD);
@@ -51,6 +45,7 @@ int main(int argc, char *argv[argc]) {
     padd_include_dirs(&ctx, countof(include_directories), include_directories);
     padd_build_files(&ctx, countof(files), files);
 
+    pbuild_args(&ctx, argc, argv);
     pconstruct_compile_commands(&ctx);
     pexecute(&ctx);
     return 0;
