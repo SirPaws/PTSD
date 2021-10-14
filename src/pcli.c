@@ -37,11 +37,11 @@ pcli_t pcli_init_implementation(usize count, const pcli_opt_t opt[count], void *
             
             if (ctx.arguments) {
                 struct pcli_internal_argument_t *position = ctx.arguments;
-                while (position->spelling.length > arg.spelling.length) {
-                    if (position == psb_end(ctx.arguments)) break;
+                while (position->spelling.length >= arg.spelling.length) {
+                    if (position == psb_end(ctx.arguments) - 1) break;
                     position++;
                 }
-                if (position == psb_end(ctx.arguments))
+                if (position == psb_end(ctx.arguments) - 1)
                      psb_pushback(ctx.arguments, arg);
                 else psb_insert(ctx.arguments, position, arg);
             } else   psb_pushback(ctx.arguments, arg);
