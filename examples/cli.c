@@ -18,9 +18,14 @@ pbool_t show_help(struct pcli_t *ctx, void *userdata, pstring_t value) {
 
     if (value.c_str) pcli_show_verbose_help(ctx, value, (void*)pprintf);
     else pcli_show_help(ctx, (void*)pprintf);
-
-
     return true;
+}
+
+pbool_t error(struct pcli_t *ctx, void *userdata, pstring_t value) {
+    (void)ctx;
+    (void)userdata;
+    (void)value;
+    return false;
 }
 
 typedef struct arguments arguments;
@@ -39,6 +44,7 @@ int main(int argc, const char *argv[argc]) {
         pcli_after (-I, add_include), // allows '-Ipath'
         pcli_next  (-I, add_include), // allows '-I path'
         pcli_ms    (/I, add_include), // allows '/I:path'
+        pcli_next  (-E, error),       // stops program
     };
 
     pcli_t ctx = pcli_init(opt, &args);
