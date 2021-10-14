@@ -61,6 +61,7 @@ void pcli_run(pcli_t *ctx, int argc, const char *argv[argc]) {
     for (int i = 1; i < argc; i++) {
         usize length = strlen(argv[i]);
         pstring_t arg_text = { length, (void*)argv[i] };
+        pbool_t handler_result = true;
 
         psb_foreach(ctx->arguments) {
             pstring_t spelling = it->spelling;
@@ -76,28 +77,28 @@ void pcli_run(pcli_t *ctx, int argc, const char *argv[argc]) {
                     if ((it->kind & PCLI_MS) && (*ms_test == ':')) {
                         arg_text.length  = length - (spelling.length + 1);
                         arg_text.c_str  += spelling.length + 1;
-                        it->handlers[PCLI_MS_INDEX](ctx, ctx->userdata, arg_text);
+                        handler_result = it->handlers[PCLI_MS_INDEX](ctx, ctx->userdata, arg_text);
                     }
                     else if ((it->kind & PCLI_EQUALS) && (*ms_test == '=')) { 
                         arg_text.length  = length - (spelling.length + 1);
                         arg_text.c_str  += spelling.length + 1;
-                        it->handlers[PCLI_EQUALS_INDEX](ctx, ctx->userdata, arg_text);
+                        handler_result = it->handlers[PCLI_EQUALS_INDEX](ctx, ctx->userdata, arg_text);
                     } else {
                         if (!(it->kind & PCLI_AFTER)) break;
                         arg_text.length  = length - spelling.length;
                         arg_text.c_str  += spelling.length;
-                        it->handlers[PCLI_AFTER_INDEX](ctx, ctx->userdata, arg_text);
+                        handler_result = it->handlers[PCLI_AFTER_INDEX](ctx, ctx->userdata, arg_text);
                     }
                     break;
                 } else {
                     if ((i + 1 >= argc) || (it->kind & PCLI_TOGGLE)) {
                         assert(it->kind & PCLI_TOGGLE);
                         arg_text = pstring(NULL, 0);
-                        it->handlers[PCLI_TOGGLE_INDEX](ctx, ctx->userdata, arg_text);
+                        handler_result = it->handlers[PCLI_TOGGLE_INDEX](ctx, ctx->userdata, arg_text);
                     }
                     else if (it->kind & PCLI_NEXT) {
                         arg_text = pstring((void*)argv[i+1], strlen(argv[i+1]));
-                        it->handlers[PCLI_NEXT_INDEX](ctx, ctx->userdata, arg_text);
+                        handler_result = it->handlers[PCLI_NEXT_INDEX](ctx, ctx->userdata, arg_text);
                     } else {
                         assert(false);
                     }
@@ -106,6 +107,7 @@ void pcli_run(pcli_t *ctx, int argc, const char *argv[argc]) {
             }
 
             arg_text.length = length;
+            if (!handler_result) return;
         }
 
     }
