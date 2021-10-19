@@ -230,3 +230,59 @@ pbool_t punmap_file(void *handle) {
     return true;
 #endif
 }
+
+
+
+char pnext_in_environment_path(const char **buffer, const char *file, char *out, usize *length);
+pbool_t pfind_in_environment_path(const char *file, pstring_t *out) {
+#if defined(PSTD_WINDOWS)
+#define PATH_MAX (32767)
+
+    char buffer[PATH_MAX];
+    usize length = GetEnvironmentVariable("Path", buffer, PATH_MAX);
+    if (!length) return false;
+
+    const char *buffer_ptr = buffer;
+
+    char path[32767];
+    while(pnext_in_environment_path(&buffer_ptr, file, path, &length)) {
+        pfilestat_t stat = pget_filestat(path);
+        if(stat.exists) {
+            pstring_t str = {
+                .c_str  = pallocate(length + 1),
+                .length = length 
+            };
+            memcpy(str.c_str, path, length);
+            str.c_str[length] = '\0';
+
+            *out = str;
+            return true;
+        }
+    }
+    return false;
+#elif  defined(PSTD_LINUX) || defined(PSTD_WASM)
+    return false;
+#endif
+}
+
+char pnext_in_environment_path(const char **buffer_ptr, const char *file, char *out, usize *length) {
+#if defined(PSTD_WINDOWS)
+    const char *begin = *buffer_ptr;
+    const char *end   = *buffer_ptr;
+    while (!(*end == '\0' || *end == ';')) end++;
+
+    *length = end - begin;
+    memcpy(out, begin, *length + 1);
+    out[*length] = '\\';
+    
+    usize len = strlen(file);
+    memcpy(out + *length + 1, file, len + 1);
+    *length += len + 1;
+    out[1 + *length] = '\0';
+    if (*end) *buffer_ptr = end + 1;
+    return *end;
+#elif  defined(PSTD_LINUX) || defined(PSTD_WASM)
+    return '\0';
+#endif
+}
+
