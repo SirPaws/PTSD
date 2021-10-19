@@ -65,6 +65,9 @@ pbool_t pseek(phandle_t*, isize size, enum pseek_mode_t mode);
 // changes the console mode, but we don't give a flying huha
 pbool_t penable_console_color_output(void);
 
+// the out string is allocated with malloc, remember to free it
+pbool_t pfind_in_environment_path(const char *file, pstring_t *out);
+
 #endif // PPLATFORM_HEADER
 
 #ifdef PPLATFORM_HEADER_ONLY
