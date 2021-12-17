@@ -315,7 +315,7 @@ typedef struct pprintf_info_t pprintf_info_t;
 struct pprintf_info_t {
     pgeneric_stream_t *stream; 
     const char *restrict fmt;
-    va_list list;
+    va_list *list;
     u32 count; 
     pbool_t *failflag;
 };

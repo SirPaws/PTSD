@@ -100,8 +100,8 @@ u32 pvbprintf(pgeneric_stream_t *stream, const char *restrict fmt, va_list list)
                 .fmt = fmt_next,
                 .count = printcount,
                 .failflag = &failed,
+                .list     = &list
             };
-            va_copy(pinfo.list, list);
 
 #define SetBitCount(n, increment) bitcount = n; bitcountset = true; fmt_next += increment
             pbool_t found_format = false;
@@ -177,7 +177,6 @@ u32 pvbprintf(pgeneric_stream_t *stream, const char *restrict fmt, va_list list)
             }
             fmt = pinfo.fmt + 1;
             printcount = pinfo.count;
-            list = pinfo.list;
         }
     }
     return printcount;
@@ -315,7 +314,7 @@ PIO_STATIC void pprintf_handle_binary(pprintf_info_t *info, pformatting_specific
             struct { u64 high, low; };
             long double ld;
         } conv;
-        long double ld = va_arg(info->list, long double);
+        long double ld = va_arg(*info->list, long double);
         conv.high = 0;
         conv.low  = 0;
         conv.ld = ld;
@@ -347,17 +346,17 @@ PIO_STATIC void pprintf_handle_binary(pprintf_info_t *info, pformatting_specific
     } else {
         u64 num;
         if (PSTD_EXPECT(spec->length == PFL_DEFAULT, 1)) {
-            num = va_arg(info->list, s32);
+            num = va_arg(*info->list, s32);
         }
         else {
             switch (spec->length) {
             case PFL_HH:
             case PFL_H:
-            case PFL_L:  num = va_arg(info->list, u32);       break;
-            case PFL_LL: num = va_arg(info->list, u64);       break;
-            case PFL_J:  num = va_arg(info->list, intmax_t);  break;
-            case PFL_Z:
-            case PFL_T:  num = va_arg(info->list, usize); break;
+            case PFL_L:  num = va_arg(*info->list, u32);       break;
+            case PFL_LL: num = va_arg(*info->list, u64);       break;
+            case PFL_J:  num = va_arg(*info->list, intmax_t);  break;
+            case PFL_Z:              
+            case PFL_T:  num = va_arg(*info->list, usize); break;
             case PFL_DEFAULT: case PFL_128:
             default: return;
             }
@@ -430,11 +429,11 @@ PIO_STATIC void pprintf_handle_foreground_color(pprintf_info_t *info) {
 
 PIO_STATIC void pprintf_handle_char(pprintf_info_t *info, pbool_t wide) {
     if (PSTD_EXPECT(wide == false, 1)){
-        int character = va_arg(info->list, int);
+        int character = va_arg(*info->list, int);
         pstream_write_char(info->stream, (char)character);
         info->count++;
     } else {
-        char *character = va_arg(info->list, char *);
+        char *character = va_arg(*info->list, char *);
         u32 len = pget_utf8_length(character);
         pstream_write_string(info->stream, pstring( (u8 *)character, len));
         info->count += len;
@@ -444,10 +443,10 @@ PIO_STATIC void pprintf_handle_char(pprintf_info_t *info, pbool_t wide) {
 PIO_STATIC void pprintf_handle_string(pprintf_info_t *info, pformatting_specification_t *spec, pbool_t cstring) {
     pstring_t str;
     if (cstring){
-        char *c_str = va_arg(info->list, char *);
+        char *c_str = va_arg(*info->list, char *);
         str = pstring((u8 *)c_str, strlen(c_str) );
     } else { 
-        str = va_arg(info->list, pstring_t); 
+        str = va_arg(*info->list, pstring_t); 
     }
 
     if (spec->zero_justification_count) {
@@ -500,7 +499,7 @@ PIO_STATIC void pprintf_handle_number(pprintf_info_t *info, pformatting_specific
     if (*info->fmt != '*')
         spec->justification_count = strtoul(begin, &end, BASE_10);
     else {
-        spec->justification_count = va_arg(info->list, int);
+        spec->justification_count = va_arg(*info->list, int);
         end = (char*)info->fmt+1;
     }
     // maybe fmt_next = ++end; not sure tbh
@@ -537,16 +536,16 @@ PIO_STATIC void pprintf_handle_bool(pprintf_info_t *info, pformatting_specificat
     };
     u64 num = 0;
     if ( PSTD_EXPECT( spec->length == PFL_DEFAULT, 1) ) {
-        num = va_arg(info->list, s32);
+        num = va_arg(*info->list, s32);
     } else {
         switch(spec->length) {
             case PFL_HH: 
             case PFL_H: 
-            case PFL_L:  num = va_arg(info->list, u32);       break;
-            case PFL_LL: num = va_arg(info->list, u64);       break;
-            case PFL_J:  num = va_arg(info->list, intmax_t);  break;
+            case PFL_L:  num = va_arg(*info->list, u32);       break;
+            case PFL_LL: num = va_arg(*info->list, u64);       break;
+            case PFL_J:  num = va_arg(*info->list, intmax_t);  break;
             case PFL_Z:
-            case PFL_T:  num = va_arg(info->list, usize); break;
+            case PFL_T:  num = va_arg(*info->list, usize); break;
             case PFL_DEFAULT: case PFL_128:
             default: return;
         }
@@ -564,7 +563,7 @@ PIO_STATIC void pprintf_handle_dot(pprintf_info_t *info, pformatting_specificati
     if (*begin >= '1' && *begin <= '9')
         spec->zero_justification_count = strtoul(begin, &end, BASE_10);
     else if (*begin == '*'){
-        spec->zero_justification_count = va_arg(info->list, int);
+        spec->zero_justification_count = va_arg(*info->list, int);
         end = (char*)begin+1;
     } 
     else end = (char*)info->fmt; 
@@ -600,7 +599,7 @@ PIO_STATIC void pprintf_handle_zero(pprintf_info_t *info, pformatting_specificat
     if (*begin >= '1' && *begin <= '9')
         spec->zero_justification_count = strtoul(begin, &end, BASE_10);
     else if (*begin == '*'){
-        spec->zero_justification_count = va_arg(info->list, int);
+        spec->zero_justification_count = va_arg(*info->list, int);
         end = (char*)begin+1;
     } 
     else end = (char*)info->fmt + 1; 
@@ -751,16 +750,16 @@ PIO_STATIC void pprintf_handle_int(pprintf_info_t *info, pformatting_specificati
     u64 num = 0;
 
     if ( PSTD_EXPECT( spec->length == PFL_DEFAULT, 1) ) {
-        num = va_arg(info->list, s32);
+        num = va_arg(*info->list, s32);
     } else {
         switch(spec->length) {
             case PFL_HH: 
             case PFL_H: 
-            case PFL_L:  num = va_arg(info->list, u32);       break;
-            case PFL_LL: num = va_arg(info->list, u64);       break;
-            case PFL_J:  num = va_arg(info->list, intmax_t);  break;
+            case PFL_L:  num = va_arg(*info->list, u32);       break;
+            case PFL_LL: num = va_arg(*info->list, u64);       break;
+            case PFL_J:  num = va_arg(*info->list, intmax_t);  break;
             case PFL_Z:
-            case PFL_T:  num = va_arg(info->list, usize); break;
+            case PFL_T:  num = va_arg(*info->list, usize); break;
             case PFL_DEFAULT: case PFL_128:
             default: return;
         }
@@ -882,6 +881,7 @@ PIO_STATIC void pprintf_handle_float(pprintf_info_t *info, pformatting_specifica
 #else
     pallocator_t *cb = &info->stream.cb;
 #endif
+    f64 value = va_arg(*info->list, f64);
     const char *restrict begin = info->fmt; 
     while (*begin != '%') begin--;
     usize size = info->fmt - begin + 1;
@@ -898,14 +898,14 @@ PIO_STATIC void pprintf_handle_float(pprintf_info_t *info, pformatting_specifica
 #endif
 
     usize count = 0;
-    count = vsnprintf(NULL, 0, buf, info->list);
+    count = snprintf(NULL, 0, buf, value);
 #if PSTD_HAS_VLA
     char out[count + 1];
 #else
     char *out = cb->allocator(cb, ALLOCATE, count + 1, NULL);
 #endif
     
-    info->count += vsnprintf(out, count, buf, info->list);
+    info->count += snprintf(out, count, buf, value);
     pstream_write_string(info->stream, pstring((u8*)out, count - 1));
 #if defined(PSTD_GNU_COMPATIBLE)
 #else
@@ -925,7 +925,7 @@ PIO_STATIC void pprintf_handle_pointer(pprintf_info_t *info, pformatting_specifi
     pbool_t uppercase = spec->alternative_form;
     spec->alternative_form = true; 
 
-    void *ptr = va_arg(info->list, void *);
+    void *ptr = va_arg(*info->list, void *);
     if (!ptr) {
         static const pstring_t null = pcreate_const_string("nullptr");
         pstream_write_string(info->stream, null);
@@ -937,17 +937,17 @@ PIO_STATIC void pprintf_handle_pointer(pprintf_info_t *info, pformatting_specifi
 
 PIO_STATIC void pprintf_handle_characters_written(pprintf_info_t *info, pformatting_specification_t *spec) {
     if ( PSTD_EXPECT( spec->length == PFL_DEFAULT, 1) ) {
-        s32 *count = va_arg(info->list, s32*);
+        s32 *count = va_arg(*info->list, s32*);
         *count = info->count;
     } else {
         switch(spec->length) {
-            case PFL_HH: {  u8  *count = va_arg(info->list, u8 *); *count = info->count; } break;  
-            case PFL_H:  {  u16 *count = va_arg(info->list, u16*); *count = info->count; } break; 
-            case PFL_L:  {  u32 *count = va_arg(info->list, u32*); *count = info->count; } break; 
-            case PFL_LL: {  u64 *count = va_arg(info->list, u64*); *count = info->count; } break; 
-            case PFL_J:  {  u64 *count = va_arg(info->list, u64*); *count = info->count; } break; 
-            case PFL_Z:  {  u64 *count = va_arg(info->list, u64*); *count = info->count; } break; 
-            case PFL_T:  {  u64 *count = va_arg(info->list, u64*); *count = info->count; } break; 
+            case PFL_HH: {  u8  *count = va_arg(*info->list, u8 *); *count = info->count; } break;  
+            case PFL_H:  {  u16 *count = va_arg(*info->list, u16*); *count = info->count; } break; 
+            case PFL_L:  {  u32 *count = va_arg(*info->list, u32*); *count = info->count; } break; 
+            case PFL_LL: {  u64 *count = va_arg(*info->list, u64*); *count = info->count; } break; 
+            case PFL_J:  {  u64 *count = va_arg(*info->list, u64*); *count = info->count; } break; 
+            case PFL_Z:  {  u64 *count = va_arg(*info->list, u64*); *count = info->count; } break; 
+            case PFL_T:  {  u64 *count = va_arg(*info->list, u64*); *count = info->count; } break; 
             case PFL_DEFAULT: case PFL_128:
             default: break;
         }
