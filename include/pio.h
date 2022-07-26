@@ -110,6 +110,10 @@ struct pgeneric_stream_t {
     enum pstream_flags_t {
         STREAM_OUTPUT = 0b01U,
         STREAM_INPUT  = 0b10U,
+        STREAM_READ   = STREAM_INPUT,
+        STREAM_WRITE  = STREAM_OUTPUT,
+        STREAM_READ_WRITE   = STREAM_INPUT|STREAM_OUTPUT,
+        STREAM_INOUT        = STREAM_READ_WRITE,
     } flags;
     union {
         struct { // pstring_t stream
@@ -186,10 +190,11 @@ static inline u32 pprintf(const char *restrict fmt, ...) {
     return result;
 }
 
+
 u32 pvbscanf(pgeneric_stream_t *stream, const char *restrict fmt, va_list list);
 
 PSTD_UNUSED
-static u32 pBScanf(pgeneric_stream_t *stream, const char *restrict fmt, ...) {
+static u32 pbscanf(pgeneric_stream_t *stream, const char *restrict fmt, ...) {
     va_list list;
     va_start(list, fmt);
     u32 result = pvbscanf(stream, fmt, list);
@@ -213,6 +218,31 @@ static inline u32 pscanf(const char *restrict fmt, ...) {
 void pstream_write_string(pgeneric_stream_t *stream, const pstring_t str);
 void pstream_write_char(pgeneric_stream_t *stream, const char chr);
 
+PSTD_UNUSED
+static inline void pputchar(const char c) {
+    pstream_write_char(pget_stream(), c);
+}
+
+PSTD_UNUSED
+static inline void pputstring(pstring_t s) {
+    pstream_write_string(pget_stream(), s);
+}
+
+PSTD_UNUSED
+static inline void pputc(const char c) {
+    pgeneric_stream_t *stream = pget_stream();
+    if (c) pstream_write_char(stream, c);
+    pstream_write_char(stream, '\n');
+}
+
+PSTD_UNUSED
+static inline void pputs(const char *s) {
+    pgeneric_stream_t *stream = pget_stream();
+    pstring_t str = pstring((char*)s, strlen(s));
+    pstream_write_string(stream, str);
+    pstream_write_char(stream, '\n');
+}
+
 // size: how many bytes to read from stream
 // eof: (if null it's ignored) set to true if the stream is at the end 
 void  pstream_read(pgeneric_stream_t *stream, void *buf, usize size);
@@ -229,11 +259,11 @@ static inline void pio_read(void *buf, usize size) {
 #endif
 
 // line needs to be freed
-pstring_t pstream_read_line(pgeneric_stream_t *stream);
+pbool_t pstream_read_line(pgeneric_stream_t *stream, pstring_t *string);
 
 PSTD_UNUSED
-static inline pstring_t pread_line(void) {
-    return pstream_read_line(pget_stream());
+static inline pbool_t pread_line(pstring_t *str) {
+    return pstream_read_line(pget_stream(), str);
 }
 
 
@@ -252,6 +282,9 @@ static inline pstring_t pread_line(void) {
 //
 //
 void pstream_move(pgeneric_stream_t *stream, isize size);
+
+// moves the file pointer back to the start of the file
+void pstream_reset(pgeneric_stream_t *stream);
 
 // pSigned**Topstring_t appends + or - to the start of buffer then calls pUnsigned**Topstring_t
 

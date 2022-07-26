@@ -163,7 +163,7 @@ pgeneric_stream_t pinit_stream(pstream_info_t info) {
 }
 
 void pfree_stream(pgeneric_stream_t *stream) {
-    if (!stream || stream->is_valid) return;
+    if (!stream || !stream->is_valid) return;
 #if defined(PSTD_USE_ALLOCATOR)
     Allocator cb = stream->cb;
 #endif
@@ -175,6 +175,7 @@ void pfree_stream(pgeneric_stream_t *stream) {
     fstream   = stream;
     sstream   = stream;
     cstream   = stream;
+    (void)stdstream;
     switch(stream->type) {
         case CFILE_STREAM:
             fclose(cstream->file);
@@ -218,6 +219,19 @@ pstring_t pstream_to_buffer_string(pgeneric_stream_t *stream) {
     }
 }
 
+void pstream_reset(pgeneric_stream_t *stream) {
+    if (!stream || !stream->is_valid) return;
+
+    if (PSTD_EXPECT(stream->type == STANDARD_STREAM, 1) || stream->type == FILE_STREAM) {
+        // this should probably have a comment explaning why we do this
+        phandle_t *handle = stream->type == STANDARD_STREAM ? stream->stdin_handle 
+                : stream->stdout_handle;
+        pseek(handle, 0, P_SEEK_SET);
+    } else {
+        stream->cursor = 0;
+    }
+}
+
 void pstream_move(pgeneric_stream_t *stream, isize size) {
     if (!stream || !stream->is_valid) return;
 
@@ -252,13 +266,18 @@ void pstream_read(pgeneric_stream_t *stream, void *buf, usize size) {
         memcpy(buf, buffer + stream->cursor, size);
     }
 }
-pstring_t pStreamReadLine(pgeneric_stream_t *stream) {
-    if (!stream || !stream->is_valid) return (pstring_t){0};
-    if ((pbool_t)(stream->flags & STREAM_INPUT) == false) return (pstring_t){0};
+pbool_t pstream_read_line(pgeneric_stream_t *stream, pstring_t *string) {
+    if (!stream || !stream->is_valid) return false;
+    if ((pbool_t)(stream->flags & STREAM_INPUT) == false) return false;
 
     if (PSTD_EXPECT(stream->type == STANDARD_STREAM, 1) || stream->type == FILE_STREAM) {
         // this should probably have a comment explaning why we do this
         phandle_t *handle = stream->type == STANDARD_STREAM ? stream->stdin_handle : stream->stdout_handle;  
+
+        u8 eof_check;
+        if (!pfile_read(handle, pstring(&eof_check, 1)))
+            return false;
+        pseek(handle, -1, P_SEEK_CURRENT);
     
         static const usize BUFFER_SIZE = 512;
         u8 *stretchy line = NULL;
@@ -268,28 +287,32 @@ pstring_t pStreamReadLine(pgeneric_stream_t *stream) {
             if (chr == '\r') continue; // if we see '\r' we assume it's followed by '\n'
             if (chr == '\n') {
                 psb_pushback(line, chr);
-                psb_set_capacity(line, psb_size(line));
-                return pstring(line, psb_size(line));
+                *string = pcopy_string(pstring(line, psb_size(line)));
+                psb_free(line);
+                return true;
             }
             psb_pushback(line, chr);
         }
-        if (psb_size(line)) {
-            psb_set_capacity(line, psb_size(line));
-        }
-        return pstring(line, psb_size(line));
+        *string = pcopy_string(pstring(line, psb_size(line)));
+        psb_free(line);
+        return true;
     } else {
         usize begin = stream->cursor;
         usize end   = stream->cursor;
         usize buf_end = psb_size(stream->buffer);
         u8 *str = (u8*)stream->buffer;
+
+        if (end >= buf_end) return false;
         while (end < buf_end) {
            if (str[end] == '\n') {
                break;
            }
            end++;
         }
-        if (end - begin == 0) return (pstring_t){0};
-        return pcopy_string(pstring(str + begin, end - begin));
+        if (end - begin == 0) return false;
+        stream->cursor = end + 1;
+        *string = pcopy_string(pstring(str + begin, end - begin));
+        return true;
     }
 }
 
