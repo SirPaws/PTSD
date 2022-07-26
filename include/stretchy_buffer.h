@@ -93,6 +93,9 @@
 // in GNU compatible this is equivalent to sizeof(__typeof(value))
 #define psb_sizeof(value)          psb_sizeof_implementation(value)
 
+//takes in a stretchy buffer and removes the meta data from it
+#define psb_unstretch(array)       psb_unstretch_implementation(array) 
+
 #define psb_foreach(array, .../*[optiona] name*/)   psb_foreach_(array, __VA_ARGS__)
 #define psb_foreach_r(array, .../*[optiona] name*/) psb_foreach_r_(array, __VA_ARGS__)
 #define psb_foreach_i(array, .../*[optiona] name*/) psb_foreach_i_(array, __VA_ARGS__)
@@ -184,7 +187,7 @@ const static pallocator_t PSTD_DEFAULT_HASH_MAP_ALLOCATOR = {
     ({ psb_get_metadata((array), psb_sizeof((array)[0]), false, PSTD_DEFAULT_ALLOCATOR); })
 #else
 #define psb_get_meta_implementation(array) \
-    ({ psb_get_metadata((array), psb_sizeof((array)[0]), false); })
+    ({ psb_get_metadata((void*)(array), psb_sizeof((array)[0]), false); })
 #endif
 
 #if defined(PSTD_USE_ALLOCATOR)
@@ -319,19 +322,23 @@ const static pallocator_t PSTD_DEFAULT_HASH_MAP_ALLOCATOR = {
     psb_copyarray_tmp;                                      \
 })
 
-#define psb_foreach1(array, name) \
-    for( __auto_type name = psb_begin(array); name != psb_end(array); name++) //NOLINT
-#define psb_foreach0(array, name) psb_foreach1(array, it)
-#define psb_foreach__(array, args) PSTD_CONCAT(psb_foreach, args)
-#define psb_foreach_(array, ...)   \
-    psb_foreach__(array, PSTD_HAS_SECOND( array, ## __VA_ARGS__ ))(array, __VA_ARGS__)
+#define psb_unstretch_implementation(array) ({                                          \
+    pstretchy_buffer_t *psb_unstretch_meta = psb_get_meta(array);                       \
+    void *psb_unstretch_result = memmove(psb_unstretch_meta, psb_unstretch_meta + 1,    \
+            psb_unstretch_meta->size * psb_sizeof(*(array)));                           \
+    array = psb_unstretch_result;/*NOLINT*/                                             \
+    array;                                                                              \
+})
 
-#define psb_foreach_i1(array, name) \
+#define psb_foreach_impl(array, name) \
+    for( __auto_type name = psb_begin(array); name != psb_end(array); name++) //NOLINT
+#define psb_foreach_(array, ...)   \
+    psb_foreach_impl(array, PSTD_DEFAULT(__VA_ARGS__, it))
+
+#define psb_foreach_i_impl(array, name) \
     for( __auto_type name = psb_end(array) - 1; name != psb_begin(array) - 1; name++) //NOLINT
-#define psb_foreach_i0(array)       psb_foreach_i1(array, it)
-#define psb_foreach_i__(array, args) PSTD_CONCAT(psb_foreach_i, args)
 #define psb_foreach_i_(array, ...)   \
-    psb_foreach_i__(array, PSTD_HAS_SECOND( array, ## __VA_ARGS__ ))(array, ## __VA_ARGS__)
+    psb_foreach_i_impl(array, PSTD_DEFAULT(__VA_ARGS__, it))
 
 typedef void pfree_func_t(void*);
 typedef struct pstretchy_buffer_t pstretchy_buffer_t;
