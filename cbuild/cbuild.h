@@ -70,44 +70,44 @@ struct pbuild_context_t {
 };
 
 
-void pbuild_args(pbuild_context_t *, int argc, const char *argv[argc]);
+void args(pbuild_context_t *, int argc, const char *argv[argc]);
 
 // equivalent to calling buildFree(&ctx); buildSetDefaults(&ctx);
-void pbuild_reset(pbuild_context_t *);
+void reset(pbuild_context_t *);
 
-void pbuild_free(pbuild_context_t *);
-void pbuild_set_defaults(pbuild_context_t *);
+void free_build(pbuild_context_t *);
+void defaults(pbuild_context_t *);
 
 // runs the build 
-void pexecute(pbuild_context_t *);
+int execute(pbuild_context_t *);
 
-void pset_build_type(pbuild_context_t *, enum pbuild_type_t);
-void pset_build_mode(pbuild_context_t *, enum pbuild_mode_t);
-void pset_compiler(pbuild_context_t *,  enum pcompiler_t);
+void build_type(pbuild_context_t *, enum pbuild_type_t);
+void build_mode(pbuild_context_t *, enum pbuild_mode_t);
+void compiler(pbuild_context_t *,  enum pcompiler_t);
 
-void pset_working_dir(pbuild_context_t *, char *path);
-void pset_intemidiary_dir(pbuild_context_t *, char *path);
-void pset_output_dir(pbuild_context_t *, char *path);
-void pset_output_name(pbuild_context_t *, char *name);
-void pconstruct_compile_commands(pbuild_context_t *);
+void working_dir(pbuild_context_t *, char *path);
+void intemidiary_dir(pbuild_context_t *, char *path);
+void output_dir(pbuild_context_t *, char *path);
+void output_name(pbuild_context_t *, char *name);
+void construct_compile_commands(pbuild_context_t *);
 
 
-void pset_build_flag(pbuild_context_t *, char *flag);
-void pset_build_flags(pbuild_context_t *, usize count, char *flags[]);
+void flag(pbuild_context_t *, char *flag);
+void flags(pbuild_context_t *, usize count, char *flags[]);
 
-void padd_build_file(pbuild_context_t *, char *filepath);
-void padd_build_files(pbuild_context_t *, usize count, char *filepaths[count]);
+void file(pbuild_context_t *, char *filepath);
+void files(pbuild_context_t *, usize count, char *filepaths[count]);
 
-void padd_include_dir(pbuild_context_t *, char *filepath);
-void padd_include_dirs(pbuild_context_t *, usize count, char *filepath[count]);
+void include_dir(pbuild_context_t *, char *filepath);
+void include_dirs(pbuild_context_t *, usize count, char *filepath[count]);
 
-void padd_library_dir(pbuild_context_t *, char *filepath);
-void padd_library_dirs(pbuild_context_t *, usize count, char *filepath[count]);
+void library_dir(pbuild_context_t *, char *filepath);
+void library_dirs(pbuild_context_t *, usize count, char *filepath[count]);
 
-void padd_library(pbuild_context_t *, char *name);
-void padd_libraries(pbuild_context_t *, usize count, char *filepath[count]);
+void library(pbuild_context_t *, char *name);
+void libraries(pbuild_context_t *, usize count, char *filepath[count]);
 
-void  pmaybe_convert_backslash(pstring_t filepath);
-usize pfind_common_path(usize len, char str[len], pstring_t fullpath);
+void  maybe_convert_backslash(pstring_t filepath);
+usize find_common_path(usize len, char str[len], pstring_t fullpath);
 
 #endif // CBUILD_HEADER
