@@ -1,8 +1,11 @@
-#include "pio.h"
 #include "general.h"
 
+#include "stretchy_buffer.h"
+#include "pstacktrace.h"
 #include "pplatform.h"
 #include "pstring.h"
+#include "pio.h"
+
 #if defined(PSTD_WINDOWS)
 #include <Windows.h>
 #endif
@@ -10,7 +13,6 @@
 #include <math.h>
 #include <ctype.h>
 
-#include "stretchy_buffer.h"
 
 #define BASE_10 10
 #define BASE_8   8
@@ -43,7 +45,7 @@ static u32 console_mode = 0;
 #endif
 */
 
-void pset_stream(pgeneric_stream_t *new_stream, pgeneric_stream_t *old_stream)
+void pset_stream(pgeneric_stream_t *new_stream, pgeneric_stream_t *old_stream) //NOLINT
 {
     if (old_stream) *old_stream = PIO_GLOBALS.current_stream;
     if (!new_stream->is_valid) return;
@@ -53,6 +55,9 @@ pgeneric_stream_t *pget_stream(void) { return &PIO_GLOBALS.current_stream; }
 
 void pinitialize_std_stream(void) {
 #if defined(PSTD_WINDOWS)
+#if !(defined(PSTD_NO_STACKTRACE) || defined(NDEBUG))
+    pstacktrace_register_signal_handlers(__argv[0]);
+#endif
     // this is so we can print unicode characters on windows
     PIO_GLOBALS.default_code_page = GetConsoleOutputCP();
     SetConsoleOutputCP(CP_UTF8);
@@ -203,13 +208,13 @@ pstring_t pstream_to_buffer_string(pgeneric_stream_t *stream) {
 #endif
 
     if (stream->type == STRING_STREAM) {
-        return pstring((u8*)stream->buffer, psb_size(stream->buffer));
+        return pstring(stream->buffer, psb_size(stream->buffer));
     } else {
         if (stream->file_buffer.length == 0) {
 #if defined(PSTD_USE_ALLOCATOR)
             u8 *tmp = cb.allocator(&cb, ALLOCATE, stream->size, NULL);
 #else
-            u8 *tmp = pallocate(stream->size);
+            char *tmp = pallocate(stream->size);
 #endif
             pstring_t buf = pstring(tmp, stream->size);
             pfile_read(stream->handle, buf);
@@ -274,15 +279,15 @@ pbool_t pstream_read_line(pgeneric_stream_t *stream, pstring_t *string) {
         // this should probably have a comment explaning why we do this
         phandle_t *handle = stream->type == STANDARD_STREAM ? stream->stdin_handle : stream->stdout_handle;  
 
-        u8 eof_check;
+        char eof_check;
         if (!pfile_read(handle, pstring(&eof_check, 1)))
             return false;
         pseek(handle, -1, P_SEEK_CURRENT);
     
         static const usize BUFFER_SIZE = 512;
-        u8 *stretchy line = NULL;
+        char *stretchy line = NULL;
         psb_reserve(line, BUFFER_SIZE);
-        u8 chr;
+        char chr;
         while (pfile_read(handle, pstring(&chr, 1))) {
             if (chr == '\r') continue; // if we see '\r' we assume it's followed by '\n'
             if (chr == '\n') {
@@ -300,7 +305,7 @@ pbool_t pstream_read_line(pgeneric_stream_t *stream, pstring_t *string) {
         usize begin = stream->cursor;
         usize end   = stream->cursor;
         usize buf_end = psb_size(stream->buffer);
-        u8 *str = (u8*)stream->buffer;
+        char *str = stream->buffer;
 
         if (end >= buf_end) return false;
         while (end < buf_end) {
@@ -337,7 +342,7 @@ void pstream_write_char(pgeneric_stream_t *stream, char chr) {
     if ((pbool_t)(stream->flags & STREAM_OUTPUT) == false) return;
 
     if (PSTD_EXPECT(stream->type == STANDARD_STREAM, 1) || stream->type == FILE_STREAM) {
-        pfile_write(stream->handle, pstring( (u8*)&chr, 1 ));
+        pfile_write(stream->handle, pstring( &chr, 1 ));
     } else if (stream->type == CFILE_STREAM) {
         fputc(chr, stream->file);
     } else {
@@ -376,8 +381,8 @@ u32 psigned_int_to_string(char *buf, s64 num, u32 radix,
 u32 punsigned_int_to_string(char *buf, u64 num, u32 radix, 
         const char radixarray[], const char (*pow2array)[2], const char (*pow3array)[3])
 {
-    u64 pow3 = radix * radix * radix;
-    u64 pow2 = radix * radix;
+    u64 pow3 = (u64)radix * radix * radix;
+    u64 pow2 = (u64)radix * radix;
     u32 printnum = 0;
     register char *ptr = buf;
     if (num >= pow3) {
