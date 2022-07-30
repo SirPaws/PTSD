@@ -11,8 +11,8 @@
 
 
 void callback(pprintf_info_t *info) {
-    int arrcount = va_arg(info->list, int);
-    int *arr     = va_arg(info->list, int*);
+    int arrcount = va_arg(*info->list, int);
+    int *arr     = va_arg(*info->list, int*);
 
     pstream_write(info->stream, pcreate_const_string("[ "));
     info->count += 2;

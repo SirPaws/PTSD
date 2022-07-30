@@ -1,5 +1,4 @@
 #pragma once
-
 #ifndef PSTD_GENERAL_HEADER
 #define PSTD_GENERAL_HEADER
 #if defined(__EMSCRIPTEN__)
@@ -269,8 +268,4 @@ static inline void *pzero_allocate_implementation(usize size) {
 #      define psized_free(size, buffer) free(buffer)
 #   endif // pFree
 #endif
-
-
-
 #endif // PSTD_GENERAL_HEADER 
-
