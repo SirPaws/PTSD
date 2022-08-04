@@ -4,6 +4,7 @@
 #define PSTD_STRETCHY_BUFFER_HEADER
 #ifndef STRETCHY_BUFFER_STANDALONE
 #   include "general.h"
+#   include "plimits.h"
 #else
 #error not implemented yet
 #endif
@@ -424,7 +425,7 @@ PSTD_UNUSED
 #if defined(PSTD_USE_ALLOCATOR)
 static pstretchy_buffer_t* psb_get_metadata(void* array, usize data_size, pbool_t create, pallocator_t cb) {
 #else
-static pstretchy_buffer_t* psb_get_metadata(void* array, usize data_size, pbool_t create) {
+static pstretchy_buffer_t* psb_get_metadata(void* array, usize data_size, pbool_t create) {//NOLINT
 #endif
 #if defined(PSTD_USE_ALLOCATOR)
     if (!cb.allocator) {
@@ -522,9 +523,12 @@ PSTD_UNUSED
 static inline void psb_free_buffer(pstretchy_buffer_t *meta, usize data_size) {
     if (meta->free_element) {
         u8 *data = (void*)(meta + 1);
-        for (isize i = meta->size - 1; i >= 0; i--) {
-            meta->free_element(data + data_size * i);
-        }
+        
+        usize index = meta->size;
+        do {
+            index--;
+            meta->free_element(data + data_size * index);
+        } while(index != 0);
     }
 #if defined(PSTD_USE_ALLOCATOR)
     meta->cb.allocator(&meta->cb, SIZED_FREE, sizeof(*meta) + meta->endofstorage, meta);

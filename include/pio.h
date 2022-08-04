@@ -306,7 +306,7 @@ u32 pdtoa(char *buf, f64);
 
 #if defined(PSTD_GNU_COMPATIBLE)
 PSTD_UNUSED
-static inline pbool_t pchar_anyof(int character, u32 count, const char tests[count]) {
+static inline pbool_t pchar_anyof(int character, u32 count, const char tests[count]) {//NOLINT
 #else
 PSTD_UNUSED
 static inline pbool_t pchar_anyof(int character, u32 count, const char tests[]) {

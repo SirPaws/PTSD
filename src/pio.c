@@ -333,6 +333,7 @@ void pstream_write_string(pgeneric_stream_t *stream, pstring_t str) {
     } else {
         char *stretchy buffer = stream->buffer;
         psb_pushbytes(buffer, str.c_str, str.length);
+        stream->buffer = buffer;
         stream->cursor += str.length;
     }
 }
@@ -346,12 +347,20 @@ void pstream_write_char(pgeneric_stream_t *stream, char chr) {
     } else if (stream->type == CFILE_STREAM) {
         fputc(chr, stream->file);
     } else {
+        if (stream->cursor > psb_size(stream->buffer))
+            stream->cursor = psb_size(stream->buffer);
+
         char *stretchy buffer = stream->buffer;
-           
         char *position = buffer + stream->cursor;
-        psb_insert(buffer, position, chr);
+        if (psb_size(buffer) == 0 || position >= psb_end(buffer)) {
+             psb_pushback(buffer, chr);
+             stream->cursor = psb_size(buffer);
+        } else {
+            psb_insert(buffer, position, chr);
+            stream->cursor++;
+        }
+        stream->buffer = buffer;
         // *(buffer + sstream->cursor) = chr;
-        stream->cursor++;
     }
 }
 
