@@ -29,6 +29,7 @@ PSTD_UNUSED static inline int passert(const char *expr, const char *file, u32 li
     )
 #endif
 
+_Noreturn void panic(const char *, ...);
 
 /// registers the signal handlers for stacktrace
 void pstacktrace_register_signal_handlers(const char *application_name);

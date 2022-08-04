@@ -13,6 +13,7 @@
 
 static struct {
     const char *program_name;
+    pbool_t handled;
 } PSTD_STACKTRACE_CTX = {0};
 
 
@@ -38,6 +39,9 @@ void pstacktrace_unregister_signal_handlers(void) {
 }
 
 void pstacktrace_signal_handler(int sig) {
+    if (PSTD_STACKTRACE_CTX.handled)
+        return;
+
     pstacktrace_print();
     switch (sig) {
     case SIGABRT: pprintf(PSTD_STACKTRACE_ERROR_COLOUR "SIGABRT%Cc: " "Abort was called\n");                break; //NOLINT
@@ -84,3 +88,26 @@ void pstacktrace_print(void) {
 #else
 #endif
 }
+
+void panic(const char *fmt, ...) {
+    static const pstream_info_t info = {
+        .type  = STRING_STREAM,
+        .flags = STREAM_INOUT, 
+    };
+
+    pstring_stream_t out = pinit_stream(info);
+    
+    va_list list;
+    va_start(list, fmt);
+    pvbprintf(&out, fmt, list);
+    va_end(list);
+
+    pstring_t str = pstream_to_buffer_string(&out);
+
+    pstacktrace_print();
+    pprintf(PSTD_STACKTRACE_ERROR_COLOUR "PANIC%Cc: " "%S\n", str);
+    PSTD_STACKTRACE_CTX.handled = true;
+    abort();
+}
+
+
