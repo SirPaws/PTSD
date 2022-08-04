@@ -10,6 +10,7 @@
 
 #define pcreate_string(str) pstring((str), sizeof((str)) - 1)
 #define pcreate_const_string(str) ((const pstring_t){.c_str = (str), .length = sizeof((str)) - 1})
+#define pnext_none_whitespace_m(type, ...) pnext_none_whitespace(type, sizeof((char[]){__VA_ARGS__}), (char[]){__VA_ARGS__})
 
 typedef struct pstring_t pstring_t;
 struct pstring_t {
@@ -28,7 +29,7 @@ PSTD_UNUSED static inline pbool_t pcmpi_string(const pstring_t rhs, const pstrin
 PSTD_UNUSED static inline pbool_t pempty_string(const pstring_t str);
 
 
-PSTD_UNUSED static inline pstring_t premove_from_end_str(pstring_t str, pstring_t match);
+PSTD_UNUSED static inline pstring_t premove_from_end(pstring_t str, pstring_t match);
 PSTD_UNUSED static inline pstring_t pnext_none_whitespace(pstring_t *type, usize count, char delimiters[count]);
 
 // NOTE: this function will not create a new string, it will change the characters of the `str`
@@ -114,7 +115,7 @@ PSTD_UNUSED static inline pbool_t pempty_string(const pstring_t str) {
 }
 
 
-PSTD_UNUSED static inline pstring_t premove_from_end_str(pstring_t str, pstring_t match) {//NOLINT
+PSTD_UNUSED static inline pstring_t premove_from_end(pstring_t str, pstring_t match) {//NOLINT
     pstring_t name = str;
     if (name.length < match.length) return str;
 
@@ -171,6 +172,7 @@ PSTD_UNUSED static inline pstring_t pnext_none_whitespace(pstring_t *type, usize
     *type = pstring(c + 1, length - 1);
     return pstring(start, c - start);
 }
+
 
 PSTD_UNUSED static inline pstring_t ptoupper(pstring_t str) {
     char *chr = str.c_str;
