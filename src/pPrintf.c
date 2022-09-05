@@ -2,6 +2,10 @@
 #include "stretchy_buffer.h"
 #include <ctype.h>
 
+#if !defined(PSTD_C11)
+#error what the fuck is going on?
+#endif 
+
 #define PIO_STATIC PSTD_UNUSED static inline 
 
 #define BASE_10 10
@@ -560,7 +564,7 @@ PIO_STATIC void pprintf_handle_bool(pprintf_info_t *info, pformatting_specificat
 PIO_STATIC void pprintf_handle_dot(pprintf_info_t *info, pformatting_specification_t *spec) { 
     const char *restrict begin = info->fmt + 1;
     char *end;
-    if (*begin >= '1' && *begin <= '9')
+    if (*begin >= '0' && *begin <= '9')
         spec->zero_justification_count = strtoul(begin, &end, BASE_10);
     else if (*begin == '*'){
         spec->zero_justification_count = va_arg(*info->list, int);

@@ -12,3 +12,4 @@ tags
 bin/**
 compile_commands.json
 *.lib
+*/.cache/**

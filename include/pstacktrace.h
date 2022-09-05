@@ -11,21 +11,15 @@
 
 
 
-PSTD_UNUSED static inline int passert(const char *expr, const char *file, u32 line) {
-#warning TODO: parse expression text and format it
-    pprintf(PSTD_STACKTRACE_ERROR_COLOUR  "Assertion failed%Cc: '%s', file "
-            PSTD_STACKTRACE_PATH_COLOUR   "%s%Cc, line "
-            PSTD_STACKTRACE_NUMBER_COLOUR "%u%Cc\n", expr, file, line);
-    abort();
-}
+pbool_t passert_impl(const char *expr, const char *file, u32 line);
 
 #ifdef NDEBUG
 #define passert(expression) ((void)0)
 #else
-#define passert(expression)                                    \
-    (void)(                                                    \
-        (!!(expression)) ||                                    \
-        (passert(#expression, __FILE__, (unsigned)(__LINE__))) \
+#define passert(expression)                                         \
+    (void)(                                                         \
+        (!!(expression)) ||                                         \
+        (passert_impl(#expression, __FILE__, (unsigned)(__LINE__))) \
     )
 #endif
 

@@ -44,46 +44,41 @@
 #   endif
 #endif
 
+#define PSTD_C23 5
+#define PSTD_C18 4
+#define PSTD_C17 4
+#define PSTD_C11 3
+#define PSTD_C99 2
+#define PSTD_C89 1
+
 #if defined(__STDC_VERSION__)
 #   if __STDC_VERSION__ == 199901
-#      define PSTD_C99 2
-#      define PSTD_C89 1
 #      define PSTD_C_VERSION PSTD_C99
 #   elif __STDC_VERSION__ == 201112
-#      define PSTD_C11 3
-#      define PSTD_C99 2
-#      define PSTD_C89 1
 #      define PSTD_C_VERSION PSTD_C11
 #   elif __STDC_VERSION__ == 201710
-#      define PSTD_C18 4
-#      define PSTD_C17 4
-#      define PSTD_C11 3
-#      define PSTD_C99 2
-#      define PSTD_C89 1
 #      define PSTD_C_VERSION PSTD_C18
 #   endif
 #elif defined(__STDC__)
-#       define PSTD_C89 1
 #      define PSTD_C_VERSION PSTD_C89
-#endif
-
-#if defined(__STDC_NO_VLA__)
-#   define PSTD_HAS_VLA 0
-#elif PSTD_C11 && !defined(PSTD_MSVC)
-#   define PSTD_HAS_VLA 1
-#else
-#   define PSTD_HAS_VLA 0
 #endif
 
 #if defined(__has_c_attribute)
 #   define PSTD_HAS_ATTRIBUTE __has_c_attribute
 #   if __STDC_VERSION__ >= 201710 
-#       define PSTD_C23 5
 #       undef  PSTD_C_VERSION
 #       define PSTD_C_VERSION PSTD_C23
 #   endif 
 #else
 #   define PSTD_HAS_ATTRIBUTE(x) 0
+#endif
+
+#if defined(__STDC_NO_VLA__)
+#   define PSTD_HAS_VLA 0
+#elif PSTD_C_VERSION >= PSTD_C11 && !defined(PSTD_MSVC)
+#   define PSTD_HAS_VLA 1
+#else
+#   define PSTD_HAS_VLA 0
 #endif
 
 
@@ -194,8 +189,17 @@ typedef double    f64;
 #if !defined(__cplusplus)
 #   if PSTD_C_VERSION >= PSTD_C99
         typedef _Bool pbool_t;
-        static const pbool_t false = 0;
-        static const pbool_t true  = 1;
+        static const pbool_t pfalse = 0;
+        static const pbool_t ptrue  = 1;
+#       ifndef bool
+#           define bool pbool_t
+#       endif
+#       ifndef false
+#           define false pfalse
+#       endif
+#       ifndef true
+#           define true ptrue
+#       endif
 #   else
         enum pbool_t { false, true };
         typedef enum pbool_t pbool_t;
