@@ -43,6 +43,10 @@
 // appends 'value' to the end of the array and returns a pointer to the location of 'value'
 #define psb_pushback(array, value) psb_pushback_implementation(array, value)
 
+// appends 'value' to the end of the array and returns a pointer to the location of 'value'
+// the difference between this and normal pushback is that you don't have to pass in a stretchy buffer
+#define psb_pseudo_pushback(array, length, value) psb_pseudo_pushback_implementation(array, length, value)
+
 // same as psb_pushback but gives control over how many bytes needs to be inserted into the array
 #define psb_pushbytes(array, value, num_bytes) psb_pushbytes_implementation(array, value, num_bytes)
 
@@ -224,6 +228,13 @@ const static pallocator_t PSTD_DEFAULT_HASH_MAP_ALLOCATOR = {
     psb_pushback_ret;                                                 \
 })
 
+#define psb_pseudo_pushback_implementation(array, length, value) ({   \
+    psb_pseudo_grow(&(array), psb_sizeof((array)[0]), length);        \
+    __auto_type psb_pushback_ret = (array) + (length)++;              \
+    *psb_pushback_ret = (value);                                      \
+    psb_pushback_ret;                                                 \
+})
+
 #define psb_pushbytes_implementation(array, value, bytes) ({    \
     psb_get_meta_or_create(array);                              \
     pMaybeByteGrowStretchyBuffer(&(array), (bytes));            \
@@ -396,6 +407,18 @@ static void psb_byte_grow(void* array_ptr, usize bytes) {
 
     meta->endofstorage += bytes;
     *(u8**)array_ptr = (u8*)(meta + 1);
+}
+
+PSTD_UNUSED 
+static void psb_pseudo_grow(void* array_ptr, usize datasize, usize count) {
+    if (!array_ptr || !datasize) return;
+    u8* array = *(u8**)array_ptr;
+    usize size = datasize * (count + 1);
+
+    void *tmp = preallocate(size, array);
+    assert(tmp);
+
+    *(u8**)array_ptr = tmp;
 }
 
 static void psb_grow(void* array_ptr, usize datasize, usize count) {

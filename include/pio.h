@@ -380,10 +380,9 @@ void pformat_push_adv_Impl(pstring_t fmt, pformat_callback_adv_t *callback);
 void pformat_pop_impl(pstring_t fmt);
 void pformat_pop_adv_impl(pstring_t fmt);
 
-#if defined(PSTD_C11)
+#if PSTD_C_VERSION > PSTD_C11
 #define pstream_write(stream, ...) _Generic(__VA_ARGS__, int: pstream_write_char, \
     char: pstream_write_char, pstring_t: pstream_write_string)(stream, __VA_ARGS__)
-
 #elif defined(__cplusplus)
 }
 #endif

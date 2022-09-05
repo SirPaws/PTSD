@@ -17,11 +17,11 @@ void callback(pprintf_info_t *info) {
     pstream_write(info->stream, pcreate_const_string("[ "));
     info->count += 2;
 
-    u8 buf[20];
+    char buf[20];
     for (int i = 0; i < arrcount; i++) {
-        usize count = psigned_decimal_to_string((char*)buf, arr[i]);
+        usize count = psigned_decimal_to_string(buf, arr[i]);
         
-        u8 *printbuf = buf;
+        char *printbuf = buf;
         if (arr[i] > 0) printbuf++; count--;
 
         pstream_write(info->stream, pstring(printbuf, count));
@@ -45,7 +45,7 @@ int main(void) {
     if (fstream.is_valid) {
         char arr[23];
         pstream_read(&fstream, arr, 23);
-        pstring_t read_from_file = pstring((u8 *)arr, 23);
+        pstring_t read_from_file = pstring(arr, 23);
         pprintf("read this from a file: {\n%S\n}\n", read_from_file);
         pfree_stream(&fstream);
         

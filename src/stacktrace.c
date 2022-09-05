@@ -110,4 +110,14 @@ void panic(const char *fmt, ...) {
     abort();
 }
 
+pbool_t passert_impl(const char *expr, const char *file, u32 line) {
+#warning TODO: parse expression text and format it
+    pstacktrace_print();
+    pprintf(PSTD_STACKTRACE_ERROR_COLOUR  "Assertion failed%Cc: '%s', file "
+            PSTD_STACKTRACE_PATH_COLOUR   "%s%Cc, line "
+            PSTD_STACKTRACE_NUMBER_COLOUR "%u%Cc\n", expr, file, line);
+    PSTD_STACKTRACE_CTX.handled = true;
+    abort();
+    return 0;
+}
 
