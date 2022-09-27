@@ -40,4 +40,4 @@ clang -Lcbuild -Icbuild ./cbuild/build.c -o build -lcbuild
 ./build
 ```
 ### Mac
-HA HA HA HA HA HA HA HA HA HA HA 
+has not been tested on mac
