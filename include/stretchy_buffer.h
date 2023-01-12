@@ -43,6 +43,9 @@
 // appends 'value' to the end of the array and returns a pointer to the location of 'value'
 #define psb_pushback(array, value) psb_pushback_implementation(array, value)
 
+// appends 'count' elements from 'val_arr' to the end of the array and returns a pointer to the last element pushed
+#define psb_pushback_n(array, val_arr, count) psb_pushback_n_implementation(array, val_arr, count)
+
 // appends 'value' to the end of the array and returns a pointer to the location of 'value'
 // the difference between this and normal pushback is that you don't have to pass in a stretchy buffer
 #define psb_pseudo_pushback(array, length, value) psb_pseudo_pushback_implementation(array, length, value)
@@ -228,6 +231,17 @@ const static pallocator_t PSTD_DEFAULT_HASH_MAP_ALLOCATOR = {
     psb_pushback_ret;                                                 \
 })
 
+#define psb_pushback_n_implementation(array, val_arr, count) ({                         \
+    __auto_type psb_pushback_ret = (array);                                             \
+    pmaybe_grow_n_elems(&(array), psb_sizeof((array)[0]), (count));                     \
+    for (usize psb_pushback_n_i = 0; psb_pushback_n_i < (count); psb_pushback_n_i++) {  \
+        psb_pushback_ret = &(array)[psb_size(array) + psb_pushback_n_i];                \
+        *psb_pushback_ret = (val_arr)[psb_pushback_n_i];                                \
+        psb_size(array)++;                                                              \
+    }                                                                                   \
+    psb_pushback_ret;                                                                   \
+})
+
 #define psb_pseudo_pushback_implementation(array, length, value) ({   \
     psb_pseudo_grow(&(array), psb_sizeof((array)[0]), length);        \
     __auto_type psb_pushback_ret = (array) + (length)++;              \
@@ -256,7 +270,10 @@ const static pallocator_t PSTD_DEFAULT_HASH_MAP_ALLOCATOR = {
     usize psb_insert_size = psb_sizeof( value );                                                \
     usize psb_insert_offset = (position) - psb_begin(array);                                    \
     __typeof(value) *psb_insert_result = NULL;                                                  \
-    if (psb_insert_array->size && psb_insert_offset >= psb_insert_array->size) {}               \
+    if (psb_insert_array->size && psb_insert_offset >= psb_insert_array->size) {                \
+        /*TODO: handle this properly*/                                                          \
+        psb_insert_result = psb_pushback(array, value);                                         \
+    }                                                                                           \
     else {                                                                                      \
         pMaybeGrowStretchyBuffer(&(array), psb_insert_size);                                    \
         /* first we extract all elements after the place where we want                        */\
@@ -269,13 +286,13 @@ const static pallocator_t PSTD_DEFAULT_HASH_MAP_ALLOCATOR = {
         /* [1, 2, 2, 3, 4]                                                                    */\
         /* then we insert the value                                                           */\
         /* [1, 6, 2, 3, 4]                                                                    */\
-        usize psb_insert_elems = psb_insert_array->size - psb_insert_offset;                    \
+        usize psb_insert_elems = psb_size(array) - psb_insert_offset;                           \
         if (psb_insert_elems) {                                                                 \
             memmove((array) + psb_insert_offset + 1,                                            \
                     (array) + psb_insert_offset, psb_insert_elems * psb_insert_size);           \
         }                                                                                       \
                                                                                                 \
-        psb_insert_array->size++;                                                               \
+        psb_get_meta(array)->size++;                                                            \
         (array)[psb_insert_offset] = value;                                                     \
         psb_insert_result = (array) + psb_insert_offset;                                        \
     }                                                                                           \
@@ -387,6 +404,16 @@ static void pMaybeGrowStretchyBuffer(void* array, usize datasize) {
 
     if ((meta->size + 1) * datasize > meta->endofstorage) {
         psb_grow(array, datasize, PSTD_STRETCHY_BUFFER_GROWTH_COUNT);
+    }
+}
+
+PSTD_UNUSED
+static void pmaybe_grow_n_elems(void *array, usize datasize, usize count) {
+    pstretchy_buffer_t** meta_ptr = (pstretchy_buffer_t**)array;
+    pstretchy_buffer_t* meta = (*meta_ptr) - 1;
+
+    if ((meta->size + count) * datasize >= meta->endofstorage) {
+        psb_grow(array, datasize, (meta->size + count));
     }
 }
 
