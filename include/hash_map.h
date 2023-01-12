@@ -1,6 +1,7 @@
-
+#pragma once
+#ifndef PSTD_HASH_MAP_HEADER
+#define PSTD_HASH_MAP_HEADER
 #include "general.h"
-
 #ifndef PSTD_NUM_BUCKETS
 #define PSTD_NUM_BUCKETS 32
 #endif
@@ -467,5 +468,5 @@ static inline void phs_shrink_implementation_(phashmap_t **hmap_ptr, usize data_
     hmap->end_of_storage = storage_size;
     *hmap_ptr = hmap;
 }
-
+#endif // PSTD_HASH_MAP_HEADER
 
