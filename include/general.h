@@ -98,6 +98,11 @@
 #define PSTD_INDIRECT0(...)  PSTD_INDIRECT1((PSTD_REMOVE_EMPTY __VA_ARGS__ () 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
 #define PSTD_INDIRECT(...) PSTD_INDIRECT0(__VA_ARGS__)
 
+#define PSTD_NARG16__(args) PSTD_ARG16 args
+#define PSTD_NARG16_(...) \
+    PSTD_NARG16__((__VA_ARGS__, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1))
+#define PSTD_NARG16(...) PSTD_NARG16_(__VA_ARGS__)
+
 // based off of an implementation by Jens Gusted https://gustedt.wordpress.com/2010/06/08/detect-empty-macro-arguments/ (may, 2022)
 #define PSTD_ISEMPTY(...)                                                   \
 PSTD_ISEMPTY_(                                                              \
@@ -145,10 +150,23 @@ PSTD_ISEMPTY_(                                                              \
 #define PSTD_DEFAULT_(...) PSTD_CONCAT __VA_ARGS__
 #define PSTD_DEFAULT(value, default) PSTD_DEFAULT_((PSTD_DEFAULT_, PSTD_ISEMPTY(value)))(value, default)
 
-_Static_assert(PSTD_DEFAULT(, 5)  == 5, "");
+#if PSTD_C_VERSION >= PSTD_C11
+_Static_assert(PSTD_DEFAULT( , 5) == 5, "");
 _Static_assert(PSTD_DEFAULT(2, 5) == 2, "");
+#elif defined(PSTD_MSVC)
+static_assert(PSTD_DEFAULT( , 5) == 5, "");
+static_assert(PSTD_DEFAULT(2, 5) == 2, "");
+#else
+int static_assertPSTD_DEFAULT0[PSTD_DEFAULT( , 5) == 5 ? 1 : 0];
+int static_assertPSTD_DEFAULT1[PSTD_DEFAULT(2, 5) == 2 ? 1 : 0];
+#endif
 
-
+#if defined(PSTD_MSVC)
+#define PSTD_PRAGMA_MESSAGE_(msg) PSTD_STRINGIFY( message (__FILE__"("PSTD_STRINGIFY(__LINE__)")"PSTD_STRINGIFY(: Warning PSTD)": "msg))
+#define PSTD_PRAGMA_MESSAGE(msg) _Pragma(PSTD_PRAGMA_MESSAGE_(msg))
+#else
+#define PSTD_PRAGMA_MESSAGE(msg) _Pragma(PSTD_STRINGIFY(message msg))
+#endif
 
 #include <stdio.h>
 #include <stdlib.h>
