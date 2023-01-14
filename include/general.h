@@ -204,26 +204,31 @@ typedef size_t    usize;
 typedef float     f32;
 typedef double    f64;
 
-#if !defined(__cplusplus)
-#   if PSTD_C_VERSION >= PSTD_C99
-        typedef _Bool pbool_t;
-        static const pbool_t pfalse = 0;
-        static const pbool_t ptrue  = 1;
-#       ifndef bool
-#           define bool pbool_t
-#       endif
-#       ifndef false
-#           define false pfalse
-#       endif
-#       ifndef true
-#           define true ptrue
-#       endif
-#   else
-        enum pbool_t { false, true };
-        typedef enum pbool_t pbool_t;
-#   endif
+#if PSTD_C_VERSION >= PSTD_C99
+     typedef _Bool pbool_t;
+     static const pbool_t pfalse = 0;
+     static const pbool_t ptrue  = 1;
+#    ifndef bool
+#        define bool pbool_t
+#    endif
+#    ifndef false
+#        define false pfalse
+#    endif
+#    ifndef true
+#        define true ptrue
+#    endif
 #else
-    using p_bool = pbool_t;
+     enum pbool_t { pfalse, ptrue };
+     typedef enum pbool_t pbool_t;
+#    ifndef bool
+#        define bool pbool_t
+#    endif
+#    ifndef false
+#        define false pfalse
+#    endif
+#    ifndef true
+#        define true ptrue
+#    endif
 #endif
 
 #if defined(PSTD_MSVC) || (__clang__ && _WIN32)
