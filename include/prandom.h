@@ -5,23 +5,23 @@
 #if !defined(PSTD_NO_INTRINSICS)
 // due to clang being fucking stupid this header is basically useless
 #include <immintrin.h>
-PSTD_UNUSED static inline pbool_t phardware_seed_s16(s16 *memory);
-PSTD_UNUSED static inline pbool_t phardware_seed_u16(u16 *memory);
+PSTD_UNUSED static inline bool phardware_seed_s16(s16 *memory);
+PSTD_UNUSED static inline bool phardware_seed_u16(u16 *memory);
 
-PSTD_UNUSED static inline pbool_t phardware_seed_s32(s32 *memory);
-PSTD_UNUSED static inline pbool_t phardware_seed_u32(u32 *memory);
+PSTD_UNUSED static inline bool phardware_seed_s32(s32 *memory);
+PSTD_UNUSED static inline bool phardware_seed_u32(u32 *memory);
 
-PSTD_UNUSED static inline pbool_t phardware_seed_s64(s64 *memory);
-PSTD_UNUSED static inline pbool_t phardware_seed_u64(u64 *memory);
+PSTD_UNUSED static inline bool phardware_seed_s64(s64 *memory);
+PSTD_UNUSED static inline bool phardware_seed_u64(u64 *memory);
 
-PSTD_UNUSED static inline pbool_t phardware_random_s16(s16 *memory);
-PSTD_UNUSED static inline pbool_t phardware_random_u16(u16 *memory);
+PSTD_UNUSED static inline bool phardware_random_s16(s16 *memory);
+PSTD_UNUSED static inline bool phardware_random_u16(u16 *memory);
 
-PSTD_UNUSED static inline pbool_t phardware_random_s32(s32 *memory);
-PSTD_UNUSED static inline pbool_t phardware_random_u32(u32 *memory);
+PSTD_UNUSED static inline bool phardware_random_s32(s32 *memory);
+PSTD_UNUSED static inline bool phardware_random_u32(u32 *memory);
 
-PSTD_UNUSED static inline pbool_t phardware_random_s64(s64 *memory);
-PSTD_UNUSED static inline pbool_t phardware_random_u64(u64 *memory);
+PSTD_UNUSED static inline bool phardware_random_s64(s64 *memory);
+PSTD_UNUSED static inline bool phardware_random_u64(u64 *memory);
 #endif
 
 // void pSetGenerator(pRandomNumberGeneratorKind);
@@ -103,57 +103,57 @@ s8  prd_random_s8 (prandom_device_t *);
 
 #if !defined(PSTD_NO_INTRINSICS)
 PSTD_UNUSED 
-static inline pbool_t pHardwareSeedS16(s16 *memory) {
-    return (pbool_t)_rdseed16_step((u16*)memory);
+static inline bool pHardwareSeedS16(s16 *memory) {
+    return (bool)_rdseed16_step((u16*)memory);
 }
-PSTD_UNUSED static inline pbool_t pHardwareSeedU16(u16 *memory) {
-    return (pbool_t)_rdseed16_step(memory);
-}
-
-PSTD_UNUSED static inline pbool_t pHardwareSeedS32(s32 *memory) {
-    return (pbool_t)_rdseed32_step((u32*)memory);
+PSTD_UNUSED static inline bool pHardwareSeedU16(u16 *memory) {
+    return (bool)_rdseed16_step(memory);
 }
 
-PSTD_UNUSED static inline pbool_t pHardwareSeedU32(u32 *memory) {
-    return (pbool_t)_rdseed32_step(memory);
+PSTD_UNUSED static inline bool pHardwareSeedS32(s32 *memory) {
+    return (bool)_rdseed32_step((u32*)memory);
 }
 
-PSTD_UNUSED static inline pbool_t pHardwareSeedS64(s64 *memory) {
-    return (pbool_t)_rdseed64_step((u64*)memory);
+PSTD_UNUSED static inline bool pHardwareSeedU32(u32 *memory) {
+    return (bool)_rdseed32_step(memory);
 }
 
-PSTD_UNUSED static inline pbool_t pHardwareSeedU64(u64 *memory) {
-    return (pbool_t)_rdseed64_step(memory);
+PSTD_UNUSED static inline bool pHardwareSeedS64(s64 *memory) {
+    return (bool)_rdseed64_step((u64*)memory);
 }
 
-PSTD_UNUSED
-static inline pbool_t pHardwareRandomS16(s16 *memory) {
-    return (pbool_t)_rdrand16_step((u16*)memory);
+PSTD_UNUSED static inline bool pHardwareSeedU64(u64 *memory) {
+    return (bool)_rdseed64_step(memory);
 }
 
 PSTD_UNUSED
-static inline pbool_t pHardwareRandomU16(u16 *memory) {
-    return (pbool_t)_rdrand16_step(memory);
+static inline bool pHardwareRandomS16(s16 *memory) {
+    return (bool)_rdrand16_step((u16*)memory);
 }
 
 PSTD_UNUSED
-static inline pbool_t pHardwareRandomS32(s32 *memory) {
-    return (pbool_t)_rdrand32_step((u32*)memory);
+static inline bool pHardwareRandomU16(u16 *memory) {
+    return (bool)_rdrand16_step(memory);
 }
 
 PSTD_UNUSED
-static inline pbool_t pHardwareRandomU32(u32 *memory) {
-    return (pbool_t)_rdrand32_step(memory);
+static inline bool pHardwareRandomS32(s32 *memory) {
+    return (bool)_rdrand32_step((u32*)memory);
 }
 
 PSTD_UNUSED
-static inline pbool_t pHardwareRandomS64(s64 *memory) {
-    return (pbool_t)_rdrand64_step((u64*)memory);
+static inline bool pHardwareRandomU32(u32 *memory) {
+    return (bool)_rdrand32_step(memory);
 }
 
 PSTD_UNUSED
-static inline pbool_t pHardwareRandomU64(u64 *memory) {
-    return (pbool_t)_rdrand64_step(memory);
+static inline bool pHardwareRandomS64(s64 *memory) {
+    return (bool)_rdrand64_step((u64*)memory);
+}
+
+PSTD_UNUSED
+static inline bool pHardwareRandomU64(u64 *memory) {
+    return (bool)_rdrand64_step(memory);
 }
 #endif 
 

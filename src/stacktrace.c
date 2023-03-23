@@ -13,7 +13,7 @@
 
 static struct {
     const char *program_name;
-    pbool_t handled;
+    bool handled;
 } PSTD_STACKTRACE_CTX = {0};
 
 
@@ -54,7 +54,7 @@ void pstacktrace_signal_handler(int sig) {
     }
 }
 
-void pstacktrace_pretty_print(pbool_t named, const char *symbol_name, usize offset, void *address) {
+void pstacktrace_pretty_print(bool named, const char *symbol_name, usize offset, void *address) {
 #define PROGRAM_NAME(x)  PSTD_STACKTRACE_PATH_COLOUR x "%Cc"
 #define FUNCTION_NAME(x) "%Cfg(255,  34, 243)" x "%Cc"
 #define NUMBER(x)        PSTD_STACKTRACE_NUMBER_COLOUR x "%Cc"
@@ -110,7 +110,7 @@ void panic(const char *fmt, ...) {
     abort();
 }
 
-pbool_t passert_impl(const char *expr, const char *file, u32 line) {
+bool passert_impl(const char *expr, const char *file, u32 line) {
 #warning TODO: parse expression text and format it
     pstacktrace_print();
     pprintf(PSTD_STACKTRACE_ERROR_COLOUR  "Assertion failed%Cc: '%s', file "

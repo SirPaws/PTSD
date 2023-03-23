@@ -50,7 +50,7 @@
 
 
 struct phashmap_t;
-typedef pbool_t phashmap_compare_func_t(struct phashmap_t *, void *, void *);
+typedef bool phashmap_compare_func_t(struct phashmap_t *, void *, void *);
 typedef usize phashmap_hash_func_t(struct phashmap_t*, void *);
 typedef struct phashmap_key_t phashmap_key_t;
 struct phashmap_key_t {
@@ -204,7 +204,7 @@ static inline usize phs_default_hash_func(phashmap_t *hmap, void *ptr) {
 }
 
 PSTD_UNUSED
-static inline pbool_t phs_default_compare_func(phashmap_t *hmap, void *_a, void *_b) {
+static inline bool phs_default_compare_func(phashmap_t *hmap, void *_a, void *_b) {
     u8 *a = _a, *b = _b;
     for (usize i = 0; i < hmap->key_size; i++) {
         if (a[i] != b[i]) return false;

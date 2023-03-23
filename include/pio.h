@@ -96,7 +96,7 @@ extern "C" {
 // TODO: CreateFile lpSecurityAttributes 
 typedef struct pgeneric_stream_t pgeneric_stream_t;
 struct pgeneric_stream_t {
-    pbool_t is_valid;
+    bool is_valid;
 #if defined(PSTD_USE_ALLOCATOR)
     pallocator_t cb;
 #endif
@@ -152,9 +152,9 @@ struct pstream_info_t {
     usize buffersize;
     // filestream
     char *filename;
-    pbool_t createbuffer;
-    pbool_t createifnonexistent;
-    pbool_t append;
+    bool createbuffer;
+    bool createifnonexistent;
+    bool append;
 };
 
 void pset_stream(pgeneric_stream_t *new_stream, pgeneric_stream_t *old_stream);
@@ -259,10 +259,10 @@ static inline void pio_read(void *buf, usize size) {
 #endif
 
 // line needs to be freed
-pbool_t pstream_read_line(pgeneric_stream_t *stream, pstring_t *string);
+bool pstream_read_line(pgeneric_stream_t *stream, pstring_t *string);
 
 PSTD_UNUSED
-static inline pbool_t pread_line(pstring_t *str) {
+static inline bool pread_line(pstring_t *str) {
     return pstream_read_line(pget_stream(), str);
 }
 
@@ -306,10 +306,10 @@ u32 pdtoa(char *buf, f64);
 
 #if defined(PSTD_GNU_COMPATIBLE)
 PSTD_UNUSED
-static inline pbool_t pchar_anyof(int character, u32 count, const char tests[count]) {//NOLINT
+static inline bool pchar_anyof(int character, u32 count, const char tests[count]) {//NOLINT
 #else
 PSTD_UNUSED
-static inline pbool_t pchar_anyof(int character, u32 count, const char tests[]) {
+static inline bool pchar_anyof(int character, u32 count, const char tests[]) {
 #endif
     for (u32 i = 0; i < count; i++) {
         if (character == tests[i]) return true;
@@ -350,7 +350,7 @@ struct pprintf_info_t {
     const char *restrict fmt;
     va_list *list;
     u32 count; 
-    pbool_t *failflag;
+    bool *failflag;
 };
 
 enum pformatting_length_t {
@@ -362,13 +362,13 @@ enum pformatting_length_t {
 
 typedef struct pformatting_specification_t pformatting_specification_t;
 struct pformatting_specification_t {
-    pbool_t right_justified;
+    bool right_justified;
     u32 justification_count;
     u32 zero_justification_count;
-    pbool_t prefix_zero;
-    pbool_t force_sign;
+    bool prefix_zero;
+    bool force_sign;
     enum pformatting_length_t length;
-    pbool_t alternative_form;
+    bool alternative_form;
 };
 
 typedef void pformat_callback_t(pprintf_info_t*); 

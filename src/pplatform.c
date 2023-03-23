@@ -32,9 +32,9 @@ phandle_t *pnull_handle(void) {
 #endif
 }
 
-pbool_t penable_console_color_output(void) {
+bool penable_console_color_output(void) {
 #if defined(PSTD_WINDOWS)
-    pbool_t result = SetConsoleMode(GetModuleHandle(NULL), ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+    bool result = SetConsoleMode(GetModuleHandle(NULL), ENABLE_VIRTUAL_TERMINAL_PROCESSING);
     return result != 0;
 #else
     return true; // don't know if it's enabled but we assume it is
@@ -311,7 +311,7 @@ void pfile_close(phandle_t *handle) {
 #endif
 }
 
-pbool_t pfile_write(phandle_t *handle, pstring_t buf) {
+bool pfile_write(phandle_t *handle, pstring_t buf) {
 #if defined(PSTD_WINDOWS)
     return WriteFile(handle, buf.c_str, (u32)buf.length, NULL, NULL);
 #elif  defined(PSTD_LINUX) || defined(PSTD_WASM)
@@ -320,7 +320,7 @@ pbool_t pfile_write(phandle_t *handle, pstring_t buf) {
 #endif
 }
 
-pbool_t pfile_read(phandle_t *handle, pbuffer_t buf) {
+bool pfile_read(phandle_t *handle, pbuffer_t buf) {
 #if defined(PSTD_WINDOWS)
     DWORD bytes_read = 0;
     ReadFile(handle, buf.c_str, buf.length, &bytes_read, NULL);
@@ -331,7 +331,7 @@ pbool_t pfile_read(phandle_t *handle, pbuffer_t buf) {
 #endif
 }
 
-pbool_t pseek(phandle_t *handle, isize size, enum pseek_mode_t mode) {//NOLINT
+bool pseek(phandle_t *handle, isize size, enum pseek_mode_t mode) {//NOLINT
 #if defined(PSTD_WINDOWS)
     
     DWORD wmode;
@@ -390,7 +390,7 @@ void *pmemory_map_file(phandle_t *handle, pfile_access_t access, u64 size, u64 o
     return NULL;
 #endif
 }
-pbool_t punmap_file(void *handle) {
+bool punmap_file(void *handle) {
 #if defined(PSTD_WINDOWS)
     if (UnmapViewOfFile(handle)) 
          return true;
@@ -403,7 +403,7 @@ pbool_t punmap_file(void *handle) {
 
 
 char pnext_in_environment_path(const char **buffer, const char *file, char *out, usize *length);
-pbool_t pfind_in_environment_path(const char *file, pstring_t *out) {
+bool pfind_in_environment_path(const char *file, pstring_t *out) {
 #if defined(PSTD_WINDOWS)
 
     char buffer[PATH_MAX];

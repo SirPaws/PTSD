@@ -61,7 +61,7 @@ void pcli_run(pcli_t *ctx, int argc, const char *argv[argc]) {
     for (int i = 1; i < argc; i++) {
         usize length = strlen(argv[i]);
         pstring_t arg_text = { length, (void*)argv[i] };
-        pbool_t handler_result = true;
+        bool handler_result = true;
 
         psb_foreach(ctx->arguments) {
             pstring_t spelling = it->spelling;

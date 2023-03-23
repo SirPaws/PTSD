@@ -27,6 +27,7 @@
             .init          = pwindow_hit_device_init,       \
             .shutdown      = pwindow_hit_device_shutdown,   \
             .update        = pwindow_hit_device_update,     \
+            .state         = pwindow_hit_state,             \
             .wnd_proc      = pwindow_hit_device_wnd_proc,   \
         },                                                  \
         .event_handler = (fn)                               \
@@ -39,6 +40,7 @@
             .init          = pkeyboard_init,    \
             .shutdown      = pkeyboard_shutdown,\
             .update        = pkeyboard_update,  \
+            .state         = pkeyboard_state,   \
             .wnd_proc      = pkeyboard_wnd_proc,\
         }                                       \
     })
@@ -49,6 +51,7 @@
             .init          = pmouse_init,       \
             .shutdown      = pmouse_shutdown,   \
             .update        = pmouse_update,     \
+            .state         = pmouse_state,      \
             .wnd_proc      = pmouse_wnd_proc,   \
         }                                       \
     })
@@ -86,7 +89,7 @@ struct pstate_t {
     usize       code;
     pmodifier_t modifiers;
     union {
-        struct { pbool_t held, pressed, released; };
+        struct { bool held, pressed, released; };
         struct { f64 x, y; };
     };
 };
@@ -103,6 +106,7 @@ struct pdevice_t {
     void (*init)(pdevice_t *const);
     void (*shutdown)(pdevice_t *const);
     void (*update)(pdevice_t *const);
+    pstate_t (*state)(pdevice_t *const, usize);
 
 #ifdef PSTD_WINDOWS
     pdevice_proc_result_t (*wnd_proc)(pdevice_t *const,
@@ -265,14 +269,15 @@ typedef enum pkeycode_t {
     PSTD_KEY_RIGHT_ALT     = 346,
     PSTD_KEY_RIGHT_SUPER   = 347,
     PSTD_KEY_MENU          = 348,
+    PSTD_KEY_COUNT         = 512,
 } pkeycode_t;
 
 typedef struct pkeyboard_t pkeyboard_t;
 struct pkeyboard_t {
     pdevice_t  device;
-    pkeycode_t keycodes[512];
-    usize      scancodes[512];
-    pstate_t   keys[512];
+    pkeycode_t keycodes[PSTD_KEY_COUNT];
+    usize      scancodes[PSTD_KEY_COUNT];
+    pstate_t   keys[PSTD_KEY_COUNT];
 };
 
 typedef enum pmouse_button_t {
@@ -404,7 +409,7 @@ struct pwindow_info_t {
 #ifdef PSTD_WINDOWS
 void                  pwindow_hit_device_init(pdevice_t *const);
 void                  pwindow_hit_device_shutdown(pdevice_t *const);
-void                  pwindow_hit_device_update(pdevice_t *const);
+pstate_t              pwindow_hit_device_update(pdevice_t *const);
 pdevice_proc_result_t pwindow_hit_device_wnd_proc(pdevice_t *const, 
         pwindow_t *const, u32 msg, usize wparam, plong_ptr_t lparam);
 #endif
@@ -412,14 +417,31 @@ pdevice_proc_result_t pwindow_hit_device_wnd_proc(pdevice_t *const,
 void                  pkeyboard_init(pdevice_t *const);
 void                  pkeyboard_shutdown(pdevice_t *const);
 void                  pkeyboard_update(pdevice_t *const);
+pstate_t              pkeyboard_state(pdevice_t *const, usize value);
+#ifdef PSTD_WINDOWS
 pdevice_proc_result_t pkeyboard_wnd_proc(pdevice_t *const, 
         pwindow_t *const, u32 msg, usize wparam, plong_ptr_t lparam);
+#endif
 
 void                  pmouse_init(pdevice_t *const);
 void                  pmouse_shutdown(pdevice_t *const);
 void                  pmouse_update(pdevice_t *const);
+pstate_t              pmouse_state(pdevice_t *const, usize value);
+#ifdef PSTD_WINDOWS
 pdevice_proc_result_t pmouse_wnd_proc(pdevice_t *const, 
         pwindow_t *const, u32 msg, usize wparam, plong_ptr_t lparam);
+#endif
+
+pmodifier_t pmodifier(void);
+
+PSTD_UNUSED
+static pstate_t pstate(pdevice_t *device, usize value) { return device->state(device, value); }
+#define pstate(d, value) \
+    pstate(\
+        _Generic((d), \
+        pdevice_t*:  (d),\
+        default:   &(d)->device\
+        ), (value))
 
 const pwindow_t *pwindow(const pwindow_info_t *const);
 
