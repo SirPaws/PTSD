@@ -326,6 +326,7 @@ struct pmouse_t {
 };
 typedef enum pcontext_kind_t {
     PDEFAULT,
+    PNO_CONTEXT,
     PSOFTWARE,
     POPENGL,
     PVULKAN,
@@ -339,6 +340,19 @@ typedef enum pcontext_kind_t {
 
 typedef union pcontext_t pcontext_t;
 union pcontext_t {
+    //TODO: when these have been formalised
+    // i want to write a transparent struct in here
+    // so that if someone doesn't care about the internals
+    // they can just call the functions
+    // like say we have a clearscreen function
+    // then someone could just do
+    // win->context->clear(win->context);
+    // instead of doing something like
+    // switch (pget_context_kind(win)) {
+    // case POPENGL: pget_context(win)->gl.clear(pget_context(win));
+    // case PVULKAN: pget_context(win)->vk.clear(pget_context(win));
+    // ...
+    // }
     const struct pgl_context_t *gl;
     const struct pvk_context_t *vk;
     const struct psw_context_t *sw;
@@ -370,7 +384,7 @@ typedef enum pwindow_hint_t {
     PHINT_NONE,
     PHINT_FULLSCREEN,
     // this will setup a window that is resizable but has no titlebar
-    PHINT_UNDECORATION,
+    PHINT_UNDECORATED,
     PHINT_NO_RESIZE,
 } pwindow_hint_t;
 
@@ -384,6 +398,7 @@ struct pwindow_info_t {
     u32             width, height;
     u32             x, y;
     pwindow_t      *parent;
+    /* pcontext_info_t *context*/
 };
 
 #ifdef PSTD_WINDOWS
