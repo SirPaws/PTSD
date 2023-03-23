@@ -1,5 +1,6 @@
 #if !defined(PPLATFORM_HEADER_ONLY)
 #include "pplatform.h"
+#include "pstacktrace.h"
 #endif
 
 
@@ -9,6 +10,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #elif defined(PSTD_WINDOWS)
+#define PATH_MAX (32767)
 #include <Windows.h>
 #include <handleapi.h>
 #include <memoryapi.h>
@@ -55,9 +57,62 @@ phandle_t *pget_stdin_handle(void) {
 #endif
 }
 
+
+pstring_t pfullpath(pstring_t path) {
+    char input[PATH_MAX + 1];
+    if (path.length > PATH_MAX) {
+        panic("path '%S' is too long!", path);
+    }
+    memset(input, 0, path.length + 1);
+    memcpy(input, path.c_str, path.length);
+
+#if defined(PSTD_WINDOWS)
+
+    phandle_t *handle = pfile_open(input, P_READ_ACCESS);
+    if (handle == NULL) {
+        panic("could not get full path for '%S'", path);
+    }
+
+    BY_HANDLE_FILE_INFORMATION info = {0};
+    if (!GetFileInformationByHandle(handle, &info)) {
+        pfile_close(handle);
+        panic("could not get full path for '%S'", path);
+    }
+    if (info.nNumberOfLinks > 1) {
+        
+    }
+
+    u32 size = GetFinalPathNameByHandle(handle, NULL, 0, FILE_NAME_NORMALIZED);
+    if (size == 0) {
+        pfile_close(handle);
+        panic("could not get full path for '%S'", path);
+    }
+
+    char *buffer = pzero_allocate(size + 1);
+    if (!buffer) {
+        pfile_close(handle);
+        panic("could not get full path for '%S'", path);
+    }
+
+    u32 actual_size = GetFinalPathNameByHandle(handle, buffer, size + 1, FILE_NAME_NORMALIZED);
+    if (actual_size != size) {
+        pfile_close(handle);
+        panic("could not get full path for '%S'", path);
+    }
+
+    pfile_close(handle);
+    return pstring(buffer, size);
+#else
+    char *result = realpath(input, buffer);
+    if (result == NULL) {
+        panic("could not get full path for '%S'", path);
+    }
+#endif
+}
+
 pfilestat_t pstat_file(phandle_t *handle) {
 #if defined(PSTD_WINDOWS)
-    if (!handle || handle == INVALID_HANDLE_VALUE) return (pfilestat_t){0};
+    if (!handle || handle == INVALID_HANDLE_VALUE) return (pfilestat_t){0};//NOLINT
 #else
     (void)handle;
 #endif
@@ -91,6 +146,118 @@ pfilestat_t pget_filestat(const char *file) {
     result.accesstime   = data.st_atim.tv_nsec;
     result.writetime    = data.st_mtim.tv_nsec;
 #endif
+    return result;
+}
+
+pfilestat_ex_t pfilestat_ex(const char *file, bool include_link_path) {
+#define WIN32_COMBINE_HIGH_LOW( high, low ) ((u64)(high) << 31 | (low)) 
+    if (!file) return (pfilestat_ex_t){0};
+
+    pfilestat_ex_t result = {0};
+
+    WIN32_FILE_ATTRIBUTE_DATA data;
+    bool exists   = GetFileAttributesEx(file, GetFileExInfoStandard, &data);
+    result.type = (exists) ? PFT_NOT_FOUND : PFT_REGULAR;
+    if (data.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT)
+        result.type = PFT_SYMLINK;
+    else if (data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+        result.type = PFT_DIRECTORY;
+
+    result.exists = exists;
+    result.filesize = WIN32_COMBINE_HIGH_LOW(data.nFileSizeHigh, data.nFileSizeLow);
+
+    result.creationtime = WIN32_COMBINE_HIGH_LOW(data.ftCreationTime.dwHighDateTime, 
+            data.ftCreationTime.dwLowDateTime);
+    result.accesstime   = WIN32_COMBINE_HIGH_LOW(data.ftLastAccessTime.dwHighDateTime,
+            data.ftLastAccessTime.dwLowDateTime);
+    result.writetime    = WIN32_COMBINE_HIGH_LOW(data.ftLastWriteTime.dwHighDateTime, 
+            data.ftLastWriteTime.dwLowDateTime);
+    result.num_links = 1;
+    
+    result.is_hidden       = data.dwFileAttributes & FILE_ATTRIBUTE_HIDDEN;
+    result.is_readonly     = data.dwFileAttributes & FILE_ATTRIBUTE_READONLY;
+    result.is_system_owned = data.dwFileAttributes & FILE_ATTRIBUTE_SYSTEM;
+    result.is_temporary    = data.dwFileAttributes & FILE_ATTRIBUTE_TEMPORARY;
+    
+    phandle_t *handle = pfile_open(file, P_READ_ACCESS);
+    BY_HANDLE_FILE_INFORMATION info = {0};
+    if (!GetFileInformationByHandle(handle, &info)) {
+        pfile_close(handle);
+        return result;
+    }
+
+    result.num_links = info.nNumberOfLinks;
+    result.link_exists   = true;
+    result.link_filesize = WIN32_COMBINE_HIGH_LOW(info.nFileSizeHigh, info.nFileSizeLow);
+
+    result.link_creationtime = WIN32_COMBINE_HIGH_LOW(info.ftCreationTime.dwHighDateTime, 
+            info.ftCreationTime.dwLowDateTime);
+    result.link_accesstime   = WIN32_COMBINE_HIGH_LOW(info.ftLastAccessTime.dwHighDateTime,
+            info.ftLastAccessTime.dwLowDateTime);
+    result.link_writetime    = WIN32_COMBINE_HIGH_LOW(info.ftLastWriteTime.dwHighDateTime, 
+            info.ftLastWriteTime.dwLowDateTime);
+    
+    result.is_link_hidden       = info.dwFileAttributes & FILE_ATTRIBUTE_HIDDEN;
+    result.is_link_readonly     = info.dwFileAttributes & FILE_ATTRIBUTE_READONLY;
+    result.is_link_system_owned = info.dwFileAttributes & FILE_ATTRIBUTE_SYSTEM;
+    result.is_link_temporary    = info.dwFileAttributes & FILE_ATTRIBUTE_TEMPORARY;
+
+    result.id = WIN32_COMBINE_HIGH_LOW(info.nFileIndexHigh, info.nFileIndexLow);
+
+    if (include_link_path) {
+        u32 size = GetFinalPathNameByHandle(handle, NULL, 0, FILE_NAME_NORMALIZED);
+        if (size == 0) {
+            pfile_close(handle);
+            panic("could not get full path for '%s'", file);
+        }
+
+        char *buffer = pzero_allocate(size + 1);
+        if (!buffer) {
+            pfile_close(handle);
+            panic("could not get full path for '%s'", file);
+        }
+
+        u32 actual_size = GetFinalPathNameByHandle(handle, buffer, size + 1, FILE_NAME_NORMALIZED);
+        if (actual_size != size) {
+            pfile_close(handle);
+            panic("could not get link path for '%s'", file);
+        }
+
+        result.link_target = pstring(buffer, size);
+    }
+
+    pfile_close(handle);
+    return result;
+#undef WIN32_COMBINE_HIGH_LOW
+}
+
+pfilestat_ex_t pfilestat_exs(pstring_t str, bool include_link_path) {
+    pstring_t copy = pcopy_string(str);
+    pfilestat_ex_t result = pfilestat_ex(copy.c_str, include_link_path);
+    pfree_string(&copy);
+    return result;
+}
+
+u64 pfile_id(const char *file) {
+#define WIN32_COMBINE_HIGH_LOW( high, low ) ((u64)(high) << 31 | (low)) 
+    if (!file) return 0;
+    phandle_t *handle = pfile_open(file, P_READ_ACCESS);
+    BY_HANDLE_FILE_INFORMATION info = {0};
+    if (!GetFileInformationByHandle(handle, &info)) {
+        pfile_close(handle);
+        return 0;
+    }
+
+    u64 id = WIN32_COMBINE_HIGH_LOW(info.nFileIndexHigh, info.nFileIndexLow);
+    pfile_close(handle);
+    return id;
+#undef WIN32_COMBINE_HIGH_LOW
+}
+
+u64 pfile_ids(pstring_t file) {
+    pstring_t copy = pcopy_string(file);
+    u64 result = pfile_id(copy.c_str);
+    pfree_string(&copy);
     return result;
 }
 
@@ -164,7 +331,7 @@ pbool_t pfile_read(phandle_t *handle, pbuffer_t buf) {
 #endif
 }
 
-pbool_t pseek(phandle_t *handle, isize size, enum pseek_mode_t mode) {
+pbool_t pseek(phandle_t *handle, isize size, enum pseek_mode_t mode) {//NOLINT
 #if defined(PSTD_WINDOWS)
     
     DWORD wmode;
@@ -175,7 +342,9 @@ pbool_t pseek(phandle_t *handle, isize size, enum pseek_mode_t mode) {
     default: wmode = FILE_CURRENT;
     }
 
-    DWORD result = SetFilePointer(handle, size, 0, wmode);
+    if (size > LONG_MAX) panic("seek size too long");
+
+    DWORD result = SetFilePointer(handle, (long)size, 0, wmode);
     return result != INVALID_SET_FILE_POINTER;
 #elif  defined(PSTD_LINUX) || defined(PSTD_WASM)
     u32 wmode;
@@ -191,7 +360,7 @@ pbool_t pseek(phandle_t *handle, isize size, enum pseek_mode_t mode) {
 #endif
 }
 
-void *pmemory_map_file(phandle_t *handle, pfile_access_t access, u64 size, u64 offset) {
+void *pmemory_map_file(phandle_t *handle, pfile_access_t access, u64 size, u64 offset) {//NOLINT
 #if defined(PSTD_WINDOWS)
 
     DWORD protection = 0;
@@ -211,7 +380,7 @@ void *pmemory_map_file(phandle_t *handle, pfile_access_t access, u64 size, u64 o
     case P_READ_ACCESS:                file_access = FILE_MAP_READ; break;
     case P_WRITE_ACCESS:               file_access = FILE_MAP_WRITE; break;
     }
-    LARGE_INTEGER i = {.QuadPart = offset};
+    LARGE_INTEGER i = {.QuadPart = (s64)offset};
     if (access & P_EXECUTABLE) file_access |= FILE_MAP_EXECUTE;
     void *mapping = MapViewOfFile(mapped_file, file_access, i.HighPart, i.LowPart, size);
     CloseHandle(mapped_file);
@@ -236,7 +405,6 @@ pbool_t punmap_file(void *handle) {
 char pnext_in_environment_path(const char **buffer, const char *file, char *out, usize *length);
 pbool_t pfind_in_environment_path(const char *file, pstring_t *out) {
 #if defined(PSTD_WINDOWS)
-#define PATH_MAX (32767)
 
     char buffer[PATH_MAX];
     usize length = GetEnvironmentVariable("Path", buffer, PATH_MAX);

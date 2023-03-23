@@ -27,6 +27,64 @@ struct pfilestat_t {
 pfilestat_t pget_filestat(const char*);
 pfilestat_t pstat_file(phandle_t *);
 
+typedef struct pfilestat_ex_t pfilestat_ex_t;
+struct pfilestat_ex_t {
+    enum { 
+        PFT_NONE, 
+        PFT_NOT_FOUND, 
+        PFT_REGULAR, 
+        PFT_SYMLINK, 
+        PFT_DIRECTORY 
+    } type;
+    union {
+        struct { 
+            pbool_t exists;
+            u64 filesize;
+            u64 creationtime;
+            u64 accesstime;
+            u64 writetime;
+        };
+        pfilestat_t stat;
+    };
+
+    pstring_t link_target;
+    union {
+        struct { 
+            pbool_t link_exists;
+            u64 link_filesize;
+            u64 link_creationtime;
+            u64 link_accesstime;
+            u64 link_writetime;
+        };
+        pfilestat_t link_stat;
+    };
+
+    // if this is a hard link it'll show how many links there are
+    // this value will be at least 1, unless the file itself does not exists
+    u64 num_links;
+    u64 id;
+    
+    bool is_hidden;
+    bool is_readonly;
+    bool is_system_owned;
+    bool is_temporary;
+    
+    bool is_link_hidden;
+    bool is_link_readonly;
+    bool is_link_system_owned;
+    bool is_link_temporary;
+};
+
+// if `exclude_link_path` is set, these two functions will allocate
+// a string an place it in the `link_target` member of the return
+pfilestat_ex_t pfilestat_ex(const char *, bool include_link_path);
+pfilestat_ex_t pfilestat_exs(pstring_t, bool include_link_path);
+
+u64 pfile_id(const char *);
+u64 pfile_ids(pstring_t);
+
+pstring_t pfullpath(pstring_t path);
+
 typedef enum pfile_access_t {
     P_WRITE_ACCESS = 0b001,
     P_READ_ACCESS  = 0b010,
