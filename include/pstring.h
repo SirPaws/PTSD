@@ -84,9 +84,9 @@ static inline pstring_t pallocate_string(const char *buffer, usize length) {
 
 PSTD_UNUSED 
 static inline pstring_t pcopy_string(const pstring_t str) {
-    char *dst = pallocate(sizeof(char) * str.length);
+    char *dst = pzero_allocate(str.length + 1);
     struct pstring_t r = pstring((char *)dst, str.length);
-    memcpy(dst, str.c_str, sizeof(char) * str.length);
+    memcpy(dst, str.c_str, str.length);
 	return r;
 }
 
