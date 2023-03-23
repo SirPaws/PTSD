@@ -24,9 +24,9 @@ PSTD_UNUSED static inline void pfree_string(pstring_t *str);
 PSTD_UNUSED static inline pstring_t pallocate_string(const char *buffer, usize length);
 PSTD_UNUSED static inline pstring_t pcopy_string(const pstring_t str);
 
-PSTD_UNUSED static inline pbool_t pcmp_string(const pstring_t rhs, const pstring_t lhs);
-PSTD_UNUSED static inline pbool_t pcmpi_string(const pstring_t rhs, const pstring_t lhs);
-PSTD_UNUSED static inline pbool_t pempty_string(const pstring_t str);
+PSTD_UNUSED static inline bool pcmp_string(const pstring_t rhs, const pstring_t lhs);
+PSTD_UNUSED static inline bool pcmpi_string(const pstring_t rhs, const pstring_t lhs);
+PSTD_UNUSED static inline bool pempty_string(const pstring_t str);
 
 
 PSTD_UNUSED static inline pstring_t premove_from_end(pstring_t str, pstring_t match);
@@ -91,7 +91,7 @@ static inline pstring_t pcopy_string(const pstring_t str) {
 }
 
 PSTD_UNUSED 
-static inline pbool_t pcmp_string(const pstring_t rhs, const pstring_t lhs) {
+static inline bool pcmp_string(const pstring_t rhs, const pstring_t lhs) {
 	if (rhs.length != lhs.length) return false;
     for (register usize i = 0; i < rhs.length; i++) {
         if (rhs.c_str[i] != lhs.c_str[i]) return false;
@@ -100,7 +100,7 @@ static inline pbool_t pcmp_string(const pstring_t rhs, const pstring_t lhs) {
 }
 
 PSTD_UNUSED 
-static inline pbool_t pcmpi_string(const pstring_t rhs, const pstring_t lhs) {
+static inline bool pcmpi_string(const pstring_t rhs, const pstring_t lhs) {
 	if (rhs.length != lhs.length) return false;
     for (register usize i = 0; i < rhs.length; i++) {
         char left = (char)toupper(lhs.c_str[i]);
@@ -110,7 +110,7 @@ static inline pbool_t pcmpi_string(const pstring_t rhs, const pstring_t lhs) {
     return true;
 }
 
-PSTD_UNUSED static inline pbool_t pempty_string(const pstring_t str) {
+PSTD_UNUSED static inline bool pempty_string(const pstring_t str) {
     return !(str.length || str.c_str);
 }
 
@@ -146,7 +146,7 @@ PSTD_UNUSED static inline pstring_t pnext_none_whitespace(pstring_t *type, usize
     }
 
 
-    static pbool_t is_delimiter[255] = {0};
+    static bool is_delimiter[255] = {0};
     memset(is_delimiter, 0, sizeof(is_delimiter));
     for (usize i = 0; i < count; i++)
         is_delimiter[(int)delimiter[i]] = true;

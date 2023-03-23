@@ -11,7 +11,7 @@
 
 
 
-pbool_t passert_impl(const char *expr, const char *file, u32 line);
+bool passert_impl(const char *expr, const char *file, u32 line);
 
 #ifdef NDEBUG
 #define passert(expression) ((void)0)

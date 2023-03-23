@@ -14,13 +14,13 @@ extern "C" {
 
 // compare number to range
 PSTD_UNUSED
-static pbool_t pcmp_range(s32 num, s32 start, s32 end) {
+static bool pcmp_range(s32 num, s32 start, s32 end) {
     return num > start && num < end;
 }
 
 // compare number to range inclusive
 PSTD_UNUSED
-static pbool_t pcmp_range_i(s32 num, s32 start, s32 end) {
+static bool pcmp_range_i(s32 num, s32 start, s32 end) {
     return (num >= start) && (num <= end);
 }
 

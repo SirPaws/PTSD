@@ -26,7 +26,7 @@ typedef struct pbinary_string_return_t pbinary_string_return_t;
 struct pbinary_string_return_t {
     char *buffer;
     pstring_t str;
-    pbool_t iszero;
+    bool iszero;
 };
 
 static padv_user_callback_t *stretchy advcallbacks = NULL;
@@ -38,7 +38,7 @@ struct pio_global_t {
     pstd_stream_t           std_stream;
     u32                     default_code_page;
     pgeneric_stream_t       current_stream;
-    pbool_t                 colored_output;
+    bool                 colored_output;
 #if defined(PSTD_WINDOWS)
     u32                     console_mode;
 #endif
@@ -58,8 +58,8 @@ PIO_STATIC void pprintf_handle_dot(pprintf_info_t *info, pformatting_specificati
 PIO_STATIC void pprintf_handle_number(pprintf_info_t *info, pformatting_specification_t *spec);
 PIO_STATIC void pprintf_handle_bool(pprintf_info_t *info, pformatting_specification_t *spec);
 
-PIO_STATIC void pprintf_handle_char(pprintf_info_t *info, pbool_t wide);
-PIO_STATIC void pprintf_handle_string(pprintf_info_t *info, pformatting_specification_t *spec, pbool_t cstr);
+PIO_STATIC void pprintf_handle_char(pprintf_info_t *info, bool wide);
+PIO_STATIC void pprintf_handle_string(pprintf_info_t *info, pformatting_specification_t *spec, bool cstr);
 PIO_STATIC void pprintf_handle_int(pprintf_info_t *info, pformatting_specification_t *spec, char printtype);
 PIO_STATIC void pprintf_handle_float(pprintf_info_t *info, pformatting_specification_t *spec);
 PIO_STATIC void pprintf_handle_pointer(pprintf_info_t *info, pformatting_specification_t *spec);
@@ -91,7 +91,7 @@ u32 pvbprintf(pgeneric_stream_t *stream, const char *restrict fmt, va_list list)
             fmt = fmt_next;
         }
         else {
-            pbool_t failed = false;
+            bool failed = false;
             struct pformatting_specification_t jinfo = {
                 .right_justified = false,
                 .justification_count = 0,
@@ -108,7 +108,7 @@ u32 pvbprintf(pgeneric_stream_t *stream, const char *restrict fmt, va_list list)
             };
 
 #define SetBitCount(n, increment) bitcount = n; bitcountset = true; fmt_next += increment
-            pbool_t found_format = false;
+            bool found_format = false;
             for (usize i = 0; i < psb_size(callbacks); i++) {
                 if (*fmt_next == callbacks[i].format.c_str[0]) {
                     found_format = true;
@@ -269,7 +269,7 @@ PIO_STATIC u64 pprintf_print_justified(pgeneric_stream_t *stream, pformatting_sp
     }
 }
 
-PIO_STATIC pbool_t pis_rgb_whitespace(char chr) {
+PIO_STATIC bool pis_rgb_whitespace(char chr) {
      return chr == ' ' 
          || chr == '\t' 
          || chr == '\r' 
@@ -431,7 +431,7 @@ PIO_STATIC void pprintf_handle_foreground_color(pprintf_info_t *info) {
     }
 }
 
-PIO_STATIC void pprintf_handle_char(pprintf_info_t *info, pbool_t wide) {
+PIO_STATIC void pprintf_handle_char(pprintf_info_t *info, bool wide) {
     if (PSTD_EXPECT(wide == false, 1)){
         int character = va_arg(*info->list, int);
         pstream_write_char(info->stream, (char)character);
@@ -444,7 +444,7 @@ PIO_STATIC void pprintf_handle_char(pprintf_info_t *info, pbool_t wide) {
     }
 }
 
-PIO_STATIC void pprintf_handle_string(pprintf_info_t *info, pformatting_specification_t *spec, pbool_t cstring) {
+PIO_STATIC void pprintf_handle_string(pprintf_info_t *info, pformatting_specification_t *spec, bool cstring) {
     pstring_t str;
     if (cstring){
         char *c_str = va_arg(*info->list, char *);
@@ -741,14 +741,14 @@ PIO_STATIC void pprintf_handle_minus(pprintf_info_t *info, pformatting_specifica
 
 
 PIO_STATIC void pprintf_handle_signedint(
-        pprintf_info_t *info, pformatting_specification_t *spec, s64 num, pbool_t always_print_sign);
+        pprintf_info_t *info, pformatting_specification_t *spec, s64 num, bool always_print_sign);
 PIO_STATIC void pprintf_handle_octalint(
-        pprintf_info_t *info, pformatting_specification_t *spec, s64 num, pbool_t always_print_sign);
+        pprintf_info_t *info, pformatting_specification_t *spec, s64 num, bool always_print_sign);
 PIO_STATIC void pprintf_handle_hexadecimalint(
         pprintf_info_t *info, pformatting_specification_t *spec, u64 num, 
-        pbool_t always_print_sign, pbool_t uppercase);
+        bool always_print_sign, bool uppercase);
 PIO_STATIC void pprintf_handle_unsignedint(
-        pprintf_info_t *info, pformatting_specification_t *spec, u64 num, pbool_t always_print_sign);
+        pprintf_info_t *info, pformatting_specification_t *spec, u64 num, bool always_print_sign);
 
 PIO_STATIC void pprintf_handle_int(pprintf_info_t *info, pformatting_specification_t *spec, char printtype) {
     u64 num = 0;
@@ -784,7 +784,7 @@ PIO_STATIC void pprintf_handle_int(pprintf_info_t *info, pformatting_specificati
 
 PIO_STATIC 
 void pprintf_handle_signedint(
-        pprintf_info_t *info, pformatting_specification_t *spec, s64 num, pbool_t always_print_sign) 
+        pprintf_info_t *info, pformatting_specification_t *spec, s64 num, bool always_print_sign) 
 {
     u32 count;
     char buf[STRING_BUFFER_SIZE];
@@ -797,7 +797,7 @@ void pprintf_handle_signedint(
 
 PIO_STATIC 
 void pprintf_handle_unsignedint(
-        pprintf_info_t *info, pformatting_specification_t *spec, u64 num, pbool_t always_print_sign) 
+        pprintf_info_t *info, pformatting_specification_t *spec, u64 num, bool always_print_sign) 
 {
     u32 count;
     char buf[STRING_BUFFER_SIZE];
@@ -811,7 +811,7 @@ void pprintf_handle_unsignedint(
 
 PIO_STATIC 
 void pprintf_handle_octalint(
-        pprintf_info_t *info, pformatting_specification_t *spec, s64 num, pbool_t always_print_sign)
+        pprintf_info_t *info, pformatting_specification_t *spec, s64 num, bool always_print_sign)
 {
     u32 count;
     char buf[STRING_BUFFER_SIZE];
@@ -843,7 +843,7 @@ void pprintf_handle_octalint(
 PIO_STATIC 
 void pprintf_handle_hexadecimalint(
         pprintf_info_t *info, pformatting_specification_t *spec, 
-        u64 num, pbool_t always_print_sign, pbool_t uppercase) 
+        u64 num, bool always_print_sign, bool uppercase) 
 {
     u32 count;
     char buf[STRING_BUFFER_SIZE];
@@ -926,7 +926,7 @@ PIO_STATIC void pprintf_handle_pointer(pprintf_info_t *info, pformatting_specifi
 #error neither 32 or 64 bit!
 #endif
 
-    pbool_t uppercase = spec->alternative_form;
+    bool uppercase = spec->alternative_form;
     spec->alternative_form = true; 
 
     void *ptr = va_arg(*info->list, void *);

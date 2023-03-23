@@ -473,9 +473,9 @@ static void psb_grow(void* array_ptr, usize datasize, usize count) {
 
 PSTD_UNUSED
 #if defined(PSTD_USE_ALLOCATOR)
-static pstretchy_buffer_t* psb_get_metadata(void* array, usize data_size, pbool_t create, pallocator_t cb) {
+static pstretchy_buffer_t* psb_get_metadata(void* array, usize data_size, bool create, pallocator_t cb) {
 #else
-static pstretchy_buffer_t* psb_get_metadata(void* array, usize data_size, pbool_t create) {//NOLINT
+static pstretchy_buffer_t* psb_get_metadata(void* array, usize data_size, bool create) {//NOLINT
 #endif
 #if defined(PSTD_USE_ALLOCATOR)
     if (!cb.allocator) {

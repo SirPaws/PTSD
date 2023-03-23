@@ -5,7 +5,7 @@
 #include "stretchy_buffer.h"
 
 struct pcli_t;
-typedef pbool_t pcli_arg_handler(struct pcli_t*, void *userdata, pstring_t value);
+typedef bool pcli_arg_handler(struct pcli_t*, void *userdata, pstring_t value);
 
 typedef struct pcli_t pcli_t;
 struct pcli_t {

@@ -25,7 +25,7 @@ struct pio_global_t {
     pstd_stream_t           std_stream;
     u32                     default_code_page;
     pgeneric_stream_t       current_stream;
-    pbool_t                 colored_output;
+    bool                 colored_output;
 #if defined(PSTD_WINDOWS)
     u32                     console_mode;
 #endif
@@ -38,7 +38,7 @@ static struct pio_global_t PIO_GLOBALS = {};
 static pstd_stream_t standard_stream = {0};
 static u32 default_code_page = 0;
 static pgeneric_stream_t current_stream;
-static pbool_t color_output = true;
+static bool color_output = true;
 
 #if defined(PSTD_WINDOWS)
 static u32 console_mode = 0;
@@ -117,7 +117,7 @@ pgeneric_stream_t pinit_stream(pstream_info_t info) {
         case FILE_STREAM: {
                 pfilestat_ex_t stat_ex = pfilestat_ex(info.filename, false);
                 pfilestat_t stat = (stat_ex.type == PFT_SYMLINK) ? stat_ex.link_stat : stat_ex.stat;
-                pbool_t result = stat.exists;
+                bool result = stat.exists;
                 u64 filesize = stat.filesize;
 
                 pfile_stream_t fstream = {
@@ -256,13 +256,13 @@ void pstream_move(pgeneric_stream_t *stream, isize size) {
 
 void pstream_read(pgeneric_stream_t *stream, void *buf, usize size) {
     if (!stream || !stream->is_valid) return;
-    if ((pbool_t)(stream->flags & STREAM_INPUT) == false) return;
+    if ((bool)(stream->flags & STREAM_INPUT) == false) return;
 
     if (PSTD_EXPECT(stream->type == STANDARD_STREAM, 1) || stream->type == FILE_STREAM) {
         // this should probably have a comment explaning why we do this
         phandle_t *handle = 
             stream->type == STANDARD_STREAM ? stream->stdin_handle : stream->stdout_handle;  
-        pbool_t result = pfile_read(handle, pstring(buf, size));
+        bool result = pfile_read(handle, pstring(buf, size));
         if (result == false) memset(buf, 0, size);
     } else {
         if (stream->cursor + size >= psb_size(stream->buffer)) {
@@ -272,9 +272,9 @@ void pstream_read(pgeneric_stream_t *stream, void *buf, usize size) {
         memcpy(buf, buffer + stream->cursor, size);
     }
 }
-pbool_t pstream_read_line(pgeneric_stream_t *stream, pstring_t *string) {
+bool pstream_read_line(pgeneric_stream_t *stream, pstring_t *string) {
     if (!stream || !stream->is_valid) return false;
-    if ((pbool_t)(stream->flags & STREAM_INPUT) == false) return false;
+    if ((bool)(stream->flags & STREAM_INPUT) == false) return false;
 
     if (PSTD_EXPECT(stream->type == STANDARD_STREAM, 1) || stream->type == FILE_STREAM) {
         // this should probably have a comment explaning why we do this
@@ -324,7 +324,7 @@ pbool_t pstream_read_line(pgeneric_stream_t *stream, pstring_t *string) {
 
 void pstream_write_string(pgeneric_stream_t *stream, pstring_t str) {
     if (!stream->is_valid) return;
-    if ((pbool_t)(stream->flags & STREAM_OUTPUT) == false) return;
+    if ((bool)(stream->flags & STREAM_OUTPUT) == false) return;
 
     if (PSTD_EXPECT(stream->type == STANDARD_STREAM, 1) || stream->type == FILE_STREAM) {
         pfile_write(stream->handle, str);
@@ -341,7 +341,7 @@ void pstream_write_string(pgeneric_stream_t *stream, pstring_t str) {
 
 void pstream_write_char(pgeneric_stream_t *stream, char chr) {
     if (!stream->is_valid) return;
-    if ((pbool_t)(stream->flags & STREAM_OUTPUT) == false) return;
+    if ((bool)(stream->flags & STREAM_OUTPUT) == false) return;
 
     if (PSTD_EXPECT(stream->type == STANDARD_STREAM, 1) || stream->type == FILE_STREAM) {
         pfile_write(stream->handle, pstring( &chr, 1 ));

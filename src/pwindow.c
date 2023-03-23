@@ -143,7 +143,8 @@ static LRESULT CALLBACK pwin32_winproc(HWND hwnd, UINT msg, WPARAM wparam, LPARA
 
 void pwindow_hit_device_init(pdevice_t *const) { /* INTENTIONAL STUB */ }
 void pwindow_hit_device_shutdown(pdevice_t *const) { /* INTENTIONAL STUB */ }
-void pwindow_hit_device_update(pdevice_t *const) { /* INTENTIONAL STUB */ }
+pstate_t pwindow_hit_device_update(pdevice_t *const) { return (pstate_t){0};/* INTENTIONAL STUB */ }
+void                  pwindow_hit_state(pdevice_t *const, usize value);
 pdevice_proc_result_t pwindow_hit_device_wnd_proc(pdevice_t *const device, 
         pwindow_t *const win, u32 msg, usize, plong_ptr_t lparam) 
 {
@@ -313,11 +314,7 @@ void pkeyboard_init(pdevice_t *const device) {
     }
 }
 
-void pkeyboard_shutdown(pdevice_t *const) { }
-void pkeyboard_update(pdevice_t *const device) {
-    pkeyboard_t *keyboard = (void*)device;
-    static pstate_t oldkeystate[512] = {0};
-
+pmodifier_t pmodifier(void) {
     pmodifier_t mods = 0;
     if (GetKeyState(VK_SHIFT) & 0x8000)
         mods |= PSTD_MOD_SHIFT;
@@ -331,6 +328,14 @@ void pkeyboard_update(pdevice_t *const device) {
         mods |= PSTD_MOD_CAPS_LOCK;
     if (GetKeyState(VK_NUMLOCK) & 1)
         mods |= PSTD_MOD_NUM_LOCK;
+    return mods;
+}
+
+void pkeyboard_shutdown(pdevice_t *const) { }
+void pkeyboard_update(pdevice_t *const device) {
+    pkeyboard_t *keyboard = (void*)device;
+    static pstate_t oldkeystate[512] = {0};
+    pmodifier_t mods = pmodifier();
 
     pstate_t *keystate = keyboard->keys;
     for (register usize i = 0; i < 512; i++) {
@@ -371,6 +376,11 @@ void pkeyboard_update(pdevice_t *const device) {
     }
 }
 
+pstate_t pkeyboard_state(pdevice_t *const device, usize value) {
+    if (value >= PSTD_KEY_COUNT) return (pstate_t){0};
+    return ((pkeyboard_t*)device)->keys[value];
+}
+
 pdevice_proc_result_t pkeyboard_wnd_proc(pdevice_t *const device, 
         pwindow_t *const win, u32 msg, usize wparam, plong_ptr_t lparam)
 {
@@ -405,20 +415,7 @@ void pmouse_shutdown(pdevice_t *const) {}
 void pmouse_update(pdevice_t *const device) {
     static pstate_t oldmousestate[PSTD_MOUSE_INPUT_COUNT] = {0};
     pmouse_t *mouse = (void*)device;
-    
-    pmodifier_t mods = 0;
-    if (GetKeyState(VK_SHIFT) & 0x8000)
-        mods |= PSTD_MOD_SHIFT;
-    if (GetKeyState(VK_CONTROL) & 0x8000)
-        mods |= PSTD_MOD_CONTROL;
-    if (GetKeyState(VK_MENU) & 0x8000)
-        mods |= PSTD_MOD_ALT;
-    if ((GetKeyState(VK_LWIN) | GetKeyState(VK_RWIN)) & 0x8000)
-        mods |= PSTD_MOD_SUPER;
-    if (GetKeyState(VK_CAPITAL) & 1)
-        mods |= PSTD_MOD_CAPS_LOCK;
-    if (GetKeyState(VK_NUMLOCK) & 1)
-        mods |= PSTD_MOD_NUM_LOCK;
+    pmodifier_t mods = pmodifier();
     
     pstate_t *mousestate = mouse->inputs;
     for (int i = 0; i < PSTD_MOUSE_BUTTON_31 + 1; i++) {
@@ -457,6 +454,11 @@ void pmouse_update(pdevice_t *const device) {
             mousestate[i].pressed  = false;
         }
     }
+}
+
+pstate_t pmouse_state(pdevice_t *const device, usize value) {
+    if (value >= PSTD_MOUSE_INPUT_COUNT) return (pstate_t){0};
+    return ((pmouse_t*)device)->inputs[value];
 }
 
 pdevice_proc_result_t pmouse_wnd_proc(pdevice_t *const device, 

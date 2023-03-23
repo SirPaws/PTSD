@@ -17,7 +17,7 @@ phandle_t *pget_stdin_handle(void);
 
 typedef struct pfilestat_t pfilestat_t;
 struct pfilestat_t {
-    pbool_t exists;
+    bool exists;
     u64 filesize;
     u64 creationtime;
     u64 accesstime;
@@ -38,7 +38,7 @@ struct pfilestat_ex_t {
     } type;
     union {
         struct { 
-            pbool_t exists;
+            bool exists;
             u64 filesize;
             u64 creationtime;
             u64 accesstime;
@@ -50,7 +50,7 @@ struct pfilestat_ex_t {
     pstring_t link_target;
     union {
         struct { 
-            pbool_t link_exists;
+            bool link_exists;
             u64 link_filesize;
             u64 link_creationtime;
             u64 link_accesstime;
@@ -96,7 +96,7 @@ phandle_t *pfile_create(const char*, pfile_access_t);
 
 void pfile_close(phandle_t *);
 
-pbool_t pfile_write(phandle_t*, const pstring_t);
+bool pfile_write(phandle_t*, const pstring_t);
 
 // pbuffer_t is equivalent to a pstring_t
 // where: 
@@ -104,10 +104,10 @@ pbool_t pfile_write(phandle_t*, const pstring_t);
 // 'size'  is how many bytes we want to read
 // 
 // if this function fails it returns false
-pbool_t pfile_read(phandle_t*, pbuffer_t);
+bool pfile_read(phandle_t*, pbuffer_t);
 
 void *pmemory_map_file(phandle_t*, pfile_access_t, u64 size, u64 offset);
-pbool_t punmap_file(void *);
+bool punmap_file(void *);
 
 enum pseek_mode_t {
     P_SEEK_SET,
@@ -115,16 +115,16 @@ enum pseek_mode_t {
     P_SEEK_END,
 };
 
-pbool_t pseek(phandle_t*, isize size, enum pseek_mode_t mode);
+bool pseek(phandle_t*, isize size, enum pseek_mode_t mode);
 
 // if the system supports colored output we enable it
 // if it doesn't this function will do nothing.
 // on windows this function is tecnhically volatile as it
 // changes the console mode, but we don't give a flying huha
-pbool_t penable_console_color_output(void);
+bool penable_console_color_output(void);
 
 // the out string is allocated with malloc, remember to free it
-pbool_t pfind_in_environment_path(const char *file, pstring_t *out);
+bool pfind_in_environment_path(const char *file, pstring_t *out);
 
 #endif // PPLATFORM_HEADER
 
