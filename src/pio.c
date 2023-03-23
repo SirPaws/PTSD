@@ -115,7 +115,8 @@ pgeneric_stream_t pinit_stream(pstream_info_t info) {
                 return (pgeneric_stream_t )std;
             }
         case FILE_STREAM: {
-                pfilestat_t stat = pget_filestat(info.filename);
+                pfilestat_ex_t stat_ex = pfilestat_ex(info.filename, false);
+                pfilestat_t stat = (stat_ex.type == PFT_SYMLINK) ? stat_ex.link_stat : stat_ex.stat;
                 pbool_t result = stat.exists;
                 u64 filesize = stat.filesize;
 
