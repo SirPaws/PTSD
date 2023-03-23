@@ -22,6 +22,19 @@ const pwindow_t *pwindow(const pwindow_info_t *info) {
     };
     if (!RegisterClass(&wndclass)) return NULL;
 
+    bool decorated  = true;
+    // bool fullscreen = false;
+    bool resizeable = true;
+    for (usize i = 0; i < info->hint_count; i++) {
+        if (info->hints[i] == PHINT_NONE) continue;
+
+        switch (info->hints[i]) { //NOLINT
+        case PHINT_FULLSCREEN:  panic("fullscreen is unimplemented!"); break;
+        case PHINT_UNDECORATED: decorated  = false; break;
+        case PHINT_NO_RESIZE:   resizeable = false; break;
+        }
+    }
+
     passert(plimits(s32).max >= info->x);
     passert(plimits(s32).max >= info->y);
     s32 x = (s32)(info->x == PSTD_ZERO ? 0 : (info->x ?: CW_USEDEFAULT));
@@ -32,7 +45,15 @@ const pwindow_t *pwindow(const pwindow_info_t *info) {
     s32 width  = (s32)(info->width  ?: 960);
     s32 height = (s32)(info->height ?: 540);
 
-    DWORD style    = WS_CAPTION|WS_SYSMENU|WS_MINIMIZEBOX|WS_POPUP|WS_CLIPSIBLINGS|WS_CLIPCHILDREN;
+    DWORD style    = WS_CLIPSIBLINGS | WS_CLIPCHILDREN | WS_SYSMENU | WS_MINIMIZEBOX;
+    if (decorated) {
+        style |= WS_CAPTION;
+        if (resizeable) style |= WS_MAXIMIZEBOX | WS_THICKFRAME;
+    } else {
+        style |= WS_POPUP;
+        if (resizeable) style |= WS_THICKFRAME;
+    }
+
     DWORD style_ex = WS_EX_APPWINDOW;
     
     RECT rect = { 0, 0, (s32)width, (s32)height };
