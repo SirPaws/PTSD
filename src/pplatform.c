@@ -156,8 +156,10 @@ pfilestat_ex_t pfilestat_ex(const char *file, bool include_link_path) {
     pfilestat_ex_t result = {0};
 
     WIN32_FILE_ATTRIBUTE_DATA data;
-    bool exists   = GetFileAttributesEx(file, GetFileExInfoStandard, &data);
-    result.type = (exists) ? PFT_NOT_FOUND : PFT_REGULAR;
+    bool exists = GetFileAttributesEx(file, GetFileExInfoStandard, &data);
+    if (!exists) return (pfilestat_ex_t){.type = PFT_NOT_FOUND};
+
+    result.type = PFT_REGULAR;
     if (data.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT)
         result.type = PFT_SYMLINK;
     else if (data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
