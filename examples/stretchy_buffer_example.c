@@ -5,20 +5,9 @@
 #include <stdlib.h>
 
 
-#if defined(PSTD_USE_ALLOCATOR)
-void *debug_allocator(Allocator *, AllocationKind, usize, void*);
-#endif
 
 int main(void) {
-#if defined(PSTD_USE_ALLOCATOR)
-    Allocator alloc = {
-        .allocator = debug_allocator
-    };
-    int *vector = psb_create_stretchy_buffer(int, alloc);
-#else
     int *vector = NULL;
-#endif
-    // pReserve(vector, 5);
 
     psb_pushback(vector, 1);
     psb_pushback(vector, 2);
