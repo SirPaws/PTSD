@@ -498,8 +498,8 @@ static usize psb_reserve_implementation_(void *mem, usize count, usize data_size
         assert(meta);
         meta->endofstorage = array_size;
         (*array_ptr)       = (void*)(meta + 1);
-    } else if ((data_size) < (count)) {
-        __auto_type meta = psb_get_meta(*array_ptr);
+    } else if (psb_size(*array_ptr) < (count)) {
+        pstretchy_buffer_t *meta = psb_get_meta(*array_ptr);
         usize size = ((data_size) * (count)) + sizeof(pstretchy_buffer_t);
         void *tmp = preallocate(size, meta);
         assert(tmp);
