@@ -2,10 +2,6 @@
 #include "stretchy_buffer.h"
 #include <ctype.h>
 
-#if !defined(PSTD_C11)
-#error what the fuck is going on?
-#endif 
-
 #define PIO_STATIC PSTD_UNUSED static inline 
 
 #define BASE_10 10
@@ -70,14 +66,10 @@ PIO_STATIC void pprintf_handle_background_color(pprintf_info_t *info);
 PIO_STATIC void pprintf_handle_foreground_color(pprintf_info_t *info);
 PIO_STATIC void pprintf_handle_color_clear(pprintf_info_t *info);
 
-PIO_STATIC u64 pprintf_print_justified(pgeneric_stream_t *stream, pformatting_specification_t *spec, pstring_t str);
+PIO_STATIC u64  pprintf_print_justified(pgeneric_stream_t *stream, pformatting_specification_t *spec, pstring_t str);
 PIO_STATIC void pprintf_get_rgb(const char *restrict* fmt, pstring_t rgb[3]);
 
-#if defined(PSTD_USE_ALLOCATOR)
-PIO_STATIC struct pbinary_string_return_t pmake_binary_string(u64 bitcount, u64 num, pallocator_t *cb);
-#else
 PIO_STATIC struct pbinary_string_return_t pmake_binary_string(u64 bitcount, u64 num);
-#endif
 
 u32 pvbprintf(pgeneric_stream_t *stream, const char *restrict fmt, va_list list) {
     u32 printcount = 0;
@@ -86,7 +78,7 @@ u32 pvbprintf(pgeneric_stream_t *stream, const char *restrict fmt, va_list list)
         if (PSTD_EXPECT(*fmt != '%', 1)) {
             const char *restrict fmt_next = fmt;
             while (pchar_anyof(*fmt_next, 2, (char[2]){ '%', '\0'}) == false) fmt_next++;
-            pstream_write_string(stream, pstring((char*)fmt, (usize)(fmt_next - fmt)));
+            pwrite_stream_s(stream, pstring((char*)fmt, (usize)(fmt_next - fmt)));
             printcount += fmt_next - fmt;
             fmt = fmt_next;
         }
@@ -176,7 +168,7 @@ u32 pvbprintf(pgeneric_stream_t *stream, const char *restrict fmt, va_list list)
                 }
             }
             if (failed) {
-                pstream_write_string(stream, pstring((char*)fmt, pinfo.fmt - fmt));
+                pwrite_stream_s(stream, pstring((char*)fmt, pinfo.fmt - fmt));
                 fmt = pinfo.fmt + 1;
             }
             fmt = pinfo.fmt + 1;
@@ -186,19 +178,11 @@ u32 pvbprintf(pgeneric_stream_t *stream, const char *restrict fmt, va_list list)
     return printcount;
 }
 
-#if defined(PSTD_USE_ALLOCATOR)
-PIO_STATIC pbinary_string_return_t pmake_binary_string(u64 bitcount, u64 num, pallocator_t *cb) {
-#else
 PIO_STATIC pbinary_string_return_t pmake_binary_string(u64 bitcount, u64 num) { //NOLINT
-#endif
     struct pbinary_string_return_t ret = { 0 };
 
     u64 bit = 1ULL << (bitcount - 1);
-#if defined(PSTD_USE_ALLOCATOR)
-    ret.buffer = cb->allocator(cb, ALLOCATE, bitcount + 1, NULL);
-#else
     ret.buffer = pallocate(bitcount + 1);
-#endif
     for (u64 i = 0; i < bitcount; i++) {
        ret.buffer[i] = '0' + ((num & bit) ? 1 : 0); //NOLINT
        bit >>= 1;
@@ -226,9 +210,6 @@ PIO_STATIC u64 pprintf_print_justified(pgeneric_stream_t *stream, pformatting_sp
     s64 space_count = spec->justification_count; 
     s64 zero_count  = spec->zero_justification_count; 
     s64 count = space_count + zero_count;
-#if defined(PSTD_USE_ALLOCATOR)
-    pallocator_t cb = stream->cb;
-#endif
 
     s64 test = count - (s64)string.length;
     if (test > 0) {
@@ -236,35 +217,25 @@ PIO_STATIC u64 pprintf_print_justified(pgeneric_stream_t *stream, pformatting_sp
         zero_count  -= (s64)string.length;
         usize space_size = space_count > 0 ? space_count : 1;
         usize zero_size  = zero_count  > 0 ? zero_count  : 1;
-#if defined(PSTD_USE_ALLOCATOR)
-        char *spaces = cb.allocator(&cb, ALLOCATE, space_size, NULL);
-        char *zeros  = cb.allocator(&cb, ALLOCATE, zero_size, NULL);
-#else
         char *spaces = pallocate(space_size);
         char *zeros  = pallocate(zero_size);
-#endif
         if (space_count > 0)  memset(spaces, ' ', space_count);
         if (zero_count  > 0)  memset(zeros,  '0', zero_count);
 
         if (PSTD_EXPECT(!spec->right_justified, 1)) {
-            if (space_count > 0) pstream_write_string(stream, pstring( spaces, space_count ));
-            if (zero_count > 0)  pstream_write_string(stream, pstring( zeros, zero_count ));
-            pstream_write_string(stream, string);
+            if (space_count > 0) pwrite_stream_s(stream, pstring( spaces, space_count ));
+            if (zero_count > 0)  pwrite_stream_s(stream, pstring( zeros, zero_count ));
+            pwrite_stream_s(stream, string);
         } else {
-            if (zero_count > 0)  pstream_write_string(stream, pstring( zeros, zero_count ));
-            pstream_write_string(stream, string);
-            if (space_count > 0) pstream_write_string(stream, pstring( spaces, space_count ));
+            if (zero_count > 0)  pwrite_stream_s(stream, pstring( zeros, zero_count ));
+            pwrite_stream_s(stream, string);
+            if (space_count > 0) pwrite_stream_s(stream, pstring( spaces, space_count ));
         }
-#if defined(PSTD_USE_ALLOCATOR)
-        cb.allocator(&cb, SIZED_FREE, space_size, spaces);
-        cb.allocator(&cb, SIZED_FREE, zero_size, zeros);
-#else
         psized_free(space_size, spaces);
         psized_free(zero_size, zeros);
-#endif
         return string.length + (u64)test;
     } else {
-        pstream_write_string(stream, string);
+        pwrite_stream_s(stream, string);
         return string.length;
     }
 }
@@ -309,10 +280,6 @@ PIO_STATIC void pprintf_handle_binary(pprintf_info_t *info, pformatting_specific
     };
 #undef NUM_BITS_IN_BYTE
 
-#if defined(PSTD_USE_ALLOCATOR)
-    pallocator_t *cb = &info->stream->cb;
-#endif
-
     if (spec->length == PFL_128) {
         union {
             struct { u64 high, low; };
@@ -323,30 +290,20 @@ PIO_STATIC void pprintf_handle_binary(pprintf_info_t *info, pformatting_specific
         conv.low  = 0;
         conv.ld = ld;
 
-#if defined(PSTD_USE_ALLOCATOR)
-        pbinary_string_return_t high = pmake_binary_string(numbits[PFL_LL], conv.high, cb);
-        pbinary_string_return_t low  = pmake_binary_string(numbits[PFL_LL], conv.low,  cb);
-#else                                       
         pbinary_string_return_t high = pmake_binary_string(numbits[PFL_LL], conv.high);
         pbinary_string_return_t low  = pmake_binary_string(numbits[PFL_LL], conv.low);
-#endif
         if (spec->zero_justification_count == 0 && spec->prefix_zero) {
             spec->zero_justification_count = numbits[PFL_LL];
             info->count += pprintf_print_justified(info->stream, spec, high.str);
-            pstream_write_string(info->stream, low.str);
+            pwrite_stream_s(info->stream, low.str);
         } else {
             pprintf_print_justified(info->stream, spec, high.str);
-            pstream_write_string(info->stream, low.str);
+            pwrite_stream_s(info->stream, low.str);
         }
 
         info->count += low.str.length; 
-#if defined(PSTD_USE_ALLOCATOR)
-        cb->allocator(cb, SIZED_FREE, numbits[PFL_LL], high.buffer);
-        cb->allocator(cb, SIZED_FREE, numbits[PFL_LL], low.buffer);
-#else
         psized_free(numbits[PFL_LL], high.buffer);
         psized_free(numbits[PFL_LL], low.buffer);
-#endif
     } else {
         u64 num;
         if (PSTD_EXPECT(spec->length == PFL_DEFAULT, 1)) {
@@ -366,22 +323,14 @@ PIO_STATIC void pprintf_handle_binary(pprintf_info_t *info, pformatting_specific
             }
         }
         
-#if defined(PSTD_USE_ALLOCATOR)
-        pbinary_string_return_t binary = pmake_binary_string(numbits[ spec->length ], num, cb);
-#else
         pbinary_string_return_t binary = pmake_binary_string(numbits[ spec->length ], num);
-#endif
         if (spec->zero_justification_count == 0 && spec->prefix_zero) {
             spec->zero_justification_count = binary.iszero ? 0 : numbits[ spec->length ]; 
             info->count += pprintf_print_justified(info->stream, spec, binary.str);
         } else {
             info->count += pprintf_print_justified(info->stream, spec, binary.str);
         }
-#if defined(PSTD_USE_ALLOCATOR)
-        cb->allocator(cb, SIZED_FREE, numbits[ spec->length ], binary.buffer);
-#else
         psized_free(numbits[ spec->length ], binary.buffer);
-#endif
     }
 }
 
@@ -393,13 +342,13 @@ PIO_STATIC void pprintf_handle_background_color(pprintf_info_t *info) {
         pprintf_get_rgb(&info->fmt, RGB);
     if (PSTD_EXPECT(PIO_GLOBALS.colored_output, 1)) {
         static const pstring_t header = pcreate_const_string("\x1b[48;2;");
-        pstream_write_string(info->stream, header);
-        pstream_write_string(info->stream, RGB[0]);
-        pstream_write_char(info->stream, ';');
-        pstream_write_string(info->stream, RGB[1]);
-        pstream_write_char(info->stream, ';');
-        pstream_write_string(info->stream, RGB[2]);
-        pstream_write_char(info->stream, 'm');
+        pwrite_stream_s(info->stream, header);
+        pwrite_stream_s(info->stream, RGB[0]);
+        pwrite_stream_c(info->stream, ';');
+        pwrite_stream_s(info->stream, RGB[1]);
+        pwrite_stream_c(info->stream, ';');
+        pwrite_stream_s(info->stream, RGB[2]);
+        pwrite_stream_c(info->stream, 'm');
         info->count += RGB[0].length 
             +  RGB[1].length 
             +  RGB[2].length
@@ -416,13 +365,13 @@ PIO_STATIC void pprintf_handle_foreground_color(pprintf_info_t *info) {
 
     if (PSTD_EXPECT(PIO_GLOBALS.colored_output, 1)) {
         static const pstring_t header = pcreate_const_string("\x1b[38;2;");
-        pstream_write_string(info->stream, header);
-        pstream_write_string(info->stream, RGB[0]);
-        pstream_write_char(info->stream, ';');
-        pstream_write_string(info->stream, RGB[1]);
-        pstream_write_char(info->stream, ';');
-        pstream_write_string(info->stream, RGB[2]);
-        pstream_write_char(info->stream, 'm');
+        pwrite_stream_s(info->stream, header);
+        pwrite_stream_s(info->stream, RGB[0]);
+        pwrite_stream_c(info->stream, ';');
+        pwrite_stream_s(info->stream, RGB[1]);
+        pwrite_stream_c(info->stream, ';');
+        pwrite_stream_s(info->stream, RGB[2]);
+        pwrite_stream_c(info->stream, 'm');
         info->count += RGB[0].length 
             +  RGB[1].length 
             +  RGB[2].length
@@ -434,12 +383,12 @@ PIO_STATIC void pprintf_handle_foreground_color(pprintf_info_t *info) {
 PIO_STATIC void pprintf_handle_char(pprintf_info_t *info, bool wide) {
     if (PSTD_EXPECT(wide == false, 1)){
         int character = va_arg(*info->list, int);
-        pstream_write_char(info->stream, (char)character);
+        pwrite_stream_c(info->stream, (char)character);
         info->count++;
     } else {
         char *character = va_arg(*info->list, char *);
-        u32 len = pget_utf8_length(character);
-        pstream_write_string(info->stream, pstring( character, len));
+        u32 len = putf8_length(character);
+        pwrite_stream_s(info->stream, pstring( character, len));
         info->count += len;
     }
 }
@@ -463,7 +412,7 @@ PIO_STATIC void pprintf_handle_string(pprintf_info_t *info, pformatting_specific
 PIO_STATIC void pprintf_handle_color_clear(pprintf_info_t *info) {
     static const pstring_t reset = pcreate_const_string("\x1b[0m");
     if (PSTD_EXPECT(PIO_GLOBALS.colored_output, 1)) {
-        pstream_write_string(info->stream, reset);
+        pwrite_stream_s(info->stream, reset);
         info->count += reset.length; 
     }
     info->fmt++;
@@ -556,7 +505,7 @@ PIO_STATIC void pprintf_handle_bool(pprintf_info_t *info, pformatting_specificat
     }
 
     pstring_t output = strings[(num != 0) + (2*spec->alternative_form)];
-    pstream_write_string(info->stream, output);
+    pwrite_stream_s(info->stream, output);
     info->count += output.length;
 }
 
@@ -804,7 +753,7 @@ void pprintf_handle_unsignedint(
     count = punsigned_decimal_to_string(buf, num);
     
     if (always_print_sign)
-        pstream_write_char(info->stream, '+');
+        pwrite_stream_c(info->stream, '+');
 
     info->count += pprintf_print_justified(info->stream, spec, pstring( buf, count )) + 1;
 }
@@ -832,7 +781,7 @@ void pprintf_handle_octalint(
         } else {
             info->count += pprintf_print_justified(info->stream, spec, str) + 1;
             info->count += count;
-            pstream_write_string( info->stream, pstring( printbuf, count ) );
+            pwrite_stream_s( info->stream, pstring( printbuf, count ) );
         }
     }
     else {
@@ -851,12 +800,14 @@ void pprintf_handle_hexadecimalint(
    
     if (uppercase) {
         for (u32 i = 0; i < count + 1; i++) {
-            buf[i] = toupper(buf[i]);
+            int result = toupper(buf[i]);
+            assert(result < 255);
+            buf[i] = (char)result;
         }
     }
 
     if (always_print_sign)
-        pstream_write_char(info->stream, '+');
+        pwrite_stream_c(info->stream, '+');
 
     if (spec->alternative_form && num != 0) {
         static const pstring_t str[2] = { pcreate_const_string("0x"), pcreate_const_string("0X") };
@@ -870,7 +821,7 @@ void pprintf_handle_hexadecimalint(
         } else {
             info->count += pprintf_print_justified(info->stream, spec, str[uppercase]) + 1;
             info->count += count;
-            pstream_write_string( info->stream, pstring( buf, count ) );
+            pwrite_stream_s( info->stream, pstring( buf, count ) );
         }
     }
     else {
@@ -910,7 +861,7 @@ PIO_STATIC void pprintf_handle_float(pprintf_info_t *info, pformatting_specifica
 #endif
     
     info->count += snprintf(out, count, buf, value);
-    pstream_write_string(info->stream, pstring(out, count - 1));
+    pwrite_stream_s(info->stream, pstring(out, count - 1));
 #if defined(PSTD_GNU_COMPATIBLE)
 #else
     cb->allocator(cb, FREE, count + 1, out);
@@ -932,7 +883,7 @@ PIO_STATIC void pprintf_handle_pointer(pprintf_info_t *info, pformatting_specifi
     void *ptr = va_arg(*info->list, void *);
     if (!ptr) {
         static const pstring_t null = pcreate_const_string("nullptr");
-        pstream_write_string(info->stream, null);
+        pwrite_stream_s(info->stream, null);
         info->count += null.length;
         return;
     }

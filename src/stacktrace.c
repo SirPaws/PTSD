@@ -95,7 +95,7 @@ void panic(const char *fmt, ...) {
         .flags = STREAM_INOUT, 
     };
 
-    pstring_stream_t out = pinit_stream(info);
+    pstring_stream_t out = pcreate_stream(info);
     
     va_list list;
     va_start(list, fmt);
@@ -111,7 +111,6 @@ void panic(const char *fmt, ...) {
 }
 
 bool passert_impl(const char *expr, const char *file, u32 line) {
-#warning TODO: parse expression text and format it
     pstacktrace_print();
     pprintf(PSTD_STACKTRACE_ERROR_COLOUR  "Assertion failed%Cc: '%s', file "
             PSTD_STACKTRACE_PATH_COLOUR   "%s%Cc, line "

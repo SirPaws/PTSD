@@ -57,14 +57,12 @@ extern "C" {
     |-----------------------------------------------------------|
 */
 
+// not sure what these todos are about, seems more like a pplatform type of thing
 // TODO: CreateFile dwShareMode
 // TODO: CreateFile lpSecurityAttributes 
 typedef struct pgeneric_stream_t pgeneric_stream_t;
 struct pgeneric_stream_t {
     bool is_valid;
-#if defined(PSTD_USE_ALLOCATOR)
-    pallocator_t cb;
-#endif
 
     enum pstream_type_t {
         STANDARD_STREAM,
@@ -94,7 +92,7 @@ struct pgeneric_stream_t {
             phandle_t *stdout_handle;
             phandle_t *stdin_handle;
         };
-        struct { // c stream
+        struct { // c 'stream'
             FILE *file;
         };
     };
@@ -106,29 +104,29 @@ typedef pgeneric_stream_t pcfile_stream_t;
 
 typedef struct pstream_info_t pstream_info_t;
 struct pstream_info_t {
-    enum pstream_type_t type;
-#if defined(PSTD_USE_ALLOCATOR)
-    pallocator_t cb;
-#else
-#endif
-
-    u32 flags;
-    // filestream | stringstream
-    usize buffersize;
-    // filestream
-    char *filename;
-    bool createbuffer;
-    bool createifnonexistent;
-    bool append;
+    enum pstream_type_t type;  // used by all streams
+    u32 flags;                 // used by all streams
+    usize buffer_size;         // used by stringstream, ignored by filestream
+    char *filename;            // used by filestream
+    bool create_buffer;        // used by filestream, ignored by stringstream
+    bool create_if_not_exists; // used by filestream
 };
 
+// sets the current bound stream
+// meaning all calls to functions that don't take an explicit stream parameter
+// will be using the new_stream
 void pset_stream(pgeneric_stream_t *new_stream, pgeneric_stream_t *old_stream);
+
+// gets the current bound stream
 pgeneric_stream_t *pget_stream(void);
 
+// creates a stream
+pgeneric_stream_t pcreate_stream(pstream_info_t info);
 
-pgeneric_stream_t pinit_stream(pstream_info_t info);
+// frees the stream, note that it does not call free(stream)
 void pfree_stream(pgeneric_stream_t *stream);
 
+// creates a string from the contents from a stream with a STREAM_INPUT/STREAM_READ flag
 pstring_t pstream_to_buffer_string(pgeneric_stream_t *stream);
 
 u32 pvbprintf(pgeneric_stream_t *stream, const char *restrict fmt, va_list list);
@@ -155,55 +153,49 @@ static inline u32 pprintf(const char *restrict fmt, ...) {
     return result;
 }
 
-void pstream_write_string(pgeneric_stream_t *stream, const pstring_t str);
-void pstream_write_char(pgeneric_stream_t *stream, const char chr);
+void pwrite_stream_s(pgeneric_stream_t *stream, const pstring_t str);
+void pwrite_stream_c(pgeneric_stream_t *stream, const char chr);
 
 PSTD_UNUSED
 static inline void pputchar(const char c) {
-    pstream_write_char(pget_stream(), c);
+     pwrite_stream_c(pget_stream(), c);
 }
 
 PSTD_UNUSED
 static inline void pputstring(pstring_t s) {
-    pstream_write_string(pget_stream(), s);
+    pwrite_stream_s(pget_stream(), s);
 }
 
 PSTD_UNUSED
 static inline void pputc(const char c) {
     pgeneric_stream_t *stream = pget_stream();
-    if (c) pstream_write_char(stream, c);
-    pstream_write_char(stream, '\n');
+    if (c) pwrite_stream_c(stream, c);
+    pwrite_stream_c(stream, '\n');
 }
 
 PSTD_UNUSED
 static inline void pputs(const char *s) {
     pgeneric_stream_t *stream = pget_stream();
     pstring_t str = pstring((char*)s, strlen(s));
-    pstream_write_string(stream, str);
-    pstream_write_char(stream, '\n');
+    pwrite_stream_s(stream, str);
+    pwrite_stream_c(stream, '\n');
 }
 
 // size: how many bytes to read from stream
 // eof: (if null it's ignored) set to true if the stream is at the end 
-void  pstream_read(pgeneric_stream_t *stream, void *buf, usize size);
+void  pread_stream(pgeneric_stream_t *stream, void *buf, usize size);
 
-#ifndef PSTD_LINUX
 PSTD_UNUSED
-static inline void pread(void *buf, usize size) {
-    pstream_read(pget_stream(), buf, size);
+static inline void pread_into(void *buf, usize size) {
+    pread_stream(pget_stream(), buf, size);
 }
-#else
-static inline void pio_read(void *buf, usize size) {
-    pstream_read(pget_stream(), buf, size);
-}
-#endif
 
 // line needs to be freed
-bool pstream_read_line(pgeneric_stream_t *stream, pstring_t *string);
+bool pread_line_stream(pgeneric_stream_t *stream, pstring_t *string);
 
 PSTD_UNUSED
 static inline bool pread_line(pstring_t *str) {
-    return pstream_read_line(pget_stream(), str);
+    return pread_line_stream(pget_stream(), str);
 }
 
 
@@ -221,10 +213,10 @@ static inline bool pread_line(pstring_t *str) {
 // -------------^
 //
 //
-void pstream_move(pgeneric_stream_t *stream, isize size);
+void pmove_stream(pgeneric_stream_t *stream, isize size);
 
 // moves the file pointer back to the start of the file
-void pstream_reset(pgeneric_stream_t *stream);
+void preset_stream(pgeneric_stream_t *stream);
 
 // pSigned**Topstring_t appends + or - to the start of buffer then calls pUnsigned**Topstring_t
 
@@ -240,8 +232,8 @@ u32 punsigned_hex_to_string(char *buf, u64 num);
 u32 psigned_octal_to_string(char *buf, s64 num);
 u32 punsigned_octal_to_string(char *buf, u64 num);
 
-u32 pftoa(char *buf, f32);
-u32 pdtoa(char *buf, f64);
+// u32 pftoa(char *buf, f32);
+// u32 pdtoa(char *buf, f64);
 
 
 #if defined(PSTD_GNU_COMPATIBLE)
@@ -258,7 +250,7 @@ static inline bool pchar_anyof(int character, u32 count, const char tests[]) {
 }
 
 PSTD_UNUSED
-static inline usize pget_utf8_length(const char *chr) {
+static inline usize putf8_length(const char *chr) {
 #define UNICODE_MASK 0xf8 
 #define UNICODE_4_BYTES 0xf0
 #define UNICODE_3_BYTES 0xe0
@@ -321,8 +313,8 @@ void pformat_pop_impl(pstring_t fmt);
 void pformat_pop_adv_impl(pstring_t fmt);
 
 #if PSTD_C_VERSION > PSTD_C11
-#define pstream_write(stream, ...) _Generic(__VA_ARGS__, int: pstream_write_char, \
-    char: pstream_write_char, pstring_t: pstream_write_string)(stream, __VA_ARGS__)
+#define pwrite_stream(stream, ...) _Generic(__VA_ARGS__, int: pwrite_stream_c, \
+    char: pwrite_stream_c, pstring_t: pwrite_stream_s)(stream, __VA_ARGS__)
 #elif defined(__cplusplus)
 }
 #endif

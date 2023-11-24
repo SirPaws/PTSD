@@ -34,16 +34,6 @@ struct pio_global_t {
 #endif
 
 static struct pio_global_t PIO_GLOBALS = {};
-/*
-static pstd_stream_t standard_stream = {0};
-static u32 default_code_page = 0;
-static pgeneric_stream_t current_stream;
-static bool color_output = true;
-
-#if defined(PSTD_WINDOWS)
-static u32 console_mode = 0;
-#endif
-*/
 
 void pset_stream(pgeneric_stream_t *new_stream, pgeneric_stream_t *old_stream) //NOLINT
 {
@@ -71,9 +61,6 @@ void pinitialize_std_stream(void) {
     PIO_GLOBALS.color_output = false;
 #endif
     const pstd_stream_t template = { 
-#if defined(PSTD_USE_ALLOCATOR)
-        .cb = PSTD_DEFAULT_ALLOCATOR,
-#endif
         .is_valid      = true,
         .type          = STANDARD_STREAM,
         .flags         = STREAM_INPUT|STREAM_OUTPUT,
@@ -91,19 +78,12 @@ void pdestroy_std_stream(void) {
 #endif
 }
 
-pgeneric_stream_t pinit_stream(pstream_info_t info) {
-#if defined(PSTD_USE_ALLOCATOR)
-    Allocator cb = info.cb;
-    if (!cb.allocator) cb.allocator = pDefaultAllocator;
-#endif
+pgeneric_stream_t pcreate_stream(pstream_info_t info) {
 
     switch(info.type) {
         case STANDARD_STREAM: {
                 pstd_stream_t std = {
                     .is_valid= true, 
-#if defined(PSTD_USE_ALLOCATOR)
-                    .cb= cb
-#endif
                 };
                 memcpy(&std, &PIO_GLOBALS.std_stream, sizeof std);
                 std.flags = info.flags; 
@@ -122,12 +102,9 @@ pgeneric_stream_t pinit_stream(pstream_info_t info) {
 
                 pfile_stream_t fstream = {
                     .is_valid = true, 
-#if defined(PSTD_USE_ALLOCATOR)
-                    .cb= cb
-#endif
                 };
                 if (result == false) {
-                    if (info.createifnonexistent) {
+                    if (info.create_if_not_exists) {
                         fstream.type = FILE_STREAM;
                         fstream.flags = info.flags;
                         fstream.handle = pfile_create(info.filename, (pfile_access_t)info.flags);
@@ -143,7 +120,7 @@ pgeneric_stream_t pinit_stream(pstream_info_t info) {
                     fstream.size  = filesize;
                     fstream.handle = pfile_open(info.filename, (pfile_access_t)info.flags);
                 }
-                if (info.createbuffer) {
+                if (info.create_buffer) {
                     pstream_to_buffer_string(&fstream);
                     pseek((void*)fstream.handle, 0, P_SEEK_SET);
                 }
@@ -152,15 +129,9 @@ pgeneric_stream_t pinit_stream(pstream_info_t info) {
         case STRING_STREAM: {
                 pstring_stream_t sstream = {
                     .is_valid= true, 
-#if defined(PSTD_USE_ALLOCATOR)
-                    .cb= cb
-#endif
                 };
                 sstream.type  = STRING_STREAM; 
                 sstream.flags = info.flags; 
-#if defined(PSTD_USE_ALLOCATOR)
-                sstream.buffer = psb_create(char, cb);
-#endif
                 return sstream;
             }
         case CFILE_STREAM: return invalid_stream;
@@ -170,9 +141,6 @@ pgeneric_stream_t pinit_stream(pstream_info_t info) {
 
 void pfree_stream(pgeneric_stream_t *stream) {
     if (!stream || !stream->is_valid) return;
-#if defined(PSTD_USE_ALLOCATOR)
-    Allocator cb = stream->cb;
-#endif
     pstd_stream_t    *stdstream;
     pfile_stream_t   *fstream;
     pstring_stream_t *sstream;
@@ -189,11 +157,7 @@ void pfree_stream(pgeneric_stream_t *stream) {
         case FILE_STREAM:
             pfile_close(fstream->handle);
             if (fstream->file_buffer.length) {
-#if defined(PSTD_USE_ALLOCATOR)
-                cb.allocator(&cb, FREE, fstream->file_buffer.length, fstream->file_buffer.c_str);
-#else
                 psized_free(fstream->file_buffer.length, fstream->file_buffer.c_str);
-#endif
             }
             break;
         case STRING_STREAM:
@@ -204,19 +168,12 @@ void pfree_stream(pgeneric_stream_t *stream) {
 pstring_t pstream_to_buffer_string(pgeneric_stream_t *stream) {
     if (!stream || !stream->is_valid) return (pstring_t){0};
     assert(stream->type != STANDARD_STREAM);
-#if defined(PSTD_USE_ALLOCATOR)
-    pallocator_t cb = stream->cb;
-#endif
 
     if (stream->type == STRING_STREAM) {
         return pstring(stream->buffer, psb_size(stream->buffer));
     } else {
         if (stream->file_buffer.length == 0) {
-#if defined(PSTD_USE_ALLOCATOR)
-            u8 *tmp = cb.allocator(&cb, ALLOCATE, stream->size, NULL);
-#else
             char *tmp = pallocate(stream->size);
-#endif
             pstring_t buf = pstring(tmp, stream->size);
             pfile_read(stream->handle, buf);
             stream->file_buffer = buf;
@@ -225,7 +182,7 @@ pstring_t pstream_to_buffer_string(pgeneric_stream_t *stream) {
     }
 }
 
-void pstream_reset(pgeneric_stream_t *stream) {
+void preset_stream(pgeneric_stream_t *stream) {
     if (!stream || !stream->is_valid) return;
 
     if (PSTD_EXPECT(stream->type == STANDARD_STREAM, 1) || stream->type == FILE_STREAM) {
@@ -238,7 +195,7 @@ void pstream_reset(pgeneric_stream_t *stream) {
     }
 }
 
-void pstream_move(pgeneric_stream_t *stream, isize size) {
+void pmove_stream(pgeneric_stream_t *stream, isize size) {
     if (!stream || !stream->is_valid) return;
 
     if (PSTD_EXPECT(stream->type == STANDARD_STREAM, 1) || stream->type == FILE_STREAM) {
@@ -254,7 +211,7 @@ void pstream_move(pgeneric_stream_t *stream, isize size) {
     }
 }
 
-void pstream_read(pgeneric_stream_t *stream, void *buf, usize size) {
+void pread_stream(pgeneric_stream_t *stream, void *buf, usize size) {
     if (!stream || !stream->is_valid) return;
     if ((bool)(stream->flags & STREAM_INPUT) == false) return;
 
@@ -272,7 +229,7 @@ void pstream_read(pgeneric_stream_t *stream, void *buf, usize size) {
         memcpy(buf, buffer + stream->cursor, size);
     }
 }
-bool pstream_read_line(pgeneric_stream_t *stream, pstring_t *string) {
+bool pread_line_stream(pgeneric_stream_t *stream, pstring_t *string) {
     if (!stream || !stream->is_valid) return false;
     if ((bool)(stream->flags & STREAM_INPUT) == false) return false;
 
@@ -322,7 +279,7 @@ bool pstream_read_line(pgeneric_stream_t *stream, pstring_t *string) {
     }
 }
 
-void pstream_write_string(pgeneric_stream_t *stream, pstring_t str) {
+void pwrite_stream_s(pgeneric_stream_t *stream, pstring_t str) {
     if (!stream->is_valid) return;
     if ((bool)(stream->flags & STREAM_OUTPUT) == false) return;
 
@@ -339,7 +296,7 @@ void pstream_write_string(pgeneric_stream_t *stream, pstring_t str) {
     }
 }
 
-void pstream_write_char(pgeneric_stream_t *stream, char chr) {
+void pwrite_stream_c(pgeneric_stream_t *stream, char chr) {
     if (!stream->is_valid) return;
     if ((bool)(stream->flags & STREAM_OUTPUT) == false) return;
 
@@ -488,5 +445,5 @@ u32 punsigned_octal_to_string(char *buf, u64 num) {
     return punsigned_int_to_string(buf, num, BASE_8, (char *)pmod8, pmod64, pmod512);
 }
 
-#include "pPrintf.c" //NOLINT
+#include "pprintf.c" //NOLINT
 
