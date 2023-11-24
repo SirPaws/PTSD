@@ -10,12 +10,12 @@ you just build the `build.c` file
 on windows, Clang or any GCC compatible compiler is required for now, because i haven't bothered making it compatible with MSVC.
 Support for MSVC is planned for the future 
 ```bash
-clang -Iinclude build.c -o ptsd.o && llvm-lib /OUT:ptsd.lib ptsd.o
+clang -Iinclude -c build.c -o ptsd.o && llvm-lib /OUT:ptsd.lib ptsd.o
 ```
 
 ### Linux
 ```bash
-clang -Iinclude build.c -o ptsd.o && ar -cr libptsd.a ptsd.o
+clang -Iinclude -c build.c -o ptsd.o && ar -cr libptsd.a ptsd.o
 ```
 
 ### Mac
