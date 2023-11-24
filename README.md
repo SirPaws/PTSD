@@ -1,4 +1,4 @@
-# PSTD
+# PTSD
 
 this is my own 'standard library' of stuff that i find useful.
 its a **WORK IN PROGRESS**
