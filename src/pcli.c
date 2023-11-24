@@ -73,7 +73,7 @@ void pcli_run(pcli_t *ctx, int argc, const char *argv[argc]) {
 
             if (pcmp_string(arg_text, spelling)) {
                 if (spelling.length < length) {
-                    u8 *ms_test = arg_text.c_str + spelling.length;
+                    char *ms_test = arg_text.c_str + spelling.length;
                     if ((it->kind & PCLI_MS) && (*ms_test == ':')) {
                         arg_text.length  = length - (spelling.length + 1);
                         arg_text.c_str  += spelling.length + 1;
