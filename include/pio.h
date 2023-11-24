@@ -57,41 +57,6 @@ extern "C" {
     |-----------------------------------------------------------|
 */
 
-
-/*
-    pScanf extra format specifiers
-    
-    |-----------------------------------------------------------|
-    |S              | same as '%s' but also returns the length  |
-    |               | note that this will allocate space        |
-    |               | for the string on the heap                |
-    |-----------------------------------------------------------|
-    |b              | reads a binary number and                 |
-    |               | returns the bits,                         |
-    |               | note that if length modifier is not       |
-    |               | present it will expect a usize.           |
-    |               | if length is specified (at most 'll')     |
-    |               | then it uses an integer big enough        |
-    |               | to store that size                        |
-    |-----------------------------------------------------------|
-    |S[set]         | pstring_t version of [set]                   |
-    |-----------------------------------------------------------|
-
-    note that the uppercase 'S' variants don't support 'l' modifier
-
-    '-' has been implemented as a range modifier in [set]
-    if '-' is the last character it is seen as being a character literal
-    for example the set '[-]' would only match '-'
-*/
-
-/*  IDEA: (not implemented)
-    
-    pregex()
-    
-*/
-
-
-
 // TODO: CreateFile dwShareMode
 // TODO: CreateFile lpSecurityAttributes 
 typedef struct pgeneric_stream_t pgeneric_stream_t;
@@ -186,31 +151,6 @@ static inline u32 pprintf(const char *restrict fmt, ...) {
     va_list list;
     va_start(list, fmt);
     u32 result = pvprintf(fmt, list);
-    va_end(list);
-    return result;
-}
-
-
-u32 pvbscanf(pgeneric_stream_t *stream, const char *restrict fmt, va_list list);
-
-PSTD_UNUSED
-static u32 pbscanf(pgeneric_stream_t *stream, const char *restrict fmt, ...) {
-    va_list list;
-    va_start(list, fmt);
-    u32 result = pvbscanf(stream, fmt, list);
-    va_end(list);
-    return result;
-}
-
-static inline u32 pvscanf(const char *restrict fmt, va_list list ) {
-    return pvbscanf(pget_stream(), fmt, list);
-}
-
-PSTD_UNUSED
-static inline u32 pscanf(const char *restrict fmt, ...) {
-    va_list list;
-    va_start(list, fmt);
-    u32 result = pvscanf(fmt, list);
     va_end(list);
     return result;
 }
