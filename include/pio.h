@@ -49,10 +49,10 @@ extern "C" {
     |               | prints 'true', if the '#' modifier is used|
     |               | it will print them in uppercase           |
     |-----------------------------------------------------------|
-    |generic        | this is not a specifier but the pPrintf   | 
+    |generic        | this is not a specifier but the pprintf   | 
     |               | functions allows for custom specifiers    |
-    |               | this is done through the `pFormatPush`    |
-    |               | and `pFormatPop` functions.               |
+    |               | this is done through the `pformat_push`   |
+    |               | and `pformat_pop` functions.              |
     |               | see examples/formatting.c for usage       |
     |-----------------------------------------------------------|
 */
@@ -207,7 +207,7 @@ static inline bool pread_line(pstring_t *str) {
 // ----------------^
 // 
 // and you wan't to move it back 3 bytes
-// you would do StreamMove(stream, -3)
+// you would do pmove_stream(stream, -3)
 // and now the pointer points here instead
 // example text that the stream holds
 // -------------^
@@ -218,7 +218,7 @@ void pmove_stream(pgeneric_stream_t *stream, isize size);
 // moves the file pointer back to the start of the file
 void preset_stream(pgeneric_stream_t *stream);
 
-// pSigned**Topstring_t appends + or - to the start of buffer then calls pUnsigned**Topstring_t
+// psigned_###_to_string appends + or - to the start of buffer then calls punsigned_###_to_string
 
 u32 psigned_int_to_string(char *buf, s64 num, u32 radix,   const char radixarray[], const char (*pow2array)[2], const char (*pow3array)[3]);
 u32 punsigned_int_to_string(char *buf, u64 num, u32 radix, const char radixarray[], const char (*pow2array)[2], const char (*pow3array)[3]);
@@ -236,7 +236,7 @@ u32 punsigned_octal_to_string(char *buf, u64 num);
 // u32 pdtoa(char *buf, f64);
 
 
-#if defined(PTSD_GNU_COMPATIBLE)
+#if PTSD_HAS_VLA || PTSD_C_VERSION >= PTSD_C23
 PTSD_UNUSED
 static inline bool pchar_anyof(int character, u32 count, const char tests[count]) {//NOLINT
 #else
@@ -251,21 +251,21 @@ static inline bool pchar_anyof(int character, u32 count, const char tests[]) {
 
 PTSD_UNUSED
 static inline usize putf8_length(const char *chr) {
-#define UNICODE_MASK 0xf8 
-#define UNICODE_4_BYTES 0xf0
-#define UNICODE_3_BYTES 0xe0
-#define UNICODE_2_BYTES 0xc0
-    if ((chr[0] & UNICODE_MASK) == UNICODE_4_BYTES)
+#define PTSD_UNICODE_MASK 0xf8 
+#define PTSD_UNICODE_4_BYTES 0xf0
+#define PTSD_UNICODE_3_BYTES 0xe0
+#define PTSD_UNICODE_2_BYTES 0xc0
+    if ((chr[0] & PTSD_UNICODE_MASK) == PTSD_UNICODE_4_BYTES)
          return 4;
-    else if ((chr[0] & UNICODE_4_BYTES) == UNICODE_3_BYTES)
+    else if ((chr[0] & PTSD_UNICODE_4_BYTES) == PTSD_UNICODE_3_BYTES)
          return 3;
-    else if ((chr[0] & UNICODE_3_BYTES) == UNICODE_2_BYTES)
+    else if ((chr[0] & PTSD_UNICODE_3_BYTES) == PTSD_UNICODE_2_BYTES)
          return 2;
     else return 1;
-#undef UNICODE_MASK
-#undef UNICODE_4_BYTES
-#undef UNICODE_3_BYTES
-#undef UNICODE_2_BYTES
+#undef PTSD_UNICODE_MASK
+#undef PTSD_UNICODE_4_BYTES
+#undef PTSD_UNICODE_3_BYTES
+#undef PTSD_UNICODE_2_BYTES
 }
 
 
