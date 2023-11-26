@@ -1,6 +1,6 @@
 #pragma once
-#ifndef PSTD_PIO_HEADER
-#define PSTD_PIO_HEADER
+#ifndef PTSD_PIO_HEADER
+#define PTSD_PIO_HEADER
 
 #include <stdarg.h>
 
@@ -8,13 +8,13 @@
 #include "pstring.h"
 #include "pplatform.h"
 
-#if defined(PSTD_MSVC)
-#pragma message when using pio with msvc compiler you need to define PSTD_MSVC_MAIN and include pio.h in the file where 'main' is defined
-#define PSTD_PIO_CONSTRUCTOR
-#define PSTD_PIO_DESTRUCTOR
+#if defined(PTSD_MSVC)
+#pragma message when using pio with msvc compiler you need to define PTSD_MSVC_MAIN and include pio.h in the file where 'main' is defined
+#define PTSD_PIO_CONSTRUCTOR
+#define PTSD_PIO_DESTRUCTOR
 #else
-#define PSTD_PIO_CONSTRUCTOR __attribute__(( constructor ))
-#define PSTD_PIO_DESTRUCTOR  __attribute__(( destructor ))
+#define PTSD_PIO_CONSTRUCTOR __attribute__(( constructor ))
+#define PTSD_PIO_DESTRUCTOR  __attribute__(( destructor ))
 #endif
 
 #define stretchy 
@@ -131,7 +131,7 @@ pstring_t pstream_to_buffer_string(pgeneric_stream_t *stream);
 
 u32 pvbprintf(pgeneric_stream_t *stream, const char *restrict fmt, va_list list);
 
-PSTD_UNUSED
+PTSD_UNUSED
 static u32 pbprintf(pgeneric_stream_t *stream, const char *restrict fmt, ...) {
     va_list list;
     va_start(list, fmt);
@@ -144,7 +144,7 @@ static inline u32 pvprintf(const char *restrict fmt, va_list list ) {
     return pvbprintf(pget_stream(), fmt, list);
 }
 
-PSTD_UNUSED
+PTSD_UNUSED
 static inline u32 pprintf(const char *restrict fmt, ...) {
     va_list list;
     va_start(list, fmt);
@@ -156,24 +156,24 @@ static inline u32 pprintf(const char *restrict fmt, ...) {
 void pwrite_stream_s(pgeneric_stream_t *stream, const pstring_t str);
 void pwrite_stream_c(pgeneric_stream_t *stream, const char chr);
 
-PSTD_UNUSED
+PTSD_UNUSED
 static inline void pputchar(const char c) {
      pwrite_stream_c(pget_stream(), c);
 }
 
-PSTD_UNUSED
+PTSD_UNUSED
 static inline void pputstring(pstring_t s) {
     pwrite_stream_s(pget_stream(), s);
 }
 
-PSTD_UNUSED
+PTSD_UNUSED
 static inline void pputc(const char c) {
     pgeneric_stream_t *stream = pget_stream();
     if (c) pwrite_stream_c(stream, c);
     pwrite_stream_c(stream, '\n');
 }
 
-PSTD_UNUSED
+PTSD_UNUSED
 static inline void pputs(const char *s) {
     pgeneric_stream_t *stream = pget_stream();
     pstring_t str = pstring((char*)s, strlen(s));
@@ -185,7 +185,7 @@ static inline void pputs(const char *s) {
 // eof: (if null it's ignored) set to true if the stream is at the end 
 void  pread_stream(pgeneric_stream_t *stream, void *buf, usize size);
 
-PSTD_UNUSED
+PTSD_UNUSED
 static inline void pread_into(void *buf, usize size) {
     pread_stream(pget_stream(), buf, size);
 }
@@ -193,7 +193,7 @@ static inline void pread_into(void *buf, usize size) {
 // line needs to be freed
 bool pread_line_stream(pgeneric_stream_t *stream, pstring_t *string);
 
-PSTD_UNUSED
+PTSD_UNUSED
 static inline bool pread_line(pstring_t *str) {
     return pread_line_stream(pget_stream(), str);
 }
@@ -236,11 +236,11 @@ u32 punsigned_octal_to_string(char *buf, u64 num);
 // u32 pdtoa(char *buf, f64);
 
 
-#if defined(PSTD_GNU_COMPATIBLE)
-PSTD_UNUSED
+#if defined(PTSD_GNU_COMPATIBLE)
+PTSD_UNUSED
 static inline bool pchar_anyof(int character, u32 count, const char tests[count]) {//NOLINT
 #else
-PSTD_UNUSED
+PTSD_UNUSED
 static inline bool pchar_anyof(int character, u32 count, const char tests[]) {
 #endif
     for (u32 i = 0; i < count; i++) {
@@ -249,7 +249,7 @@ static inline bool pchar_anyof(int character, u32 count, const char tests[]) {
     return false;
 }
 
-PSTD_UNUSED
+PTSD_UNUSED
 static inline usize putf8_length(const char *chr) {
 #define UNICODE_MASK 0xf8 
 #define UNICODE_4_BYTES 0xf0
@@ -273,8 +273,8 @@ static inline usize putf8_length(const char *chr) {
 
 
 // don't know if these need to be in the header file
-void pinitialize_std_stream(void) PSTD_PIO_CONSTRUCTOR;
-void pdestroy_std_stream(void)    PSTD_PIO_DESTRUCTOR;
+void pinitialize_std_stream(void) PTSD_PIO_CONSTRUCTOR;
+void pdestroy_std_stream(void)    PTSD_PIO_DESTRUCTOR;
 
 typedef struct pprintf_info_t pprintf_info_t;
 struct pprintf_info_t {
@@ -312,7 +312,7 @@ void pformat_push_adv_Impl(pstring_t fmt, pformat_callback_adv_t *callback);
 void pformat_pop_impl(pstring_t fmt);
 void pformat_pop_adv_impl(pstring_t fmt);
 
-#if PSTD_C_VERSION > PSTD_C11
+#if PTSD_C_VERSION > PTSD_C11
 #define pwrite_stream(stream, ...) _Generic(__VA_ARGS__, int: pwrite_stream_c, \
     char: pwrite_stream_c, pstring_t: pwrite_stream_s)(stream, __VA_ARGS__)
 #elif defined(__cplusplus)
@@ -324,9 +324,9 @@ void pformat_pop_adv_impl(pstring_t fmt);
 #define pformat_pop(fmt) pformat_pop_impl(pcreate_string(fmt))
 #define pformat_pop_adv(fmt) pformat_pop_adv_impl(pcreate_string(fmt))
 
-#if defined(PSTD_MSVC)
-#   if defined(PSTD_MSVC_MAIN)
-#       if PSTD_MSVC_MAIN == 0
+#if defined(PTSD_MSVC)
+#   if defined(PTSD_MSVC_MAIN)
+#       if PTSD_MSVC_MAIN == 0
             extern int fake_main(void);
             int main(void) { 
                 pinitialize_std_stream();
@@ -334,7 +334,7 @@ void pformat_pop_adv_impl(pstring_t fmt);
                 pdestroy_std_stream();
                 return value;
             }
-#       elif PSTD_MSVC_MAIN == 3
+#       elif PTSD_MSVC_MAIN == 3
             extern int fake_main(int argc, char **argv, char **envp);
             int main(int argc, char **argv, char **envp) { 
                 pinitialize_std_stream();
@@ -342,7 +342,7 @@ void pformat_pop_adv_impl(pstring_t fmt);
                 pdestroy_std_stream();
                 return value;
             }
-#       elif PSTD_MSVC_MAIN == 2
+#       elif PTSD_MSVC_MAIN == 2
             extern int fake_main(int argc, char **argv);
             int main(int argc, char **argv) { 
                 pinitialize_std_stream();
@@ -365,4 +365,4 @@ void pformat_pop_adv_impl(pstring_t fmt);
 
 
 
-#endif // PSTD_PIO_HEADER
+#endif // PTSD_PIO_HEADER

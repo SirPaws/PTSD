@@ -1,7 +1,7 @@
 #pragma once
 
-#ifndef PSTD_STRETCHY_BUFFER_HEADER
-#define PSTD_STRETCHY_BUFFER_HEADER
+#ifndef PTSD_STRETCHY_BUFFER_HEADER
+#define PTSD_STRETCHY_BUFFER_HEADER
 #ifndef STRETCHY_BUFFER_STANDALONE
 #   include "general.h"
 #   include "plimits.h"
@@ -9,8 +9,8 @@
 #error not implemented yet
 #endif
 
-#ifndef PSTD_STRETCHY_BUFFER_GROWTH_COUNT
-#define PSTD_STRETCHY_BUFFER_GROWTH_COUNT 2
+#ifndef PTSD_STRETCHY_BUFFER_GROWTH_COUNT
+#define PTSD_STRETCHY_BUFFER_GROWTH_COUNT 2
 #endif
 
 // symbol to make it clear that a datatype is a stretchy buffer
@@ -134,7 +134,7 @@
 
 
 
-#if defined(PSTD_GNU_COMPATIBLE) // not an msvc compiler
+#if defined(PTSD_GNU_COMPATIBLE) // not an msvc compiler
 
 // this function frees the buffer, 
 // if it has a free elements function it will also free the
@@ -191,12 +191,12 @@
 #define psb_foreach_implementation_(array, name) \
     for( __auto_type name = psb_begin(array); name != psb_end(array); name++) //NOLINT
 #define psb_foreach_implementation(array, ...)   \
-    psb_foreach_implementation_(array, PSTD_DEFAULT(__VA_ARGS__, it))
+    psb_foreach_implementation_(array, PTSD_DEFAULT(__VA_ARGS__, it))
 
 #define psb_foreach_i_implementation_(array, name) \
     for( __auto_type name = psb_end(array) - 1; name != psb_begin(array) - 1; name--) //NOLINT
 #define psb_foreach_i_implementation(array, ...)   \
-    psb_foreach_i_implementation_(array, PSTD_DEFAULT(__VA_ARGS__, it))
+    psb_foreach_i_implementation_(array, PTSD_DEFAULT(__VA_ARGS__, it))
 
 // gets the size of the buffer
 #define psb_size_implementation(array)   (psb_get_meta(array)->size) 
@@ -370,7 +370,7 @@ struct pstretchy_buffer_t {
     pfree_func_t *free_element;
     usize size;
     usize endofstorage;
-#if PSTD_C99
+#if PTSD_C99
     u8    buffer_data[];
 #endif
 };
@@ -379,7 +379,7 @@ struct pstretchy_buffer_t {
 static void psb_byte_grow(void* array, usize bytes);
 static void psb_grow(void* array, usize datasize, usize count);
 
-PSTD_UNUSED
+PTSD_UNUSED
 static void psb_maybe_byte_grow(void* array, usize bytes) {
     pstretchy_buffer_t** meta_ptr = (pstretchy_buffer_t**)array;
     pstretchy_buffer_t* meta = (*meta_ptr) - 1;
@@ -389,17 +389,17 @@ static void psb_maybe_byte_grow(void* array, usize bytes) {
     }
 }
 
-PSTD_UNUSED
+PTSD_UNUSED
 static void psb_maybe_grow(void* array, usize datasize) {
     pstretchy_buffer_t** meta_ptr = (pstretchy_buffer_t**)array;
     pstretchy_buffer_t* meta = (*meta_ptr) - 1;
 
     if ((meta->size + 1) * datasize > meta->endofstorage) {
-        psb_grow(array, datasize, PSTD_STRETCHY_BUFFER_GROWTH_COUNT);
+        psb_grow(array, datasize, PTSD_STRETCHY_BUFFER_GROWTH_COUNT);
     }
 }
 
-PSTD_UNUSED
+PTSD_UNUSED
 static void pmaybe_grow_n_elems(void *array, usize datasize, usize count) {
     pstretchy_buffer_t** meta_ptr = (pstretchy_buffer_t**)array;
     pstretchy_buffer_t* meta = (*meta_ptr) - 1;
@@ -422,7 +422,7 @@ static void psb_byte_grow(void* array_ptr, usize bytes) {
     *(u8**)array_ptr = (u8*)(meta + 1);
 }
 
-PSTD_UNUSED 
+PTSD_UNUSED 
 static void psb_pseudo_grow(void* array_ptr, usize datasize, usize count) {
     if (!array_ptr || !datasize) return;
     u8* array = *(u8**)array_ptr;
@@ -449,7 +449,7 @@ static void psb_grow(void* array_ptr, usize datasize, usize count) {
     *(u8**)array_ptr = (u8*)(meta + 1);
 }
 
-PSTD_UNUSED
+PTSD_UNUSED
 static pstretchy_buffer_t* psb_get_metadata(void* array, usize data_size, bool create) {//NOLINT
     if (!array) {
         if (!create) { // should probably just return NULL
@@ -467,7 +467,7 @@ static pstretchy_buffer_t* psb_get_metadata(void* array, usize data_size, bool c
     return ((pstretchy_buffer_t*)array) - 1;
 }
 
-PSTD_UNUSED
+PTSD_UNUSED
 static usize psb_set_capacity_implementation_(void *mem, usize count, usize data_size) {
     void **array_ptr = mem;
     if (!(*array_ptr)) {
@@ -488,7 +488,7 @@ static usize psb_set_capacity_implementation_(void *mem, usize count, usize data
     return count;
 }
 
-PSTD_UNUSED
+PTSD_UNUSED
 static usize psb_reserve_implementation_(void *mem, usize count, usize data_size) {
     void **array_ptr = mem;
     if (!(*array_ptr)) {
@@ -509,7 +509,7 @@ static usize psb_reserve_implementation_(void *mem, usize count, usize data_size
     return count;
 }
 
-PSTD_UNUSED
+PTSD_UNUSED
 static inline void psb_free_buffer(pstretchy_buffer_t *meta, usize data_size) {
     if (meta->free_element) {
         u8 *data = (void*)(meta + 1);
@@ -525,4 +525,4 @@ static inline void psb_free_buffer(pstretchy_buffer_t *meta, usize data_size) {
 
 #else // using mvsc compiler
 #endif
-#endif // PSTD_STRETCHY_BUFFER_HEADER
+#endif // PTSD_STRETCHY_BUFFER_HEADER

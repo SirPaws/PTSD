@@ -1,8 +1,8 @@
 #pragma once
-#ifndef PSTD_LIMITS_HEADER
-#define PSTD_LIMITS_HEADER
+#ifndef PTSD_LIMITS_HEADER
+#define PTSD_LIMITS_HEADER
 #include "general.h"
-#if PSTD_C_VERSION >= PSTD_C11
+#if PTSD_C_VERSION >= PTSD_C11
 #include <limits.h>
 #include <float.h>
 #if _MSC_VER && !defined(__clang__)
@@ -309,13 +309,13 @@ _Generic((Type){0},                                                     \
         default    : NULL                               \
     )
 
-PSTD_UNUSED static inline float        plimits_quiet_nan_float(void)           { return plimits_nan("0"); }
-PSTD_UNUSED static inline double       plimits_quiet_nan_double(void)          { return plimits_nan("0"); }
-PSTD_UNUSED static inline long double  plimits_quiet_nan_long_double(void)     { return plimits_nan("0"); }
-PSTD_UNUSED static inline float        plimits_signaling_nan_float(void)       { return plimits_nan("1"); }
-PSTD_UNUSED static inline double       plimits_signaling_nan_double(void)      { return plimits_nan("1"); }
-PSTD_UNUSED static inline long double  plimits_signaling_nan_long_double(void) { return plimits_nan("1"); }
+PTSD_UNUSED static inline float        plimits_quiet_nan_float(void)           { return plimits_nan("0"); }
+PTSD_UNUSED static inline double       plimits_quiet_nan_double(void)          { return plimits_nan("0"); }
+PTSD_UNUSED static inline long double  plimits_quiet_nan_long_double(void)     { return plimits_nan("0"); }
+PTSD_UNUSED static inline float        plimits_signaling_nan_float(void)       { return plimits_nan("1"); }
+PTSD_UNUSED static inline double       plimits_signaling_nan_double(void)      { return plimits_nan("1"); }
+PTSD_UNUSED static inline long double  plimits_signaling_nan_long_double(void) { return plimits_nan("1"); }
 
 
-#endif // PSTD_C_VERSIONS >= PSTD_C11
-#endif // PSTD_LIMITS_HEADER
+#endif // PTSD_C_VERSIONS >= PTSD_C11
+#endif // PTSD_LIMITS_HEADER
