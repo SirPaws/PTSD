@@ -2,13 +2,13 @@
 #ifndef PTSD_GENERAL_HEADER
 #define PTSD_GENERAL_HEADER
 #if defined(__EMSCRIPTEN__)
-#   define PTSD_WASM
+#   define PTSD_WASM (1)
 #elif defined(_WIN32) || defined(_WIN64)
-#    define PTSD_WINDOWS
+#    define PTSD_WINDOWS (1)
 #elif defined(__linux__) || defined(__unix__)
-#    define PTSD_LINUX
+#    define PTSD_LINUX (1)
 #elif defined(__APPLE__)
-#    define PTSD_MACOS
+#    define PTSD_MACOS (1)
 #else
 #   error platform not supported
 #endif
