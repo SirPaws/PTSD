@@ -1,14 +1,57 @@
 #pragma once
-
 #ifndef PTSD_HASH_HEADER
 #define PTSD_HASH_HEADER
 #ifndef PTSD_HASH_STANDALONE
 #include "general.h"
 #else
-#error not implemented yet
+#include <stdint.h>
+#include <stddef.h>
+#include <assert.h>
+#if defined(__EMSCRIPTEN__)
+#   define PTSD_WASM (1)
+#elif defined(_WIN32) || defined(_WIN64)
+#    define PTSD_WINDOWS (1)
+#elif defined(__linux__) || defined(__unix__)
+#    define PTSD_LINUX (1)
+#elif defined(__APPLE__)
+#    define PTSD_MACOS (1)
+#else
+#   error platform not supported
+#endif
+#if !(defined(_MSC_FULL_VER) && !defined(__clang__)) // not an msvc compiler
+#   define PTSD_GNU_COMPATIBLE 1
+#else
+#   define PTSD_MSVC 1
+#endif
+#if defined(PTSD_MSVC) || (__clang__ && _WIN32)
+#   define PTSD_FORCE_INLINE __forceinline
+#else
+#   define PTSD_FORCE_INLINE inline __attribute__((always_inline))
+#endif
+#if defined(__has_c_attribute)
+#   define PTSD_HAS_ATTRIBUTE __has_c_attribute
+#   if __STDC_VERSION__ >= 201710 
+#       undef  PTSD_C_VERSION
+#       define PTSD_C_VERSION PTSD_C23
+#   endif 
+#else
+#   define PTSD_HAS_ATTRIBUTE(x) 0
+#endif
+#if PTSD_HAS_ATTRIBUTE(maybe_unused)
+#define PTSD_UNUSED [[maybe_unused]]
+#elif defined(PTSD_GNU_COMPATIBLE)
+#define PTSD_UNUSED __attribute__((unused))
+#else
+#define PTSD_UNUSED
+#endif
+typedef uint8_t   u8;
+typedef uint32_t  u32;
+typedef uint64_t  u64;
+typedef ptrdiff_t isize;
+typedef size_t    usize;
 #endif
 
-#if defined(PTSD_MSVC) || (__clang__ && _WIN32)
+#if defined(PTSD_MSVC) || (__clang__ && PTSD_WINDOWS)
 
 #include <stdlib.h>
 
@@ -17,25 +60,24 @@
 
 #define BIG_CONSTANT(x) (x##LLU)
 
-// Other compilers
-#else	// defined(_MSC_VER)
+#else // Other compilers
 
-inline uint32_t rotl32 ( uint32_t x, int8_t r )
+static inline uint32_t protl32 ( uint32_t x, int8_t r )
 {
   return (x << r) | (x >> (32 - r));
 }
 
-inline uint64_t rotl64 ( uint64_t x, int8_t r )
+static inline uint64_t protl64 ( uint64_t x, int8_t r )
 {
   return (x << r) | (x >> (64 - r));
 }
 
-#define	ROTL32(x,y)	rotl32(x,y)
-#define ROTL64(x,y)	rotl64(x,y)
+#define	ROTL32(x,y)	protl32(x,y)
+#define ROTL64(x,y)	protl64(x,y)
 
 #define BIG_CONSTANT(x) (x##LLU)
 
-#endif // !defined(_MSC_VER)
+#endif
 
 #if defined(__cplusplus)
 extern "C" {
