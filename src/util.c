@@ -8,9 +8,6 @@
 void *pget_platform_handle(void) {
 #if defined(PTSD_WINDOWS)
     void *handle = GetStdHandle(STD_OUTPUT_HANDLE);
-    unsigned int mode;
-    GetConsoleMode(handle, (unsigned long *)&mode);
-    SetConsoleMode(handle, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
     return handle; 
 #else
     //TODO: other platforms
