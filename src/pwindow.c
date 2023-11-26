@@ -3,7 +3,7 @@
 #include "pstacktrace.h"
 #include "util.h"
 #include <stddef.h>
-#ifdef PSTD_WINDOWS
+#ifdef PTSD_WINDOWS
 #include <windows.h>
 #include <windowsx.h>
 #pragma comment(lib, "User32.lib")
@@ -17,7 +17,7 @@ const pwindow_t *pwindow(const pwindow_info_t *info) {
     void *module = GetModuleHandle(NULL);
     WNDCLASS wndclass = {
         .lpfnWndProc   = pwin32_winproc,
-        .lpszClassName = TEXT("PSTD_WINDOW_CLASS_"),
+        .lpszClassName = TEXT("PTSD_WINDOW_CLASS_"),
         .hInstance     = module,
     };
     if (!RegisterClass(&wndclass)) return NULL;
@@ -37,8 +37,8 @@ const pwindow_t *pwindow(const pwindow_info_t *info) {
 
     passert(plimits(s32).max >= info->x);
     passert(plimits(s32).max >= info->y);
-    s32 x = (s32)(info->x == PSTD_ZERO ? 0 : (info->x ?: CW_USEDEFAULT));
-    s32 y = (s32)(info->y == PSTD_ZERO ? 0 : (info->y ?: CW_USEDEFAULT));
+    s32 x = (s32)(info->x == PTSD_ZERO ? 0 : (info->x ?: CW_USEDEFAULT));
+    s32 y = (s32)(info->y == PTSD_ZERO ? 0 : (info->y ?: CW_USEDEFAULT));
     
     passert(plimits(s32).max >= info->width);
     passert(plimits(s32).max >= info->height);
@@ -61,7 +61,7 @@ const pwindow_t *pwindow(const pwindow_info_t *info) {
     width  = rect.right - rect.left;
     height = rect.bottom - rect.top;
 
-    HWND hwnd = CreateWindowEx(style_ex, TEXT("PSTD_WINDOW_CLASS_"), 
+    HWND hwnd = CreateWindowEx(style_ex, TEXT("PTSD_WINDOW_CLASS_"), 
             TEXT(""), style, (s32)x, (s32)y, (s32)width, (s32)height, 
             NULL, NULL, module, NULL);
     ShowWindow(hwnd, SW_SHOW);
@@ -84,7 +84,7 @@ const pwindow_t *pwindow(const pwindow_info_t *info) {
         .devices      = info->devices,
     };
 
-    SetProp(hwnd, "PSTD_WINDOW_DATA_", result);
+    SetProp(hwnd, "PTSD_WINDOW_DATA_", result);
     
     for (usize i = 0; i < result->device_count; i++) {
         result->devices[i]->init(result->devices[i]);
@@ -123,7 +123,7 @@ void pfree_window(const pwindow_t *const win) {
 }
 
 static LRESULT CALLBACK pwin32_winproc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam) {
-    pwindow_t *win = GetProp(hwnd, "PSTD_WINDOW_DATA_");
+    pwindow_t *win = GetProp(hwnd, "PTSD_WINDOW_DATA_");
     if (!win)
         return DefWindowProc(hwnd, msg, wparam, lparam);
 
@@ -185,128 +185,128 @@ void pkeyboard_init(pdevice_t *const device) {
     memset(keyboard->keys, 0, sizeof(keyboard->scancodes));
 
 
-    keyboard->keycodes[0x00B] = PSTD_KEY_0;
-    keyboard->keycodes[0x002] = PSTD_KEY_1;
-    keyboard->keycodes[0x003] = PSTD_KEY_2;
-    keyboard->keycodes[0x004] = PSTD_KEY_3;
-    keyboard->keycodes[0x005] = PSTD_KEY_4;
-    keyboard->keycodes[0x006] = PSTD_KEY_5;
-    keyboard->keycodes[0x007] = PSTD_KEY_6;
-    keyboard->keycodes[0x008] = PSTD_KEY_7;
-    keyboard->keycodes[0x009] = PSTD_KEY_8;
-    keyboard->keycodes[0x00A] = PSTD_KEY_9;
-    keyboard->keycodes[0x01E] = PSTD_KEY_A;
-    keyboard->keycodes[0x030] = PSTD_KEY_B;
-    keyboard->keycodes[0x02E] = PSTD_KEY_C;
-    keyboard->keycodes[0x020] = PSTD_KEY_D;
-    keyboard->keycodes[0x012] = PSTD_KEY_E;
-    keyboard->keycodes[0x021] = PSTD_KEY_F;
-    keyboard->keycodes[0x022] = PSTD_KEY_G;
-    keyboard->keycodes[0x023] = PSTD_KEY_H;
-    keyboard->keycodes[0x017] = PSTD_KEY_I;
-    keyboard->keycodes[0x024] = PSTD_KEY_J;
-    keyboard->keycodes[0x025] = PSTD_KEY_K;
-    keyboard->keycodes[0x026] = PSTD_KEY_L;
-    keyboard->keycodes[0x032] = PSTD_KEY_M;
-    keyboard->keycodes[0x031] = PSTD_KEY_N;
-    keyboard->keycodes[0x018] = PSTD_KEY_O;
-    keyboard->keycodes[0x019] = PSTD_KEY_P;
-    keyboard->keycodes[0x010] = PSTD_KEY_Q;
-    keyboard->keycodes[0x013] = PSTD_KEY_R;
-    keyboard->keycodes[0x01F] = PSTD_KEY_S;
-    keyboard->keycodes[0x014] = PSTD_KEY_T;
-    keyboard->keycodes[0x016] = PSTD_KEY_U;
-    keyboard->keycodes[0x02F] = PSTD_KEY_V;
-    keyboard->keycodes[0x011] = PSTD_KEY_W;
-    keyboard->keycodes[0x02D] = PSTD_KEY_X;
-    keyboard->keycodes[0x015] = PSTD_KEY_Y;
-    keyboard->keycodes[0x02C] = PSTD_KEY_Z;
+    keyboard->keycodes[0x00B] = PTSD_KEY_0;
+    keyboard->keycodes[0x002] = PTSD_KEY_1;
+    keyboard->keycodes[0x003] = PTSD_KEY_2;
+    keyboard->keycodes[0x004] = PTSD_KEY_3;
+    keyboard->keycodes[0x005] = PTSD_KEY_4;
+    keyboard->keycodes[0x006] = PTSD_KEY_5;
+    keyboard->keycodes[0x007] = PTSD_KEY_6;
+    keyboard->keycodes[0x008] = PTSD_KEY_7;
+    keyboard->keycodes[0x009] = PTSD_KEY_8;
+    keyboard->keycodes[0x00A] = PTSD_KEY_9;
+    keyboard->keycodes[0x01E] = PTSD_KEY_A;
+    keyboard->keycodes[0x030] = PTSD_KEY_B;
+    keyboard->keycodes[0x02E] = PTSD_KEY_C;
+    keyboard->keycodes[0x020] = PTSD_KEY_D;
+    keyboard->keycodes[0x012] = PTSD_KEY_E;
+    keyboard->keycodes[0x021] = PTSD_KEY_F;
+    keyboard->keycodes[0x022] = PTSD_KEY_G;
+    keyboard->keycodes[0x023] = PTSD_KEY_H;
+    keyboard->keycodes[0x017] = PTSD_KEY_I;
+    keyboard->keycodes[0x024] = PTSD_KEY_J;
+    keyboard->keycodes[0x025] = PTSD_KEY_K;
+    keyboard->keycodes[0x026] = PTSD_KEY_L;
+    keyboard->keycodes[0x032] = PTSD_KEY_M;
+    keyboard->keycodes[0x031] = PTSD_KEY_N;
+    keyboard->keycodes[0x018] = PTSD_KEY_O;
+    keyboard->keycodes[0x019] = PTSD_KEY_P;
+    keyboard->keycodes[0x010] = PTSD_KEY_Q;
+    keyboard->keycodes[0x013] = PTSD_KEY_R;
+    keyboard->keycodes[0x01F] = PTSD_KEY_S;
+    keyboard->keycodes[0x014] = PTSD_KEY_T;
+    keyboard->keycodes[0x016] = PTSD_KEY_U;
+    keyboard->keycodes[0x02F] = PTSD_KEY_V;
+    keyboard->keycodes[0x011] = PTSD_KEY_W;
+    keyboard->keycodes[0x02D] = PTSD_KEY_X;
+    keyboard->keycodes[0x015] = PTSD_KEY_Y;
+    keyboard->keycodes[0x02C] = PTSD_KEY_Z;
 
-    keyboard->keycodes[0x028] = PSTD_KEY_APOSTROPHE;
-    keyboard->keycodes[0x02B] = PSTD_KEY_BACKSLASH;
-    keyboard->keycodes[0x033] = PSTD_KEY_COMMA;
-    keyboard->keycodes[0x00D] = PSTD_KEY_EQUAL;
-    keyboard->keycodes[0x029] = PSTD_KEY_GRAVE_ACCENT;
-    keyboard->keycodes[0x01A] = PSTD_KEY_LEFT_BRACKET;
-    keyboard->keycodes[0x00C] = PSTD_KEY_MINUS;
-    keyboard->keycodes[0x034] = PSTD_KEY_PERIOD;
-    keyboard->keycodes[0x01B] = PSTD_KEY_RIGHT_BRACKET;
-    keyboard->keycodes[0x027] = PSTD_KEY_SEMICOLON;
-    keyboard->keycodes[0x035] = PSTD_KEY_SLASH;
-    keyboard->keycodes[0x056] = PSTD_KEY_WORLD_2;
+    keyboard->keycodes[0x028] = PTSD_KEY_APOSTROPHE;
+    keyboard->keycodes[0x02B] = PTSD_KEY_BACKSLASH;
+    keyboard->keycodes[0x033] = PTSD_KEY_COMMA;
+    keyboard->keycodes[0x00D] = PTSD_KEY_EQUAL;
+    keyboard->keycodes[0x029] = PTSD_KEY_GRAVE_ACCENT;
+    keyboard->keycodes[0x01A] = PTSD_KEY_LEFT_BRACKET;
+    keyboard->keycodes[0x00C] = PTSD_KEY_MINUS;
+    keyboard->keycodes[0x034] = PTSD_KEY_PERIOD;
+    keyboard->keycodes[0x01B] = PTSD_KEY_RIGHT_BRACKET;
+    keyboard->keycodes[0x027] = PTSD_KEY_SEMICOLON;
+    keyboard->keycodes[0x035] = PTSD_KEY_SLASH;
+    keyboard->keycodes[0x056] = PTSD_KEY_WORLD_2;
 
-    keyboard->keycodes[0x00E] = PSTD_KEY_BACKSPACE;
-    keyboard->keycodes[0x153] = PSTD_KEY_DELETE;
-    keyboard->keycodes[0x14F] = PSTD_KEY_END;
-    keyboard->keycodes[0x01C] = PSTD_KEY_ENTER;
-    keyboard->keycodes[0x001] = PSTD_KEY_ESCAPE;
-    keyboard->keycodes[0x147] = PSTD_KEY_HOME;
-    keyboard->keycodes[0x152] = PSTD_KEY_INSERT;
-    keyboard->keycodes[0x15D] = PSTD_KEY_MENU;
-    keyboard->keycodes[0x151] = PSTD_KEY_PAGE_DOWN;
-    keyboard->keycodes[0x149] = PSTD_KEY_PAGE_UP;
-    keyboard->keycodes[0x045] = PSTD_KEY_PAUSE;
-    keyboard->keycodes[0x146] = PSTD_KEY_PAUSE;
-    keyboard->keycodes[0x039] = PSTD_KEY_SPACE;
-    keyboard->keycodes[0x00F] = PSTD_KEY_TAB;
-    keyboard->keycodes[0x03A] = PSTD_KEY_CAPS_LOCK;
-    keyboard->keycodes[0x145] = PSTD_KEY_NUM_LOCK;
-    keyboard->keycodes[0x046] = PSTD_KEY_SCROLL_LOCK;
-    keyboard->keycodes[0x03B] = PSTD_KEY_F1;
-    keyboard->keycodes[0x03C] = PSTD_KEY_F2;
-    keyboard->keycodes[0x03D] = PSTD_KEY_F3;
-    keyboard->keycodes[0x03E] = PSTD_KEY_F4;
-    keyboard->keycodes[0x03F] = PSTD_KEY_F5;
-    keyboard->keycodes[0x040] = PSTD_KEY_F6;
-    keyboard->keycodes[0x041] = PSTD_KEY_F7;
-    keyboard->keycodes[0x042] = PSTD_KEY_F8;
-    keyboard->keycodes[0x043] = PSTD_KEY_F9;
-    keyboard->keycodes[0x044] = PSTD_KEY_F10;
-    keyboard->keycodes[0x057] = PSTD_KEY_F11;
-    keyboard->keycodes[0x058] = PSTD_KEY_F12;
-    keyboard->keycodes[0x064] = PSTD_KEY_F13;
-    keyboard->keycodes[0x065] = PSTD_KEY_F14;
-    keyboard->keycodes[0x066] = PSTD_KEY_F15;
-    keyboard->keycodes[0x067] = PSTD_KEY_F16;
-    keyboard->keycodes[0x068] = PSTD_KEY_F17;
-    keyboard->keycodes[0x069] = PSTD_KEY_F18;
-    keyboard->keycodes[0x06A] = PSTD_KEY_F19;
-    keyboard->keycodes[0x06B] = PSTD_KEY_F20;
-    keyboard->keycodes[0x06C] = PSTD_KEY_F21;
-    keyboard->keycodes[0x06D] = PSTD_KEY_F22;
-    keyboard->keycodes[0x06E] = PSTD_KEY_F23;
-    keyboard->keycodes[0x076] = PSTD_KEY_F24;
-    keyboard->keycodes[0x038] = PSTD_KEY_LEFT_ALT;
-    keyboard->keycodes[0x01D] = PSTD_KEY_LEFT_CONTROL;
-    keyboard->keycodes[0x02A] = PSTD_KEY_LEFT_SHIFT;
-    keyboard->keycodes[0x15B] = PSTD_KEY_LEFT_SUPER;
-    keyboard->keycodes[0x137] = PSTD_KEY_PRINT_SCREEN;
-    keyboard->keycodes[0x138] = PSTD_KEY_RIGHT_ALT;
-    keyboard->keycodes[0x11D] = PSTD_KEY_RIGHT_CONTROL;
-    keyboard->keycodes[0x036] = PSTD_KEY_RIGHT_SHIFT;
-    keyboard->keycodes[0x15C] = PSTD_KEY_RIGHT_SUPER;
-    keyboard->keycodes[0x150] = PSTD_KEY_DOWN;
-    keyboard->keycodes[0x14B] = PSTD_KEY_LEFT;
-    keyboard->keycodes[0x14D] = PSTD_KEY_RIGHT;
-    keyboard->keycodes[0x148] = PSTD_KEY_UP;
+    keyboard->keycodes[0x00E] = PTSD_KEY_BACKSPACE;
+    keyboard->keycodes[0x153] = PTSD_KEY_DELETE;
+    keyboard->keycodes[0x14F] = PTSD_KEY_END;
+    keyboard->keycodes[0x01C] = PTSD_KEY_ENTER;
+    keyboard->keycodes[0x001] = PTSD_KEY_ESCAPE;
+    keyboard->keycodes[0x147] = PTSD_KEY_HOME;
+    keyboard->keycodes[0x152] = PTSD_KEY_INSERT;
+    keyboard->keycodes[0x15D] = PTSD_KEY_MENU;
+    keyboard->keycodes[0x151] = PTSD_KEY_PAGE_DOWN;
+    keyboard->keycodes[0x149] = PTSD_KEY_PAGE_UP;
+    keyboard->keycodes[0x045] = PTSD_KEY_PAUSE;
+    keyboard->keycodes[0x146] = PTSD_KEY_PAUSE;
+    keyboard->keycodes[0x039] = PTSD_KEY_SPACE;
+    keyboard->keycodes[0x00F] = PTSD_KEY_TAB;
+    keyboard->keycodes[0x03A] = PTSD_KEY_CAPS_LOCK;
+    keyboard->keycodes[0x145] = PTSD_KEY_NUM_LOCK;
+    keyboard->keycodes[0x046] = PTSD_KEY_SCROLL_LOCK;
+    keyboard->keycodes[0x03B] = PTSD_KEY_F1;
+    keyboard->keycodes[0x03C] = PTSD_KEY_F2;
+    keyboard->keycodes[0x03D] = PTSD_KEY_F3;
+    keyboard->keycodes[0x03E] = PTSD_KEY_F4;
+    keyboard->keycodes[0x03F] = PTSD_KEY_F5;
+    keyboard->keycodes[0x040] = PTSD_KEY_F6;
+    keyboard->keycodes[0x041] = PTSD_KEY_F7;
+    keyboard->keycodes[0x042] = PTSD_KEY_F8;
+    keyboard->keycodes[0x043] = PTSD_KEY_F9;
+    keyboard->keycodes[0x044] = PTSD_KEY_F10;
+    keyboard->keycodes[0x057] = PTSD_KEY_F11;
+    keyboard->keycodes[0x058] = PTSD_KEY_F12;
+    keyboard->keycodes[0x064] = PTSD_KEY_F13;
+    keyboard->keycodes[0x065] = PTSD_KEY_F14;
+    keyboard->keycodes[0x066] = PTSD_KEY_F15;
+    keyboard->keycodes[0x067] = PTSD_KEY_F16;
+    keyboard->keycodes[0x068] = PTSD_KEY_F17;
+    keyboard->keycodes[0x069] = PTSD_KEY_F18;
+    keyboard->keycodes[0x06A] = PTSD_KEY_F19;
+    keyboard->keycodes[0x06B] = PTSD_KEY_F20;
+    keyboard->keycodes[0x06C] = PTSD_KEY_F21;
+    keyboard->keycodes[0x06D] = PTSD_KEY_F22;
+    keyboard->keycodes[0x06E] = PTSD_KEY_F23;
+    keyboard->keycodes[0x076] = PTSD_KEY_F24;
+    keyboard->keycodes[0x038] = PTSD_KEY_LEFT_ALT;
+    keyboard->keycodes[0x01D] = PTSD_KEY_LEFT_CONTROL;
+    keyboard->keycodes[0x02A] = PTSD_KEY_LEFT_SHIFT;
+    keyboard->keycodes[0x15B] = PTSD_KEY_LEFT_SUPER;
+    keyboard->keycodes[0x137] = PTSD_KEY_PRINT_SCREEN;
+    keyboard->keycodes[0x138] = PTSD_KEY_RIGHT_ALT;
+    keyboard->keycodes[0x11D] = PTSD_KEY_RIGHT_CONTROL;
+    keyboard->keycodes[0x036] = PTSD_KEY_RIGHT_SHIFT;
+    keyboard->keycodes[0x15C] = PTSD_KEY_RIGHT_SUPER;
+    keyboard->keycodes[0x150] = PTSD_KEY_DOWN;
+    keyboard->keycodes[0x14B] = PTSD_KEY_LEFT;
+    keyboard->keycodes[0x14D] = PTSD_KEY_RIGHT;
+    keyboard->keycodes[0x148] = PTSD_KEY_UP;
 
-    keyboard->keycodes[0x052] = PSTD_KEY_KP_0;
-    keyboard->keycodes[0x04F] = PSTD_KEY_KP_1;
-    keyboard->keycodes[0x050] = PSTD_KEY_KP_2;
-    keyboard->keycodes[0x051] = PSTD_KEY_KP_3;
-    keyboard->keycodes[0x04B] = PSTD_KEY_KP_4;
-    keyboard->keycodes[0x04C] = PSTD_KEY_KP_5;
-    keyboard->keycodes[0x04D] = PSTD_KEY_KP_6;
-    keyboard->keycodes[0x047] = PSTD_KEY_KP_7;
-    keyboard->keycodes[0x048] = PSTD_KEY_KP_8;
-    keyboard->keycodes[0x049] = PSTD_KEY_KP_9;
-    keyboard->keycodes[0x04E] = PSTD_KEY_KP_ADD;
-    keyboard->keycodes[0x053] = PSTD_KEY_KP_DECIMAL;
-    keyboard->keycodes[0x135] = PSTD_KEY_KP_DIVIDE;
-    keyboard->keycodes[0x11C] = PSTD_KEY_KP_ENTER;
-    keyboard->keycodes[0x059] = PSTD_KEY_KP_EQUAL;
-    keyboard->keycodes[0x037] = PSTD_KEY_KP_MULTIPLY;
-    keyboard->keycodes[0x04A] = PSTD_KEY_KP_SUBTRACT;
+    keyboard->keycodes[0x052] = PTSD_KEY_KP_0;
+    keyboard->keycodes[0x04F] = PTSD_KEY_KP_1;
+    keyboard->keycodes[0x050] = PTSD_KEY_KP_2;
+    keyboard->keycodes[0x051] = PTSD_KEY_KP_3;
+    keyboard->keycodes[0x04B] = PTSD_KEY_KP_4;
+    keyboard->keycodes[0x04C] = PTSD_KEY_KP_5;
+    keyboard->keycodes[0x04D] = PTSD_KEY_KP_6;
+    keyboard->keycodes[0x047] = PTSD_KEY_KP_7;
+    keyboard->keycodes[0x048] = PTSD_KEY_KP_8;
+    keyboard->keycodes[0x049] = PTSD_KEY_KP_9;
+    keyboard->keycodes[0x04E] = PTSD_KEY_KP_ADD;
+    keyboard->keycodes[0x053] = PTSD_KEY_KP_DECIMAL;
+    keyboard->keycodes[0x135] = PTSD_KEY_KP_DIVIDE;
+    keyboard->keycodes[0x11C] = PTSD_KEY_KP_ENTER;
+    keyboard->keycodes[0x059] = PTSD_KEY_KP_EQUAL;
+    keyboard->keycodes[0x037] = PTSD_KEY_KP_MULTIPLY;
+    keyboard->keycodes[0x04A] = PTSD_KEY_KP_SUBTRACT;
 
     for (u32 scancode = 0; scancode < 512; scancode++) {
         if (keyboard->keycodes[scancode] != -1)
@@ -317,17 +317,17 @@ void pkeyboard_init(pdevice_t *const device) {
 pmodifier_t pmodifier(void) {
     pmodifier_t mods = 0;
     if (GetKeyState(VK_SHIFT) & 0x8000)
-        mods |= PSTD_MOD_SHIFT;
+        mods |= PTSD_MOD_SHIFT;
     if (GetKeyState(VK_CONTROL) & 0x8000)
-        mods |= PSTD_MOD_CONTROL;
+        mods |= PTSD_MOD_CONTROL;
     if (GetKeyState(VK_MENU) & 0x8000)
-        mods |= PSTD_MOD_ALT;
+        mods |= PTSD_MOD_ALT;
     if ((GetKeyState(VK_LWIN) | GetKeyState(VK_RWIN)) & 0x8000)
-        mods |= PSTD_MOD_SUPER;
+        mods |= PTSD_MOD_SUPER;
     if (GetKeyState(VK_CAPITAL) & 1)
-        mods |= PSTD_MOD_CAPS_LOCK;
+        mods |= PTSD_MOD_CAPS_LOCK;
     if (GetKeyState(VK_NUMLOCK) & 1)
-        mods |= PSTD_MOD_NUM_LOCK;
+        mods |= PTSD_MOD_NUM_LOCK;
     return mods;
 }
 
@@ -377,7 +377,7 @@ void pkeyboard_update(pdevice_t *const device) {
 }
 
 pstate_t pkeyboard_state(pdevice_t *const device, usize value) {
-    if (value >= PSTD_KEY_COUNT) return (pstate_t){0};
+    if (value >= PTSD_KEY_COUNT) return (pstate_t){0};
     return ((pkeyboard_t*)device)->keys[value];
 }
 
@@ -413,12 +413,12 @@ void pmouse_init(pdevice_t *const device) {
 void pmouse_shutdown(pdevice_t *const) {}
 
 void pmouse_update(pdevice_t *const device) {
-    static pstate_t oldmousestate[PSTD_MOUSE_INPUT_COUNT] = {0};
+    static pstate_t oldmousestate[PTSD_MOUSE_INPUT_COUNT] = {0};
     pmouse_t *mouse = (void*)device;
     pmodifier_t mods = pmodifier();
     
     pstate_t *mousestate = mouse->inputs;
-    for (int i = 0; i < PSTD_MOUSE_BUTTON_31 + 1; i++) {
+    for (int i = 0; i < PTSD_MOUSE_BUTTON_31 + 1; i++) {
         mousestate[i].modifiers = mods;
         if (mousestate[i].pressed){
             if (oldmousestate[i].pressed) {
@@ -457,7 +457,7 @@ void pmouse_update(pdevice_t *const device) {
 }
 
 pstate_t pmouse_state(pdevice_t *const device, usize value) {
-    if (value >= PSTD_MOUSE_INPUT_COUNT) return (pstate_t){0};
+    if (value >= PTSD_MOUSE_INPUT_COUNT) return (pstate_t){0};
     return ((pmouse_t*)device)->inputs[value];
 }
 
@@ -477,14 +477,14 @@ pdevice_proc_result_t pmouse_wnd_proc(pdevice_t *const device,
     case WM_XBUTTONUP: {
             pmouse_button_t button; int action; 
             /**/ if (msg == WM_LBUTTONDOWN || msg == WM_LBUTTONUP)
-                 button = PSTD_MOUSE_LEFT;
+                 button = PTSD_MOUSE_LEFT;
             else if (msg == WM_RBUTTONDOWN || msg == WM_RBUTTONUP) //NOLINT
-                 button = PSTD_MOUSE_RIGHT;
+                 button = PTSD_MOUSE_RIGHT;
             else if (msg == WM_MBUTTONDOWN || msg == WM_MBUTTONUP) //NOLINT
-                 button = PSTD_MOUSE_MIDDLE;
+                 button = PTSD_MOUSE_MIDDLE;
             else if (GET_XBUTTON_WPARAM(wparam) == XBUTTON1)//NOLINT
-                 button = PSTD_MOUSE_BUTTON_4;
-            else button = PSTD_MOUSE_BUTTON_5;
+                 button = PTSD_MOUSE_BUTTON_4;
+            else button = PTSD_MOUSE_BUTTON_5;
 
             if (msg == WM_LBUTTONDOWN || msg == WM_RBUTTONDOWN 
              || msg == WM_MBUTTONDOWN || msg == WM_XBUTTONDOWN) {
@@ -495,19 +495,19 @@ pdevice_proc_result_t pmouse_wnd_proc(pdevice_t *const device,
             
             if      (action == 1) mouse->inputs[button].pressed  = true;
             else if (action == 0) mouse->inputs[button].released = true;
-            mouse->inputs[PSTD_MOUSE_XY].x = GET_X_LPARAM(lparam);
-            mouse->inputs[PSTD_MOUSE_XY].y = GET_Y_LPARAM(lparam);
+            mouse->inputs[PTSD_MOUSE_XY].x = GET_X_LPARAM(lparam);
+            mouse->inputs[PTSD_MOUSE_XY].y = GET_Y_LPARAM(lparam);
             return (pdevice_proc_result_t){.handled=true, 0};
         }
     case WM_MOUSEWHEEL:
-        mouse->inputs[PSTD_MOUSE_WHEEL_XY].y = (SHORT) HIWORD(wparam) / (double) WHEEL_DELTA;
+        mouse->inputs[PTSD_MOUSE_WHEEL_XY].y = (SHORT) HIWORD(wparam) / (double) WHEEL_DELTA;
         return (pdevice_proc_result_t){.handled=true, 0};
     case WM_MOUSEHWHEEL:
-        mouse->inputs[PSTD_MOUSE_WHEEL_XY].x = (SHORT) HIWORD(wparam) / (double) WHEEL_DELTA;
+        mouse->inputs[PTSD_MOUSE_WHEEL_XY].x = (SHORT) HIWORD(wparam) / (double) WHEEL_DELTA;
         return (pdevice_proc_result_t){.handled=true, 0};
     case WM_MOUSEMOVE: 
-        mouse->inputs[PSTD_MOUSE_XY].x = GET_X_LPARAM(lparam);
-        mouse->inputs[PSTD_MOUSE_XY].y = GET_Y_LPARAM(lparam);
+        mouse->inputs[PTSD_MOUSE_XY].x = GET_X_LPARAM(lparam);
+        mouse->inputs[PTSD_MOUSE_XY].y = GET_Y_LPARAM(lparam);
         return (pdevice_proc_result_t){.handled=true, 0};
     }
     return (pdevice_proc_result_t){0};

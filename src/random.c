@@ -1,12 +1,12 @@
 #include "prandom.h"
 
-#ifndef PSTD_RNG_START_SEED
-#define PSTD_RNG_START_SEED (0X16A0CE8489509C5ULL)
+#ifndef PTSD_RNG_START_SEED
+#define PTSD_RNG_START_SEED (0X16A0CE8489509C5ULL)
 #endif
 
 static prandom_device_t device = { 
-    .seed = PSTD_RNG_START_SEED,
-    .size = PSTD_RNG_SIZE,
+    .seed = PTSD_RNG_START_SEED,
+    .size = PTSD_RNG_SIZE,
     .state = {
         101908133358930373ull,    
         1279206712819156980ull,    16519118440885668846ull,   1587614043125756814ull,   
@@ -241,16 +241,16 @@ s16 prd_random_s16(prandom_device_t *device) { return (s16)prd_random_u64(device
 s8  prd_random_s8 (prandom_device_t *device) { return (s8) prd_random_u64(device); }
 
 
-#ifndef PSTD_STATE_INITIAL_VALUE
-#define PSTD_STATE_INITIAL_VALUE (101908133358930373ULL)
+#ifndef PTSD_STATE_INITIAL_VALUE
+#define PTSD_STATE_INITIAL_VALUE (101908133358930373ULL)
 #endif
-#ifndef PSTD_STATE_CONSTANT_VALUE
-#define PSTD_STATE_CONSTANT_VALUE (15632138375488585303ULL)
+#ifndef PTSD_STATE_CONSTANT_VALUE
+#define PTSD_STATE_CONSTANT_VALUE (15632138375488585303ULL)
 #endif
 
 static u64 pget_state_value(u64 n) {
-    if (n == 0) return PSTD_STATE_INITIAL_VALUE;
-    return PSTD_STATE_CONSTANT_VALUE * 
+    if (n == 0) return PTSD_STATE_INITIAL_VALUE;
+    return PTSD_STATE_CONSTANT_VALUE * 
         (pget_state_value(n - 1) ^ (pget_state_value(n - 1) >> (64 - 2))) + n;
 }
 void pinitialize_state_array(usize count, u64 buffer[count]) {

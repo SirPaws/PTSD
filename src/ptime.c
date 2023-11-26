@@ -1,24 +1,24 @@
 #include "ptime.h"
 
-#if defined(PSTD_WINDOWS)
+#if defined(PTSD_WINDOWS)
 #include <Windows.h>
-#elif defined(PSTD_LINUX) || defined(PSTD_WASM)
+#elif defined(PTSD_LINUX) || defined(PTSD_WASM)
 #include <time.h>
 #endif
 
 // ported from _Xtime_get_ticks: https://github.com/microsoft/STL/blob/master/stl/src/xtime.cpp
 ptimepoint_t psystem_time(void) {
-#if defined(PSTD_WINDOWS)
+#if defined(PTSD_WINDOWS)
 #define COMBINE(high, low) (((s64)(high) << 32) | (s64)(low))
-    static const long long PSTD_EPOCH = 0x19DB1DED53E8000LL; 
+    static const long long PTSD_EPOCH = 0x19DB1DED53E8000LL; 
     FILETIME ft;
     GetSystemTimePreciseAsFileTime(&ft);
-    return COMBINE(ft.dwHighDateTime,ft.dwLowDateTime) - PSTD_EPOCH;
+    return COMBINE(ft.dwHighDateTime,ft.dwLowDateTime) - PTSD_EPOCH;
 #undef COMBINE
 #else
     struct timespec tp;
     clock_gettime(CLOCK_REALTIME, &tp);
-    return tp.tv_sec * PSTD_TIME_SECONDS + tp.tv_nsec;
+    return tp.tv_sec * PTSD_TIME_SECONDS + tp.tv_nsec;
 #endif
 }
 // these clocks are taken from MSVC-STL
@@ -26,8 +26,8 @@ ptimepoint_t psystem_time(void) {
 // because the _Ugly syntax is reserved.
 // Can be found here https://github.com/microsoft/STL  (2021)
 ptimepoint_t pget_tick(enum pclocktype_t type) {
-#if defined(PSTD_WINDOWS)
-    if (PSTD_EXPECT(type != PSTD_SYSTEM_CLOCK, 1)) {
+#if defined(PTSD_WINDOWS)
+    if (PTSD_EXPECT(type != PTSD_SYSTEM_CLOCK, 1)) {
         const s64 _freq; QueryPerformanceFrequency((void *)&_freq); // doesn't change after system boot
         const s64 _ctr;  QueryPerformanceCounter((void*)&_ctr);
         // Instead of just having "(_Ctr * period::den) / _Freq",
@@ -41,15 +41,15 @@ ptimepoint_t pget_tick(enum pclocktype_t type) {
     } else {
         return psystem_time();
     }
-#elif defined(PSTD_LINUX) || defined(PSTD_WASM)
+#elif defined(PTSD_LINUX) || defined(PTSD_WASM)
     struct timespec tp; 
     switch (type) {
-    case PSTD_STEADY_CLOCK: {
+    case PTSD_STEADY_CLOCK: {
             clock_gettime(CLOCK_MONOTONIC, &tp);
-            return tp.tv_sec * PSTD_TIME_SECONDS + tp.tv_nsec;
+            return tp.tv_sec * PTSD_TIME_SECONDS + tp.tv_nsec;
         }
-    case PSTD_SYSTEM_CLOCK:
-    case PSTD_HIGH_RESOLUTION_CLOCK: return psystem_time();
+    case PTSD_SYSTEM_CLOCK:
+    case PTSD_HIGH_RESOLUTION_CLOCK: return psystem_time();
     }
 #else
     return 0;

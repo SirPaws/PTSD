@@ -1,4 +1,4 @@
-#define PSTD_PSTRING_IMPLEMENTATION
+#define PTSD_PSTRING_IMPLEMENTATION
 #include "pstring.h"
 
 

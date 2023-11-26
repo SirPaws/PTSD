@@ -4,18 +4,18 @@
 #endif
 
 
-#if defined(PSTD_WASM)
+#if defined(PTSD_WASM)
 #include <emscripten.h>
 #include <unistd.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#elif defined(PSTD_WINDOWS)
+#elif defined(PTSD_WINDOWS)
 #define PATH_MAX (32767)
 #include <Windows.h>
 #include <handleapi.h>
 #include <memoryapi.h>
 #include <winnt.h>
-#elif defined(PSTD_LINUX)
+#elif defined(PTSD_LINUX)
 #include <unistd.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -25,7 +25,7 @@
 
 
 phandle_t *pnull_handle(void) {
-#if defined(PSTD_WINDOWS)
+#if defined(PTSD_WINDOWS)
     return NULL; 
 #else
     return (void*)((u32) -1);
@@ -33,7 +33,7 @@ phandle_t *pnull_handle(void) {
 }
 
 bool penable_console_color_output(void) {
-#if defined(PSTD_WINDOWS)
+#if defined(PTSD_WINDOWS)
     bool result = SetConsoleMode(GetModuleHandle(NULL), ENABLE_VIRTUAL_TERMINAL_PROCESSING);
     return result != 0;
 #else
@@ -42,7 +42,7 @@ bool penable_console_color_output(void) {
 }
 
 phandle_t *pget_stdout_handle(void) {
-#if defined(PSTD_WINDOWS)
+#if defined(PTSD_WINDOWS)
     return GetStdHandle(STD_OUTPUT_HANDLE); 
 #else
     return (void*)((u32) 1);
@@ -50,7 +50,7 @@ phandle_t *pget_stdout_handle(void) {
 }
 
 phandle_t *pget_stdin_handle(void) {
-#if defined(PSTD_WINDOWS)
+#if defined(PTSD_WINDOWS)
     return GetStdHandle(STD_INPUT_HANDLE); 
 #else
     return (void*)((u32) 0);
@@ -66,7 +66,7 @@ pstring_t pfullpath(pstring_t path) {
     memset(input, 0, path.length + 1);
     memcpy(input, path.c_str, path.length);
 
-#if defined(PSTD_WINDOWS)
+#if defined(PTSD_WINDOWS)
 
     phandle_t *handle = pfile_open(input, P_READ_ACCESS);
     if (handle == NULL) {
@@ -111,7 +111,7 @@ pstring_t pfullpath(pstring_t path) {
 }
 
 pfilestat_t pstat_file(phandle_t *handle) {
-#if defined(PSTD_WINDOWS)
+#if defined(PTSD_WINDOWS)
     if (!handle || handle == INVALID_HANDLE_VALUE) return (pfilestat_t){0};//NOLINT
 #else
     (void)handle;
@@ -123,7 +123,7 @@ pfilestat_t pget_filestat(const char *file) {
     pfilestat_t result;
     if (!file) return (pfilestat_t){0};
 
-#if defined(PSTD_WINDOWS)
+#if defined(PTSD_WINDOWS)
 #define WIN32_COMBINE_HIGH_LOW( high, low ) ((u64)(high) << 31 | (low)) 
     WIN32_FILE_ATTRIBUTE_DATA data;
     result.exists   = GetFileAttributesEx(file, GetFileExInfoStandard, &data);
@@ -137,7 +137,7 @@ pfilestat_t pget_filestat(const char *file) {
     result.writetime    = WIN32_COMBINE_HIGH_LOW(data.ftLastWriteTime.dwHighDateTime, 
             data.ftLastWriteTime.dwLowDateTime);
 #undef WIN32_COMBINE_HIGH_LOW
-#elif  defined(PSTD_LINUX) || defined(PSTD_WASM)
+#elif  defined(PTSD_LINUX) || defined(PTSD_WASM)
     struct stat data;
     s32 statret = stat(file, &data);
     result.exists = statret == -1 ? false : true; 
@@ -264,18 +264,18 @@ u64 pfile_ids(pstring_t file) {
 }
 
 phandle_t *pfile_open(const char *filename, pfile_access_t access) {
-#if defined(PSTD_WINDOWS)
+#if defined(PTSD_WINDOWS)
     DWORD file_access;
     file_access  = access & P_READ_ACCESS  ? GENERIC_READ  : 0;
     file_access |= access & P_WRITE_ACCESS ? GENERIC_WRITE : 0;
     return CreateFile(filename, file_access, 0, 
             NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-#elif  defined(PSTD_LINUX)
+#elif  defined(PTSD_LINUX)
     int file_access;
     file_access = access & P_READ_ACCESS  ? O_RDONLY : 0;
     file_access = access & P_WRITE_ACCESS ? (access ? O_RDWR : O_WRONLY ) : 0;
     return (void*)(u64)open(filename, file_access);
-#elif  defined(PSTD_WASM)
+#elif  defined(PTSD_WASM)
     int file_access = -1;
     file_access = access & P_READ_ACCESS  ? O_RDONLY : -1;
     file_access = access & P_WRITE_ACCESS ? ((!access) ? O_RDWR : O_WRONLY ) : -1;
@@ -283,19 +283,19 @@ phandle_t *pfile_open(const char *filename, pfile_access_t access) {
 #endif
 }
 phandle_t *pfile_create(const char *filename, pfile_access_t access) {
-#if defined(PSTD_WINDOWS)
+#if defined(PTSD_WINDOWS)
     DWORD file_access;
     file_access  = access & P_READ_ACCESS  ? GENERIC_READ  : 0;
     file_access |= access & P_WRITE_ACCESS ? GENERIC_WRITE : 0;
     return CreateFile(filename, file_access, 0, 
             NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-#elif  defined(PSTD_LINUX)
+#elif  defined(PTSD_LINUX)
     int file_access;
     file_access = access & P_READ_ACCESS  ? O_RDONLY : 0;
     file_access = access & P_WRITE_ACCESS ? (access ? O_RDWR : O_WRONLY ) : 0;
     file_access|= O_CREAT;
     return (void*)(u64)open(filename, file_access);
-#elif  defined(PSTD_WASM)
+#elif  defined(PTSD_WASM)
     int file_access;
     file_access = access & P_READ_ACCESS  ? O_RDONLY : -1;
     file_access = access & P_WRITE_ACCESS ? ((!access) ? O_RDWR : O_WRONLY ) : -1;
@@ -305,36 +305,36 @@ phandle_t *pfile_create(const char *filename, pfile_access_t access) {
 }
 
 void pfile_close(phandle_t *handle) {
-#if defined(PSTD_WINDOWS)
+#if defined(PTSD_WINDOWS)
     CloseHandle(handle);
-#elif  defined(PSTD_LINUX) || defined(PSTD_WASM)
+#elif  defined(PTSD_LINUX) || defined(PTSD_WASM)
     u64 fh = (u64)((void *)handle);
     close(fh);
 #endif
 }
 
 bool pfile_write(phandle_t *handle, pstring_t buf) {
-#if defined(PSTD_WINDOWS)
+#if defined(PTSD_WINDOWS)
     return WriteFile(handle, buf.c_str, (u32)buf.length, NULL, NULL);
-#elif  defined(PSTD_LINUX) || defined(PSTD_WASM)
+#elif  defined(PTSD_LINUX) || defined(PTSD_WASM)
     s32 result = write((u64)(void*)handle, buf.c_str, (u32)buf.length);
     return result == -1 ? false : true;
 #endif
 }
 
 bool pfile_read(phandle_t *handle, pbuffer_t buf) {
-#if defined(PSTD_WINDOWS)
+#if defined(PTSD_WINDOWS)
     DWORD bytes_read = 0;
     ReadFile(handle, buf.c_str, buf.length, &bytes_read, NULL);
     return bytes_read != 0;
-#elif  defined(PSTD_LINUX) || defined(PSTD_WASM)
+#elif  defined(PTSD_LINUX) || defined(PTSD_WASM)
     s32 result = read((u64)(void*)handle, buf.c_str, buf.length);
     return result == -1 ? false : true;
 #endif
 }
 
 bool pseek(phandle_t *handle, isize size, enum pseek_mode_t mode) {//NOLINT
-#if defined(PSTD_WINDOWS)
+#if defined(PTSD_WINDOWS)
     
     DWORD wmode;
     switch (mode) {
@@ -348,7 +348,7 @@ bool pseek(phandle_t *handle, isize size, enum pseek_mode_t mode) {//NOLINT
 
     DWORD result = SetFilePointer(handle, (long)size, 0, wmode);
     return result != INVALID_SET_FILE_POINTER;
-#elif  defined(PSTD_LINUX) || defined(PSTD_WASM)
+#elif  defined(PTSD_LINUX) || defined(PTSD_WASM)
     u32 wmode;
     switch (mode) {
     case P_SEEK_SET: wmode = SEEK_SET; break;
@@ -363,7 +363,7 @@ bool pseek(phandle_t *handle, isize size, enum pseek_mode_t mode) {//NOLINT
 }
 
 void *pmemory_map_file(phandle_t *handle, pfile_access_t access, u64 size, u64 offset) {//NOLINT
-#if defined(PSTD_WINDOWS)
+#if defined(PTSD_WINDOWS)
 
     DWORD protection = 0;
     switch (access & (P_WRITE_ACCESS|P_READ_ACCESS)) {
@@ -387,17 +387,17 @@ void *pmemory_map_file(phandle_t *handle, pfile_access_t access, u64 size, u64 o
     void *mapping = MapViewOfFile(mapped_file, file_access, i.HighPart, i.LowPart, size);
     CloseHandle(mapped_file);
     return mapping;
-#elif defined(PSTD_LINUX) || defined(PSTD_WASM)
+#elif defined(PTSD_LINUX) || defined(PTSD_WASM)
     assert(false);
     return NULL;
 #endif
 }
 bool punmap_file(void *handle) {
-#if defined(PSTD_WINDOWS)
+#if defined(PTSD_WINDOWS)
     if (UnmapViewOfFile(handle)) 
          return true;
     else return false;
-#elif  defined(PSTD_LINUX) || defined(PSTD_WASM)
+#elif  defined(PTSD_LINUX) || defined(PTSD_WASM)
     return true;
 #endif
 }
@@ -406,7 +406,7 @@ bool punmap_file(void *handle) {
 
 char pnext_in_environment_path(const char **buffer, const char *file, char *out, usize *length);
 bool pfind_in_environment_path(const char *file, pstring_t *out) {
-#if defined(PSTD_WINDOWS)
+#if defined(PTSD_WINDOWS)
 
     char buffer[PATH_MAX];
     usize length = GetEnvironmentVariable("Path", buffer, PATH_MAX);
@@ -430,13 +430,13 @@ bool pfind_in_environment_path(const char *file, pstring_t *out) {
         }
     }
     return false;
-#elif  defined(PSTD_LINUX) || defined(PSTD_WASM)
+#elif  defined(PTSD_LINUX) || defined(PTSD_WASM)
     return false;
 #endif
 }
 
 char pnext_in_environment_path(const char **buffer_ptr, const char *file, char *out, usize *length) {
-#if defined(PSTD_WINDOWS)
+#if defined(PTSD_WINDOWS)
     const char *begin = *buffer_ptr;
     const char *end   = *buffer_ptr;
     while (!(*end == '\0' || *end == ';')) end++;
@@ -451,7 +451,7 @@ char pnext_in_environment_path(const char **buffer_ptr, const char *file, char *
     out[1 + *length] = '\0';
     if (*end) *buffer_ptr = end + 1;
     return *end;
-#elif  defined(PSTD_LINUX) || defined(PSTD_WASM)
+#elif  defined(PTSD_LINUX) || defined(PTSD_WASM)
     return '\0';
 #endif
 }

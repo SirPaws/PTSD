@@ -6,7 +6,7 @@
 #include "pstring.h"
 #include "pio.h"
 
-#if defined(PSTD_WINDOWS)
+#if defined(PTSD_WINDOWS)
 #include <Windows.h>
 #endif
 
@@ -20,17 +20,17 @@
 
 #define invalid_stream ((pgeneric_stream_t){.is_valid = false});
 
-#ifndef PSTD_IO_GLOBAL_T_DEFINED
+#ifndef PTSD_IO_GLOBAL_T_DEFINED
 struct pio_global_t {
     pstd_stream_t           std_stream;
     u32                     default_code_page;
     pgeneric_stream_t       current_stream;
     bool                 colored_output;
-#if defined(PSTD_WINDOWS)
+#if defined(PTSD_WINDOWS)
     u32                     console_mode;
 #endif
 };
-#define PSTD_IO_GLOBAL_T_DEFINED
+#define PTSD_IO_GLOBAL_T_DEFINED
 #endif
 
 static struct pio_global_t PIO_GLOBALS = {};
@@ -44,8 +44,8 @@ void pset_stream(pgeneric_stream_t *new_stream, pgeneric_stream_t *old_stream) /
 pgeneric_stream_t *pget_stream(void) { return &PIO_GLOBALS.current_stream; }
 
 void pinitialize_std_stream(void) {
-#if defined(PSTD_WINDOWS)
-#if !(defined(PSTD_NO_STACKTRACE) || defined(NDEBUG))
+#if defined(PTSD_WINDOWS)
+#if !(defined(PTSD_NO_STACKTRACE) || defined(NDEBUG))
     pstacktrace_register_signal_handlers(__argv[0]);
 #endif
     // this is so we can print unicode characters on windows
@@ -57,7 +57,7 @@ void pinitialize_std_stream(void) {
 
     BOOL did_succeed = SetConsoleMode(GetStdHandle(STD_OUTPUT_HANDLE), mode_output);
     PIO_GLOBALS.colored_output = did_succeed != 0;
-#elif defined(PSTD_WASM)
+#elif defined(PTSD_WASM)
     PIO_GLOBALS.color_output = false;
 #endif
     const pstd_stream_t template = { 
@@ -72,7 +72,7 @@ void pinitialize_std_stream(void) {
     PIO_GLOBALS.current_stream = PIO_GLOBALS.std_stream;
 }
 void pdestroy_std_stream(void) {
-#if defined(PSTD_WINDOWS)
+#if defined(PTSD_WINDOWS)
     SetConsoleOutputCP(PIO_GLOBALS.default_code_page);
     SetConsoleMode(GetStdHandle(STD_OUTPUT_HANDLE), PIO_GLOBALS.console_mode);
 #endif
@@ -185,7 +185,7 @@ pstring_t pstream_to_buffer_string(pgeneric_stream_t *stream) {
 void preset_stream(pgeneric_stream_t *stream) {
     if (!stream || !stream->is_valid) return;
 
-    if (PSTD_EXPECT(stream->type == STANDARD_STREAM, 1) || stream->type == FILE_STREAM) {
+    if (PTSD_EXPECT(stream->type == STANDARD_STREAM, 1) || stream->type == FILE_STREAM) {
         // this should probably have a comment explaning why we do this
         phandle_t *handle = stream->type == STANDARD_STREAM ? stream->stdin_handle 
                 : stream->stdout_handle;
@@ -198,7 +198,7 @@ void preset_stream(pgeneric_stream_t *stream) {
 void pmove_stream(pgeneric_stream_t *stream, isize size) {
     if (!stream || !stream->is_valid) return;
 
-    if (PSTD_EXPECT(stream->type == STANDARD_STREAM, 1) || stream->type == FILE_STREAM) {
+    if (PTSD_EXPECT(stream->type == STANDARD_STREAM, 1) || stream->type == FILE_STREAM) {
         // this should probably have a comment explaning why we do this
         phandle_t *handle = stream->type == STANDARD_STREAM ? stream->stdin_handle 
                 : stream->stdout_handle;
@@ -215,7 +215,7 @@ void pread_stream(pgeneric_stream_t *stream, void *buf, usize size) {
     if (!stream || !stream->is_valid) return;
     if ((bool)(stream->flags & STREAM_INPUT) == false) return;
 
-    if (PSTD_EXPECT(stream->type == STANDARD_STREAM, 1) || stream->type == FILE_STREAM) {
+    if (PTSD_EXPECT(stream->type == STANDARD_STREAM, 1) || stream->type == FILE_STREAM) {
         // this should probably have a comment explaning why we do this
         phandle_t *handle = 
             stream->type == STANDARD_STREAM ? stream->stdin_handle : stream->stdout_handle;  
@@ -233,7 +233,7 @@ bool pread_line_stream(pgeneric_stream_t *stream, pstring_t *string) {
     if (!stream || !stream->is_valid) return false;
     if ((bool)(stream->flags & STREAM_INPUT) == false) return false;
 
-    if (PSTD_EXPECT(stream->type == STANDARD_STREAM, 1) || stream->type == FILE_STREAM) {
+    if (PTSD_EXPECT(stream->type == STANDARD_STREAM, 1) || stream->type == FILE_STREAM) {
         // this should probably have a comment explaning why we do this
         phandle_t *handle = stream->type == STANDARD_STREAM ? stream->stdin_handle : stream->stdout_handle;  
 
@@ -283,7 +283,7 @@ void pwrite_stream_s(pgeneric_stream_t *stream, pstring_t str) {
     if (!stream->is_valid) return;
     if ((bool)(stream->flags & STREAM_OUTPUT) == false) return;
 
-    if (PSTD_EXPECT(stream->type == STANDARD_STREAM, 1) || stream->type == FILE_STREAM) {
+    if (PTSD_EXPECT(stream->type == STANDARD_STREAM, 1) || stream->type == FILE_STREAM) {
         pfile_write(stream->handle, str);
     } else if (stream->type == CFILE_STREAM) {
         for (usize i = 0; i < str.length; i++)
@@ -300,7 +300,7 @@ void pwrite_stream_c(pgeneric_stream_t *stream, char chr) {
     if (!stream->is_valid) return;
     if ((bool)(stream->flags & STREAM_OUTPUT) == false) return;
 
-    if (PSTD_EXPECT(stream->type == STANDARD_STREAM, 1) || stream->type == FILE_STREAM) {
+    if (PTSD_EXPECT(stream->type == STANDARD_STREAM, 1) || stream->type == FILE_STREAM) {
         pfile_write(stream->handle, pstring( &chr, 1 ));
     } else if (stream->type == CFILE_STREAM) {
         fputc(chr, stream->file);

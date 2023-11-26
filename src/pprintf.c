@@ -2,7 +2,7 @@
 #include "stretchy_buffer.h"
 #include <ctype.h>
 
-#define PIO_STATIC PSTD_UNUSED static inline 
+#define PIO_STATIC PTSD_UNUSED static inline 
 
 #define BASE_10 10
 
@@ -29,17 +29,17 @@ static padv_user_callback_t *stretchy advcallbacks = NULL;
 static puser_callback_t     *stretchy callbacks    = NULL;
 
 // forward declaration
-#ifndef PSTD_IO_GLOBAL_T_DEFINED
+#ifndef PTSD_IO_GLOBAL_T_DEFINED
 struct pio_global_t {
     pstd_stream_t           std_stream;
     u32                     default_code_page;
     pgeneric_stream_t       current_stream;
     bool                 colored_output;
-#if defined(PSTD_WINDOWS)
+#if defined(PTSD_WINDOWS)
     u32                     console_mode;
 #endif
 };
-#define PSTD_IO_GLOBAL_T_DEFINED
+#define PTSD_IO_GLOBAL_T_DEFINED
 #endif
 
 static struct pio_global_t PIO_GLOBALS;
@@ -75,7 +75,7 @@ u32 pvbprintf(pgeneric_stream_t *stream, const char *restrict fmt, va_list list)
     u32 printcount = 0;
 
     while(*fmt) {
-        if (PSTD_EXPECT(*fmt != '%', 1)) {
+        if (PTSD_EXPECT(*fmt != '%', 1)) {
             const char *restrict fmt_next = fmt;
             while (pchar_anyof(*fmt_next, 2, (char[2]){ '%', '\0'}) == false) fmt_next++;
             pwrite_stream_s(stream, pstring((char*)fmt, (usize)(fmt_next - fmt)));
@@ -222,7 +222,7 @@ PIO_STATIC u64 pprintf_print_justified(pgeneric_stream_t *stream, pformatting_sp
         if (space_count > 0)  memset(spaces, ' ', space_count);
         if (zero_count  > 0)  memset(zeros,  '0', zero_count);
 
-        if (PSTD_EXPECT(!spec->right_justified, 1)) {
+        if (PTSD_EXPECT(!spec->right_justified, 1)) {
             if (space_count > 0) pwrite_stream_s(stream, pstring( spaces, space_count ));
             if (zero_count > 0)  pwrite_stream_s(stream, pstring( zeros, zero_count ));
             pwrite_stream_s(stream, string);
@@ -306,7 +306,7 @@ PIO_STATIC void pprintf_handle_binary(pprintf_info_t *info, pformatting_specific
         psized_free(numbits[PFL_LL], low.buffer);
     } else {
         u64 num;
-        if (PSTD_EXPECT(spec->length == PFL_DEFAULT, 1)) {
+        if (PTSD_EXPECT(spec->length == PFL_DEFAULT, 1)) {
             num = va_arg(*info->list, s32);
         }
         else {
@@ -340,7 +340,7 @@ PIO_STATIC void pprintf_handle_background_color(pprintf_info_t *info) {
         
         pstring_t RGB[3];
         pprintf_get_rgb(&info->fmt, RGB);
-    if (PSTD_EXPECT(PIO_GLOBALS.colored_output, 1)) {
+    if (PTSD_EXPECT(PIO_GLOBALS.colored_output, 1)) {
         static const pstring_t header = pcreate_const_string("\x1b[48;2;");
         pwrite_stream_s(info->stream, header);
         pwrite_stream_s(info->stream, RGB[0]);
@@ -363,7 +363,7 @@ PIO_STATIC void pprintf_handle_foreground_color(pprintf_info_t *info) {
     pstring_t RGB[3];
     pprintf_get_rgb(&info->fmt, RGB);
 
-    if (PSTD_EXPECT(PIO_GLOBALS.colored_output, 1)) {
+    if (PTSD_EXPECT(PIO_GLOBALS.colored_output, 1)) {
         static const pstring_t header = pcreate_const_string("\x1b[38;2;");
         pwrite_stream_s(info->stream, header);
         pwrite_stream_s(info->stream, RGB[0]);
@@ -381,7 +381,7 @@ PIO_STATIC void pprintf_handle_foreground_color(pprintf_info_t *info) {
 }
 
 PIO_STATIC void pprintf_handle_char(pprintf_info_t *info, bool wide) {
-    if (PSTD_EXPECT(wide == false, 1)){
+    if (PTSD_EXPECT(wide == false, 1)){
         int character = va_arg(*info->list, int);
         pwrite_stream_c(info->stream, (char)character);
         info->count++;
@@ -411,7 +411,7 @@ PIO_STATIC void pprintf_handle_string(pprintf_info_t *info, pformatting_specific
 
 PIO_STATIC void pprintf_handle_color_clear(pprintf_info_t *info) {
     static const pstring_t reset = pcreate_const_string("\x1b[0m");
-    if (PSTD_EXPECT(PIO_GLOBALS.colored_output, 1)) {
+    if (PTSD_EXPECT(PIO_GLOBALS.colored_output, 1)) {
         pwrite_stream_s(info->stream, reset);
         info->count += reset.length; 
     }
@@ -488,7 +488,7 @@ PIO_STATIC void pprintf_handle_bool(pprintf_info_t *info, pformatting_specificat
         pcreate_const_string("TRUE"),
     };
     u64 num = 0;
-    if ( PSTD_EXPECT( spec->length == PFL_DEFAULT, 1) ) {
+    if ( PTSD_EXPECT( spec->length == PFL_DEFAULT, 1) ) {
         num = va_arg(*info->list, s32);
     } else {
         switch(spec->length) {
@@ -617,7 +617,7 @@ PIO_STATIC void pprintf_handle_length(pprintf_info_t *info, pformatting_specific
     }
      
     info->fmt++;
-    if (PSTD_EXPECT(spec->length == PFL_L && *info->fmt == 'c', 0) == false) {
+    if (PTSD_EXPECT(spec->length == PFL_L && *info->fmt == 'c', 0) == false) {
         switch(*info->fmt) {
         case 'f': case 'F':
         case 'e': case 'E':
@@ -702,7 +702,7 @@ PIO_STATIC void pprintf_handle_unsignedint(
 PIO_STATIC void pprintf_handle_int(pprintf_info_t *info, pformatting_specification_t *spec, char printtype) {
     u64 num = 0;
 
-    if ( PSTD_EXPECT( spec->length == PFL_DEFAULT, 1) ) {
+    if ( PTSD_EXPECT( spec->length == PFL_DEFAULT, 1) ) {
         num = va_arg(*info->list, s32);
     } else {
         switch(spec->length) {
@@ -832,7 +832,7 @@ void pprintf_handle_hexadecimalint(
 //TODO: this is stupid and needs replacing
 PIO_STATIC void pprintf_handle_float(pprintf_info_t *info, pformatting_specification_t *spec) {
     (void)spec;
-#if PSTD_HAS_VLA
+#if PTSD_HAS_VLA
 #else
     pallocator_t *cb = &info->stream.cb;
 #endif
@@ -840,21 +840,21 @@ PIO_STATIC void pprintf_handle_float(pprintf_info_t *info, pformatting_specifica
     const char *restrict begin = info->fmt; 
     while (*begin != '%') begin--;
     usize size = info->fmt - begin + 1;
-#if PSTD_HAS_VLA
+#if PTSD_HAS_VLA
     char buf[size + 1];
 #else
     char *buf = cb->allocator(cb, ALLOCATE, size + 1, NULL);
 #endif
     memcpy(buf, begin, size);
     buf[size] = '\0';
-#if PSTD_HAS_VLA
+#if PTSD_HAS_VLA
 #else
     cb->allocator(cb, FREE, size + 1, buf);
 #endif
 
     usize count = 0;
     count = snprintf(NULL, 0, buf, value);
-#if PSTD_HAS_VLA
+#if PTSD_HAS_VLA
     char out[count + 1];
 #else
     char *out = cb->allocator(cb, ALLOCATE, count + 1, NULL);
@@ -862,16 +862,16 @@ PIO_STATIC void pprintf_handle_float(pprintf_info_t *info, pformatting_specifica
     
     info->count += snprintf(out, count, buf, value);
     pwrite_stream_s(info->stream, pstring(out, count - 1));
-#if defined(PSTD_GNU_COMPATIBLE)
+#if defined(PTSD_GNU_COMPATIBLE)
 #else
     cb->allocator(cb, FREE, count + 1, out);
 #endif
 }
 
 PIO_STATIC void pprintf_handle_pointer(pprintf_info_t *info, pformatting_specification_t *spec) {
-#if defined(PSTD_32)
+#if defined(PTSD_32)
     spec->length = PFL_DEFAULT;
-#elif defined(PSTD_64)
+#elif defined(PTSD_64)
     spec->length = PFL_LL;
 #else
 #error neither 32 or 64 bit!
@@ -891,7 +891,7 @@ PIO_STATIC void pprintf_handle_pointer(pprintf_info_t *info, pformatting_specifi
 }
 
 PIO_STATIC void pprintf_handle_characters_written(pprintf_info_t *info, pformatting_specification_t *spec) {
-    if ( PSTD_EXPECT( spec->length == PFL_DEFAULT, 1) ) {
+    if ( PTSD_EXPECT( spec->length == PFL_DEFAULT, 1) ) {
         s32 *count = va_arg(*info->list, s32*);
         *count = (s32)info->count;
     } else {
