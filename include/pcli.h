@@ -1,5 +1,5 @@
-#ifndef PSTD_CLI_HEADER
-#define PSTD_CLI_HEADER 
+#ifndef PTSD_CLI_HEADER
+#define PTSD_CLI_HEADER 
 #include "general.h"
 #include "pstring.h"
 #include "stretchy_buffer.h"
@@ -66,4 +66,4 @@ void pcli_run(pcli_t *, int, const char*[]);
 
 void pcli_free(pcli_t *);
 
-#endif // PSTD_CLI_HEADER 
+#endif // PTSD_CLI_HEADER 

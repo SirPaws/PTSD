@@ -1,14 +1,14 @@
 #pragma once
 
-#ifndef PSTD_HASH_HEADER
-#define PSTD_HASH_HEADER
-#ifndef PSTD_HASH_STANDALONE
+#ifndef PTSD_HASH_HEADER
+#define PTSD_HASH_HEADER
+#ifndef PTSD_HASH_STANDALONE
 #include "general.h"
 #else
 #error not implemented yet
 #endif
 
-#if defined(PSTD_MSVC) || (__clang__ && _WIN32)
+#if defined(PTSD_MSVC) || (__clang__ && _WIN32)
 
 #include <stdlib.h>
 
@@ -41,7 +41,7 @@ inline uint64_t rotl64 ( uint64_t x, int8_t r )
 extern "C" {
 #endif
 
-static PSTD_FORCE_INLINE
+static PTSD_FORCE_INLINE
 u32 pfmix32(u32 h) {
   h ^= h >> 16;
   h *= 0x85ebca6b;
@@ -54,7 +54,7 @@ u32 pfmix32(u32 h) {
 
 //----------
 
-static PSTD_FORCE_INLINE
+static PTSD_FORCE_INLINE
 u64 pfmix64(u64 k) {
   k ^= k >> 33;
   k *= BIG_CONSTANT(0xff51afd7ed558ccd);
@@ -65,7 +65,7 @@ u64 pfmix64(u64 k) {
   return k;
 }
 
-PSTD_UNUSED
+PTSD_UNUSED
 static inline usize phash(const void *key, isize length, usize seed) {//NOLINT
     assert(length > 0);
     if (sizeof(usize) == 4) {
@@ -197,4 +197,4 @@ static inline usize phash(const void *key, isize length, usize seed) {//NOLINT
 #if defined(__cplusplus)
 }
 #endif
-#endif // PSTD_HASH_HEADER
+#endif // PTSD_HASH_HEADER

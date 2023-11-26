@@ -1,19 +1,126 @@
 #pragma once
-
-#ifndef PSTD_DYNARRAY_HEADER
-#define PSTD_DYNARRAY_HEADER
-#ifndef DYNARRAY_STANDALONE
+#ifndef PTSD_DYNARRAY_HEADER
+#define PTSD_DYNARRAY_HEADER
+#ifndef PTSD_DYNARRAY_STANDALONE
 #   include "general.h"
 #else
-#error not implemented yet!
+#include <stddef.h>
+#include <stdlib.h>
+#include <string.h>
+#include <assert.h>
+#if !(defined(_MSC_FULL_VER) && !defined(__clang__)) // not an msvc compiler
+#   define PTSD_GNU_COMPATIBLE 1
+#else
+#   define PTSD_MSVC 1
+#endif
+#if defined(__has_c_attribute)
+#   define PTSD_HAS_ATTRIBUTE __has_c_attribute
+#else
+#   define PTSD_HAS_ATTRIBUTE(x) 0
+#endif
+#if PTSD_HAS_ATTRIBUTE(maybe_unused)
+#define PTSD_UNUSED [[maybe_unused]]
+#elif defined(PTSD_GNU_COMPATIBLE)
+#define PTSD_UNUSED __attribute__((unused))
+#else
+#define PTSD_UNUSED
+#endif
+#define PTSD_ARG16(_0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, ...) _15
+#define PTSD_HAS_COMMA(...) PTSD_ARG16(__VA_ARGS__, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0)
+#define PTSD_TRIGGER_PARENTHESIS_(...) ,
+#define PTSD_REMOVE_EMPTY(...) ,,,,,,,,,,,,,,,
+#define PTSD_INDIRECT1(tuple) PTSD_ARG16 tuple 
+#define PTSD_INDIRECT0(...)  PTSD_INDIRECT1((PTSD_REMOVE_EMPTY __VA_ARGS__ () 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0))
+#define PTSD_INDIRECT(...) PTSD_INDIRECT0(__VA_ARGS__)
+#define PTSD_NARG16__(args) PTSD_ARG16 args
+#define PTSD_NARG16_(...) \
+    PTSD_NARG16__((__VA_ARGS__, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1))
+#define PTSD_NARG16(...) PTSD_NARG16_(__VA_ARGS__)
+// based off of an implementation by Jens Gusted https://gustedt.wordpress.com/2010/06/08/detect-empty-macro-arguments/ (may, 2022)
+#define PTSD_ISEMPTY(...)                                                   \
+PTSD_ISEMPTY_(                                                              \
+          /* test if there is just one argument, eventually an empty        \
+             one */                                                         \
+          PTSD_HAS_COMMA(__VA_ARGS__),                                      \
+          /* test if _TRIGGER_PARENTHESIS_ together with the argument       \
+             adds a comma */                                                \
+          PTSD_HAS_COMMA(PTSD_TRIGGER_PARENTHESIS_ __VA_ARGS__),            \
+          /* test if the argument together with a parenthesis               \
+             adds a comma */                                                \
+          PTSD_HAS_COMMA(__VA_ARGS__ (/*empty*/)),                          \
+          /* test if placing it between _TRIGGER_PARENTHESIS_ and the       \
+             parenthesis adds a comma */                                    \
+          PTSD_HAS_COMMA(PTSD_TRIGGER_PARENTHESIS_ __VA_ARGS__ (/*empty*/)),\
+          PTSD_INDIRECT(__VA_ARGS__)                                        \
+          )
+#define PTSD_CONCAT_5(_0, _1, _2, _3, _4) _0 ## _1 ## _2 ## _3 ## _4
+#define PTSD_ISEMPTY_CONCAT(_0, _1, _2, _3, _4) PTSD_CONCAT_5(_0, _1, _2, _3, _4)
+#define PTSD_ISEMPTY_TUPLE2(...)  PTSD_ISEMPTY_CONCAT __VA_ARGS__
+#define PTSD_ISEMPTY_TUPLE1(a, b) PTSD_CONCAT(PTSD_IS_EMPTY_CASE_, b)
+#define PTSD_ISEMPTY_TUPLE0(...)  PTSD_ISEMPTY_TUPLE1 __VA_ARGS__
+#define PTSD_ISEMPTY_(...)  PTSD_ISEMPTY_TUPLE0((a, PTSD_ISEMPTY_TUPLE2 ((__VA_ARGS__))))
+#define PTSD_IS_EMPTY_CASE_00001 1
+#define PTSD_IS_EMPTY_CASE_00011 1
+#define PTSD_IS_EMPTY_CASE_00011 1
+#define PTSD_IS_EMPTY_CASE_00000 0
+#define PTSD_IS_EMPTY_CASE_11110 0
+#define PTSD_IS_EMPTY_CASE_11110 0
+#define PTSD_IS_EMPTY_CASE_11110 0
+#define PTSD_IS_EMPTY_CASE_11110 0
+#define PTSD_DEFAULT_1(actual, default) default
+#define PTSD_DEFAULT_0(actual, default) actual
+#define PTSD_DEFAULT_(...) PTSD_CONCAT __VA_ARGS__
+#define PTSD_DEFAULT(value, default) PTSD_DEFAULT_((PTSD_DEFAULT_, PTSD_ISEMPTY(value)))(value, default)
+#define PTSD_CONCAT_( a, b ) a##b
+#define PTSD_CONCAT( a, b ) PTSD_CONCAT_( a, b )
+#if defined(PTSD_GNU_COMPATIBLE)
+#   ifndef pallocate
+#      define pallocate(size) malloc(size)
+#   endif // pAllocate
+#   ifndef pzero_allocate
+#      define pzero_allocate(size) ({ void *_tmp_ = malloc(size); memset(_tmp_, 0, (size));})
+#   endif // pzeroallocate
+#   ifndef preallocate
+#      define preallocate(size, buffer) realloc(buffer, size)
+#   endif // pReallocate
+#   ifndef pfree
+#      define pfree(buffer) free(buffer)
+#   endif // pfree
+#   ifndef psized_free
+#      define psized_free(size, buffer) free(buffer)
+#   endif // psizedfree
+#else
+#   ifndef pallocate
+#      define pallocate(size) malloc(size)
+#   endif // pAllocate
+#   ifndef pzero_allocate
+PTSD_UNUSED
+static inline void *pzero_allocate_implementation(usize size) {
+    void *tmp = malloc(size);
+    memset(tmp, 0, size);
+    return tmp;
+}
+#      define pzero_allocate(size) pzero_allocate_implementation
+#   endif // pZeroAllocate
+#   ifndef pReallocate
+#      define preallocate(size, buffer) realloc(buffer, size)
+#   endif // pReallocate
+#   ifndef pFree
+#      define pfree(buffer) free(buffer)
+#   endif // pFree
+#   ifndef pSized_Free
+#      define psized_free(size, buffer) free(buffer)
+#   endif // pFree
+#endif
+typedef size_t    usize;
 #endif
 
-#if defined(_MSC_FULL_VER) && !defined(__clang__)
-#error MVSC COMPILER NOT SUPPORTED!
+#if !defined(PTSD_GNU_COMPATIBLE)
+#error PTSD dynamic array is not supported on MSVC, if you are on windows and want to use this either switch to clang, or mingw
 #endif
 
-#ifndef P_DYNARRAY_GROWTH_COUNT
-#define P_DYNARRAY_GROWTH_COUNT 2
+#ifndef PTSD_DYNARRAY_GROWTH_COUNT
+#define PTSD_DYNARRAY_GROWTH_COUNT 2
 #endif
 
 #define pda_create_dynarray(name, datatype)      pda_create_dynarray_implementaion(name, datatype)
@@ -42,33 +149,23 @@
 #define pda_copy_dynarray(arr)                   pda_copy_dynarray_implementation(arr)
 #define pda_copy_array(type, arr)                pda_copy_array_implementation(type, arr)
 
-#define pda_foreach(array, .../*[optiona] name*/)   pda_foreach_(array, __VA_ARGS__)
-#define pda_foreach_r(array, .../*[optiona] name*/) pda_foreach_i_(array, __VA_ARGS__)
-#define pda_foreach_i(array, .../*[optiona] name*/) pda_foreach_i_(array, __VA_ARGS__)
+#define pda_foreach(array, .../*[optiona] name*/)   pda_foreach_implementation(array, __VA_ARGS__)
+#define pda_foreach_r(array, .../*[optiona] name*/) pda_foreach_i_implementation(array, __VA_ARGS__)
+#define pda_foreach_i(array, .../*[optiona] name*/) pda_foreach_i_implementation(array, __VA_ARGS__)
 
+// implementation ///////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-
-
-
-
-
-
-
-
-
-
-#define pda_foreach_1(array, name) \
+#define pda_foreach_implementation_(array, name) \
     for( __auto_type name = pda_begin(array); name != pda_end(array); name++) //NOLINT
-#define pda_foreach_0(array, ...)       pda_foreach_1(array, it)
-#define pda_foreach_check_has_name(args) PSTD_CONCAT(pda_foreach_, args)
-#define pda_foreach_(array, ...)   pda_foreach_check_has_name(PSTD_HAS_SECOND(array, ## __VA_ARGS__))(array, ## __VA_ARGS__)
+#define pda_foreach_implementation(array, ...)   \
+    pda_foreach_implementation_(array, PTSD_DEFAULT(__VA_ARGS__, it))
 
-#define pda_foreach_i_1(array, name) \
+#define pda_foreach_i_implementation_(array, name) \
     for( __auto_type name = pda_end(array) - 1; name != pda_begin(array) - 1; name--) //NOLINT
-#define pda_foreach_i_0(array, ...)        pda_foreach_i_1(array, it)
-#define pda_foreach_i_check_has_name(args) PSTD_CONCAT(pda_foreach_i_, args)
-#define pda_foreach_i_(array, ...)   pda_foreach_i_check_has_name(PSTD_HAS_SECOND(array, ## __VA_ARGS__))(array, ## __VA_ARGS__)
-
+#define pda_foreach_i_implementation(array, ...)   \
+    pda_foreach_i_implementation_(array, PTSD_DEFAULT(__VA_ARGS__, it))
 
 #define pda_create_dynarray_implementaion(name, datatype)   \
     struct name {                                           \
@@ -242,22 +339,22 @@ struct pdynarray_t {
 static void pda_bytegrow(pdynarray_t *array, usize bytes);
 static void pda_grow(pdynarray_t *array, usize datasize, usize count);
 
-PSTD_UNUSED
+PTSD_UNUSED
 static void pda_maybe_bytegrow(pdynarray_t *array, usize bytes) {
     if (array->size + bytes > array->end_of_storage) {
         pda_bytegrow(array, bytes);
     }
 }
 
-PSTD_UNUSED
+PTSD_UNUSED
 static void pda_maybe_grow(pdynarray_t *array, usize datasize) {
     if ((array->size + 1) * datasize > array->end_of_storage) {
         pda_grow((pdynarray_t *)array,
-                datasize, P_DYNARRAY_GROWTH_COUNT);
+                datasize, PTSD_DYNARRAY_GROWTH_COUNT);
     }
 }
 
-PSTD_UNUSED
+PTSD_UNUSED
 static void pda_bytegrow(pdynarray_t *array, usize bytes) {
     if (!bytes || !array) return;
     void *tmp = preallocate(array->end_of_storage + bytes, array->data);
@@ -266,7 +363,7 @@ static void pda_bytegrow(pdynarray_t *array, usize bytes) {
     array->end_of_storage += bytes;
 }
 
-PSTD_UNUSED
+PTSD_UNUSED
 static void pda_grow(pdynarray_t *array, usize datasize, usize count) {
     if (!count || !array || !datasize) return;
     void *tmp = preallocate(datasize * (array->end_of_storage + count), array->data);
@@ -274,4 +371,4 @@ static void pda_grow(pdynarray_t *array, usize datasize, usize count) {
     array->data = tmp;
     array->end_of_storage += count;
 }
-#endif // PSTD_DYNARRAY_HEADER
+#endif // PTSD_DYNARRAY_HEADER

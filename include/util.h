@@ -1,8 +1,8 @@
 #pragma once
 
-#ifndef PSTD_UTIL_HEADER
-#define PSTD_UTIL_HEADER
-#ifndef PSTD_UTIL_STANDALONE
+#ifndef PTSD_UTIL_HEADER
+#define PTSD_UTIL_HEADER
+#ifndef PTSD_UTIL_STANDALONE
 #include "general.h"
 #else
 #error not implemented yet
@@ -13,13 +13,13 @@ extern "C" {
 #endif
 
 // compare number to range
-PSTD_UNUSED
+PTSD_UNUSED
 static bool pcmp_range(s32 num, s32 start, s32 end) {
     return num > start && num < end;
 }
 
 // compare number to range inclusive
-PSTD_UNUSED
+PTSD_UNUSED
 static bool pcmp_range_i(s32 num, s32 start, s32 end) {
     return (num >= start) && (num <= end);
 }

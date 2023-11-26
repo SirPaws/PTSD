@@ -1,13 +1,13 @@
 #pragma once
-#ifndef PSTD_STACKTRACE
-#define PSTD_STACKTRACE
+#ifndef PTSD_STACKTRACE
+#define PTSD_STACKTRACE
 #include "general.h"
 #include "pio.h"
 
-#define PSTD_STACKTRACE_COLOUR(r, g, b)  "%Cfg(" #r "," #g "," #b ")"
-#define PSTD_STACKTRACE_ERROR_COLOUR  PSTD_STACKTRACE_COLOUR(255,110,110)
-#define PSTD_STACKTRACE_PATH_COLOUR   PSTD_STACKTRACE_COLOUR(121,229,157)
-#define PSTD_STACKTRACE_NUMBER_COLOUR PSTD_STACKTRACE_COLOUR(  0,196,255)
+#define PTSD_STACKTRACE_COLOUR(r, g, b)  "%Cfg(" #r "," #g "," #b ")"
+#define PTSD_STACKTRACE_ERROR_COLOUR  PTSD_STACKTRACE_COLOUR(255,110,110)
+#define PTSD_STACKTRACE_PATH_COLOUR   PTSD_STACKTRACE_COLOUR(121,229,157)
+#define PTSD_STACKTRACE_NUMBER_COLOUR PTSD_STACKTRACE_COLOUR(  0,196,255)
 
 
 
@@ -30,4 +30,4 @@ void pstacktrace_register_signal_handlers(const char *application_name);
 void pstacktrace_unregister_signal_handlers(void);
 
 void pstacktrace_print(void);
-#endif // PSTD_STACKTRACE
+#endif // PTSD_STACKTRACE

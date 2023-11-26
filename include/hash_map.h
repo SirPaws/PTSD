@@ -1,13 +1,13 @@
 #pragma once
-#ifndef PSTD_HASH_MAP_HEADER
-#define PSTD_HASH_MAP_HEADER
+#ifndef PTSD_HASH_MAP_HEADER
+#define PTSD_HASH_MAP_HEADER
 #include "general.h"
-#ifndef PSTD_NUM_BUCKETS
-#define PSTD_NUM_BUCKETS 32
+#ifndef PTSD_NUM_BUCKETS
+#define PTSD_NUM_BUCKETS 32
 #endif
 
-#ifndef PSTD_HASH_MAP_GROWTH_COUNT
-#define PSTD_HASH_MAP_GROWTH_COUNT 2
+#ifndef PTSD_HASH_MAP_GROWTH_COUNT
+#define PTSD_HASH_MAP_GROWTH_COUNT 2
 #endif
 
 #define phs_freekey_func(map, delete_func) phs_freekey_func_implementation(map, delete_func)
@@ -56,7 +56,7 @@ typedef struct phashmap_key_t phashmap_key_t;
 struct phashmap_key_t {
     usize index; // index in value array
     usize size;
-#if PSTD_C99
+#if PTSD_C99
     u8 key_value[];
 #endif
 };
@@ -64,7 +64,7 @@ struct phashmap_key_t {
 typedef void phs_free_func_t(void*);
 typedef struct phashmap_t phashmap_t;
 struct phashmap_t {
-#if defined(PSTD_USE_ALLOCATOR)
+#if defined(PTSD_USE_ALLOCATOR)
     Allocator cb;
 #endif
     phashmap_compare_func_t *cmp_fnc;
@@ -74,10 +74,10 @@ struct phashmap_t {
     struct {
         usize size;
         phashmap_key_t *keys;
-    } key_array[PSTD_NUM_BUCKETS];
+    } key_array[PTSD_NUM_BUCKETS];
     usize size;
     usize end_of_storage;
-#if PSTD_C99
+#if PTSD_C99
     // this is including the parity
     u8 value_buffer[];
 #endif
@@ -96,7 +96,7 @@ struct phashmap_t {
     ((data_type*)                                                   \
      phs_create_hashmap_implementation_(phs_sizeof(data_type), phs_sizeof(key_type), NULL, cmp))
 
-#if defined(PSTD_USE_ALLOCATOR)
+#if defined(PTSD_USE_ALLOCATOR)
 #define phs_create_hashmap_adv_implementation(data_type, key_type, hash, cmp, allocator)\
     ((data_type*)                                                                       \
      phs_create_hashmap_implementation_(phs_sizeof(data_type), phs_sizeof(key_type), hash, cmp, allocator))
@@ -186,7 +186,7 @@ struct phashmap_t {
 })
 
 
-PSTD_UNUSED
+PTSD_UNUSED
 static inline usize phs_hash_object(usize value, void *obj_ptr, usize size) {
     static const usize hash_prime = 1697949259063052683ull;
     usize hash = value;
@@ -198,12 +198,12 @@ static inline usize phs_hash_object(usize value, void *obj_ptr, usize size) {
     return hash;
 }
 
-PSTD_UNUSED
+PTSD_UNUSED
 static inline usize phs_default_hash_func(phashmap_t *hmap, void *ptr) {
     return phs_hash_object((usize)ptr, ptr, hmap->key_size); 
 }
 
-PSTD_UNUSED
+PTSD_UNUSED
 static inline bool phs_default_compare_func(phashmap_t *hmap, void *_a, void *_b) {
     u8 *a = _a, *b = _b;
     for (usize i = 0; i < hmap->key_size; i++) {
@@ -213,18 +213,18 @@ static inline bool phs_default_compare_func(phashmap_t *hmap, void *_a, void *_b
 }
 
 
-#if defined(PSTD_USE_ALLOCATOR)
-PSTD_UNUSED
+#if defined(PTSD_USE_ALLOCATOR)
+PTSD_UNUSED
 static inline void *phs_create_hashmap_implementation_(
         usize data_size, usize key_size, 
         phashmap_hash_func_t *hs, phashmap_compare_func_t *cmp, pallocator_t cb) 
 #else
-PSTD_UNUSED
+PTSD_UNUSED
 static inline void *phs_create_hashmap_implementation_(
         usize data_size, usize key_size, phashmap_hash_func_t *hs, phashmap_compare_func_t *cmp) 
 #endif
 {
-#if defined(PSTD_USE_ALLOCATOR)
+#if defined(PTSD_USE_ALLOCATOR)
     void *(*allocator)(Allocator *self, AllocationKind kind, usize size, void *block); 
     if (!cb.allocator) cb.allocator = pDefaultAllocator;
     allocator = cb.allocator;
@@ -235,7 +235,7 @@ static inline void *phs_create_hashmap_implementation_(
     if (!hs)  hs  = phs_default_hash_func;
     if (!cmp) cmp = phs_default_compare_func;
 
-#if defined(PSTD_USE_ALLOCATOR)
+#if defined(PTSD_USE_ALLOCATOR)
     void *tmp = allocator(&cb, ZERO_ALLOCATE, size, NULL);
 #else
     void *tmp = pzero_allocate(size);
@@ -243,7 +243,7 @@ static inline void *phs_create_hashmap_implementation_(
     assert(tmp);
     phashmap_t *hmap = tmp;
     *hmap = (phashmap_t){
-#if defined(PSTD_USE_ALLOCATOR)
+#if defined(PTSD_USE_ALLOCATOR)
         .cb             = cb,
 #endif
         .hash_fnc       = hs,
@@ -256,13 +256,13 @@ static inline void *phs_create_hashmap_implementation_(
     return parity + data_size;
 }
 
-PSTD_UNUSED
+PTSD_UNUSED
 static inline isize phs_get_index(phashmap_t *hmap, void *key) {
     if (!hmap || !key) return -1;
 
     usize hash_key_size = (sizeof(phashmap_key_t) + hmap->key_size);
     usize hash = hmap->hash_fnc(hmap, key);
-    __auto_type bucket = hmap->key_array[hash % PSTD_NUM_BUCKETS];
+    __auto_type bucket = hmap->key_array[hash % PTSD_NUM_BUCKETS];
     for (usize i = 0; i < bucket.size; i++) {
         u8 *bucket_keys = (void*)bucket.keys;
         phashmap_key_t *key_data = (void*)(bucket_keys + (i * hash_key_size));
@@ -272,19 +272,19 @@ static inline isize phs_get_index(phashmap_t *hmap, void *key) {
     return -1;
 }
 
-PSTD_UNUSED
+PTSD_UNUSED
 static inline isize phs_make_space(phashmap_t **hmap_ptr, usize data_size, void *key) {
     phashmap_t *hmap = *hmap_ptr;
-#if defined(PSTD_USE_ALLOCATOR)
+#if defined(PTSD_USE_ALLOCATOR)
     void *(*allocator)(Allocator *self, AllocationKind kind, usize size, void *block); 
     allocator = hmap->cb.allocator;
 #endif
 
     usize remaining_elements = (hmap->end_of_storage/data_size) - hmap->size;
     if (remaining_elements == 0) {
-        usize storage_size = hmap->end_of_storage + (data_size * PSTD_HASH_MAP_GROWTH_COUNT);
+        usize storage_size = hmap->end_of_storage + (data_size * PTSD_HASH_MAP_GROWTH_COUNT);
         usize new_size = sizeof(phashmap_t) + storage_size + data_size*2;
-#if defined(PSTD_USE_ALLOCATOR)
+#if defined(PTSD_USE_ALLOCATOR)
         void *tmp = allocator(&hmap->cb, REALLOCATE, new_size, hmap);
 #else
         void *tmp = preallocate(new_size, hmap);
@@ -295,11 +295,11 @@ static inline isize phs_make_space(phashmap_t **hmap_ptr, usize data_size, void 
     }
 
     usize hash = hmap->hash_fnc(hmap, key);
-    __auto_type bucket = &hmap->key_array[hash % PSTD_NUM_BUCKETS];
+    __auto_type bucket = &hmap->key_array[hash % PTSD_NUM_BUCKETS];
 
     usize hash_key_size = (sizeof(phashmap_key_t) + hmap->key_size);
     usize size = (bucket->size + 1) * hash_key_size;
-#if defined(PSTD_USE_ALLOCATOR)
+#if defined(PTSD_USE_ALLOCATOR)
     void *tmp = allocator(&hmap->cb, REALLOCATE, size, bucket->keys);
 #else
     void *tmp = preallocate(size, bucket->keys);
@@ -317,7 +317,7 @@ static inline isize phs_make_space(phashmap_t **hmap_ptr, usize data_size, void 
     return index;
 }
 
-PSTD_UNUSED
+PTSD_UNUSED
 static inline void *phs_get_key_from_iterator(phashmap_t *hmap, usize data_size, void *iterator) {
     u8 *array_start = (void*)(hmap + 1);
     array_start += data_size; // skip parity
@@ -326,7 +326,7 @@ static inline void *phs_get_key_from_iterator(phashmap_t *hmap, usize data_size,
     usize index = (it - array_start)/data_size;
     usize hash_key_size = (sizeof(phashmap_key_t) + hmap->key_size);
 
-    for (int i = 0; i < PSTD_NUM_BUCKETS; i++) {
+    for (int i = 0; i < PTSD_NUM_BUCKETS; i++) {
         if (!hmap->key_array[i].size) continue;
         __auto_type bucket = hmap->key_array[i];
         for (usize i = 0; i < bucket.size; i++) {
@@ -338,9 +338,9 @@ static inline void *phs_get_key_from_iterator(phashmap_t *hmap, usize data_size,
     return NULL;
 }
 
-PSTD_UNUSED
+PTSD_UNUSED
 static inline void phs_remove_by_iterator(phashmap_t *hmap, void *it, usize data_size) {
-#if defined(PSTD_USE_ALLOCATOR)
+#if defined(PTSD_USE_ALLOCATOR)
     void *(*allocator)(Allocator *self, AllocationKind kind, usize size, void *block); 
     allocator = hmap->cb.allocator;
 #endif
@@ -352,7 +352,7 @@ static inline void phs_remove_by_iterator(phashmap_t *hmap, void *it, usize data
     usize hash_key_size = (sizeof(phashmap_key_t) + hmap->key_size);
     isize key_index = -1;
 
-    for (int i = 0; i < PSTD_NUM_BUCKETS; i++) {
+    for (int i = 0; i < PTSD_NUM_BUCKETS; i++) {
         if (!hmap->key_array[i].size) continue;
         __auto_type key_bucket = hmap->key_array[i];
         for (usize j = 0; j < key_bucket.size; j++) {
@@ -400,7 +400,7 @@ key_found:
 
 skip_copy:
         usize size = (bucket->size - 1) * hash_key_size;
-#if defined(PSTD_USE_ALLOCATOR)
+#if defined(PTSD_USE_ALLOCATOR)
         void *tmp = allocator(&hmap->cb, REALLOCATE, size, bucket->keys);
 #else
         void *tmp = preallocate(size, bucket->keys);
@@ -410,10 +410,10 @@ skip_copy:
     }
 }
 
-PSTD_UNUSED
+PTSD_UNUSED
 static inline void phs_free_implementation_(phashmap_t **map_ptr, usize data_size) {
     phashmap_t *hmap = *map_ptr;
-#if defined(PSTD_USE_ALLOCATOR)
+#if defined(PTSD_USE_ALLOCATOR)
     void *(*allocator)(Allocator *self, AllocationKind kind, usize size, void *block); 
     allocator = hmap->cb.allocator;
 #endif
@@ -425,7 +425,7 @@ static inline void phs_free_implementation_(phashmap_t **map_ptr, usize data_siz
     }
 
     usize hash_key_size = (sizeof(phashmap_key_t) + hmap->key_size);
-    for (int i = 0; i < PSTD_NUM_BUCKETS; i++) {
+    for (int i = 0; i < PTSD_NUM_BUCKETS; i++) {
         if (!hmap->key_array[i].size) continue;
         __auto_type key_bucket = hmap->key_array[i];
         if (hmap->free_key) {
@@ -435,13 +435,13 @@ static inline void phs_free_implementation_(phashmap_t **map_ptr, usize data_siz
                 hmap->free_key(key_data->key_value);
             }
         }
-#if defined(PSTD_USE_ALLOCATOR)
+#if defined(PTSD_USE_ALLOCATOR)
         allocator(&hmap->cb, SIZED_FREE, hash_key_size, key_bucket.keys);
 #else
         psized_free(hash_key_size, key_bucket.keys);
 #endif
     }
-#if defined(PSTD_USE_ALLOCATOR)
+#if defined(PTSD_USE_ALLOCATOR)
     allocator(&hmap->cb, SIZED_FREE, sizeof(*hmap) + (hmap->size*data_size), hmap);
 #else
     psized_free(sizeof(*hmap) + (hmap->size*data_size), hmap);
@@ -449,17 +449,17 @@ static inline void phs_free_implementation_(phashmap_t **map_ptr, usize data_siz
     *map_ptr = NULL;
 }
 
-PSTD_UNUSED
+PTSD_UNUSED
 static inline void phs_shrink_implementation_(phashmap_t **hmap_ptr, usize data_size) {
     phashmap_t *hmap = *hmap_ptr;
-#if defined(PSTD_USE_ALLOCATOR)
+#if defined(PTSD_USE_ALLOCATOR)
     void *(*allocator)(Allocator *self, AllocationKind kind, usize size, void *block); 
     allocator = hmap->cb.allocator;
 #endif
     
     usize storage_size = hmap->size * data_size;
     usize new_size = sizeof(*hmap) + data_size + storage_size;
-#if defined(PSTD_USE_ALLOCATOR)
+#if defined(PTSD_USE_ALLOCATOR)
     void *tmp = allocator(&hmap->cb, REALLOCATE, new_size, hmap);
 #else
     void *tmp = preallocate(new_size, hmap);
@@ -468,5 +468,5 @@ static inline void phs_shrink_implementation_(phashmap_t **hmap_ptr, usize data_
     hmap->end_of_storage = storage_size;
     *hmap_ptr = hmap;
 }
-#endif // PSTD_HASH_MAP_HEADER
+#endif // PTSD_HASH_MAP_HEADER
 
