@@ -276,6 +276,7 @@ static inline usize putf8_length(const char *chr) {
 void pinitialize_std_stream(void) PTSD_PIO_CONSTRUCTOR;
 void pdestroy_std_stream(void)    PTSD_PIO_DESTRUCTOR;
 
+//TODO: explain what all the vairables mean, maybe write an example
 typedef struct pprintf_info_t pprintf_info_t;
 struct pprintf_info_t {
     pgeneric_stream_t *stream; 

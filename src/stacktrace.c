@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <limits.h>
 
-#if defined(PSTD_WINDOWS)
+#if defined(PTSD_WINDOWS)
 #include <windows.h>
 #include <dbghelp.h>
 #pragma comment(lib, "Dbghelp.lib")
@@ -14,12 +14,12 @@
 static struct {
     const char *program_name;
     bool handled;
-} PSTD_STACKTRACE_CTX = {0};
+} PTSD_STACKTRACE_CTX = {0};
 
 
 void pstacktrace_signal_handler(int sig);
 void pstacktrace_register_signal_handlers(const char *application_name) {
-    PSTD_STACKTRACE_CTX.program_name = application_name;
+    PTSD_STACKTRACE_CTX.program_name = application_name;
     signal(SIGABRT, pstacktrace_signal_handler);
     signal(SIGFPE , pstacktrace_signal_handler);
     signal(SIGILL , pstacktrace_signal_handler);
@@ -29,7 +29,7 @@ void pstacktrace_register_signal_handlers(const char *application_name) {
 }
 
 void pstacktrace_unregister_signal_handlers(void) {
-    PSTD_STACKTRACE_CTX.program_name = NULL;
+    PTSD_STACKTRACE_CTX.program_name = NULL;
     signal(SIGABRT, SIG_DFL);
     signal(SIGFPE , SIG_DFL);
     signal(SIGILL , SIG_DFL);
@@ -39,34 +39,34 @@ void pstacktrace_unregister_signal_handlers(void) {
 }
 
 void pstacktrace_signal_handler(int sig) {
-    if (PSTD_STACKTRACE_CTX.handled)
+    if (PTSD_STACKTRACE_CTX.handled)
         return;
 
     pstacktrace_print();
     switch (sig) {
-    case SIGABRT: pprintf(PSTD_STACKTRACE_ERROR_COLOUR "SIGABRT%Cc: " "Abort was called\n");                break; //NOLINT
-    case SIGFPE : pprintf(PSTD_STACKTRACE_ERROR_COLOUR "SIGFPE%Cc: "  "Floating point exception\n");        break;
-    case SIGILL : pprintf(PSTD_STACKTRACE_ERROR_COLOUR "SIGILL%Cc: "  "Illegal instruction\n");             break;
-    case SIGINT : pprintf(PSTD_STACKTRACE_ERROR_COLOUR "SIGINT%Cc: "  "Interrupt signal\n");                break;
-    case SIGSEGV: pprintf(PSTD_STACKTRACE_ERROR_COLOUR "SIGSEGV%Cc: " "Read or Write to invalid memory\n"); break;
-    case SIGTERM: pprintf(PSTD_STACKTRACE_ERROR_COLOUR "SIGTERM%Cc: " "Termination signal\n");              break;
-    default:      pprintf(PSTD_STACKTRACE_ERROR_COLOUR "UNKNOWN%Cc: " "unknown signal\n");
+    case SIGABRT: pprintf(PTSD_STACKTRACE_ERROR_COLOUR "SIGABRT%Cc: " "Abort was called\n");                break; //NOLINT
+    case SIGFPE : pprintf(PTSD_STACKTRACE_ERROR_COLOUR "SIGFPE%Cc: "  "Floating point exception\n");        break;
+    case SIGILL : pprintf(PTSD_STACKTRACE_ERROR_COLOUR "SIGILL%Cc: "  "Illegal instruction\n");             break;
+    case SIGINT : pprintf(PTSD_STACKTRACE_ERROR_COLOUR "SIGINT%Cc: "  "Interrupt signal\n");                break;
+    case SIGSEGV: pprintf(PTSD_STACKTRACE_ERROR_COLOUR "SIGSEGV%Cc: " "Read or Write to invalid memory\n"); break;
+    case SIGTERM: pprintf(PTSD_STACKTRACE_ERROR_COLOUR "SIGTERM%Cc: " "Termination signal\n");              break;
+    default:      pprintf(PTSD_STACKTRACE_ERROR_COLOUR "UNKNOWN%Cc: " "unknown signal\n");
     }
 }
 
 void pstacktrace_pretty_print(bool named, const char *symbol_name, usize offset, void *address) {
-#define PROGRAM_NAME(x)  PSTD_STACKTRACE_PATH_COLOUR x "%Cc"
+#define PROGRAM_NAME(x)  PTSD_STACKTRACE_PATH_COLOUR x "%Cc"
 #define FUNCTION_NAME(x) "%Cfg(255,  34, 243)" x "%Cc"
-#define NUMBER(x)        PSTD_STACKTRACE_NUMBER_COLOUR x "%Cc"
+#define NUMBER(x)        PTSD_STACKTRACE_NUMBER_COLOUR x "%Cc"
 
-    pprintf(PROGRAM_NAME("%s") ": ", PSTD_STACKTRACE_CTX.program_name);
+    pprintf(PROGRAM_NAME("%s") ": ", PTSD_STACKTRACE_CTX.program_name);
     if (named)
         pprintf(FUNCTION_NAME("%s") "+" NUMBER("%#zX") " ", symbol_name, offset);
     pprintf("["NUMBER("%zX")"]\n", (usize)address);
 }
 
 void pstacktrace_print(void) {
-#if defined(PSTD_WINDOWS)
+#if defined(PTSD_WINDOWS)
     void *trace[1024];
     u16 num_captured = CaptureStackBackTrace(0, 1024, trace, 0);
 
@@ -105,17 +105,17 @@ void panic(const char *fmt, ...) {
     pstring_t str = pstream_to_buffer_string(&out);
 
     pstacktrace_print();
-    pprintf(PSTD_STACKTRACE_ERROR_COLOUR "PANIC%Cc: " "%S\n", str);
-    PSTD_STACKTRACE_CTX.handled = true;
+    pprintf(PTSD_STACKTRACE_ERROR_COLOUR "PANIC%Cc: " "%S\n", str);
+    PTSD_STACKTRACE_CTX.handled = true;
     abort();
 }
 
 bool passert_impl(const char *expr, const char *file, u32 line) {
     pstacktrace_print();
-    pprintf(PSTD_STACKTRACE_ERROR_COLOUR  "Assertion failed%Cc: '%s', file "
-            PSTD_STACKTRACE_PATH_COLOUR   "%s%Cc, line "
-            PSTD_STACKTRACE_NUMBER_COLOUR "%u%Cc\n", expr, file, line);
-    PSTD_STACKTRACE_CTX.handled = true;
+    pprintf(PTSD_STACKTRACE_ERROR_COLOUR  "Assertion failed%Cc: '%s', file "
+            PTSD_STACKTRACE_PATH_COLOUR   "%s%Cc, line "
+            PTSD_STACKTRACE_NUMBER_COLOUR "%u%Cc\n", expr, file, line);
+    PTSD_STACKTRACE_CTX.handled = true;
     abort();
     return 0;
 }
