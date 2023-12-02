@@ -268,6 +268,37 @@ static inline usize putf8_length(const char *chr) {
 #undef PTSD_UNICODE_2_BYTES
 }
 
+PTSD_UNUSED
+static inline usize punicode_to_utf8(u32 codepoint, char result[4]) {
+    memset(result, 0, 4);
+
+    if (codepoint <= 0x7f) {
+        result[0] = (char)codepoint;
+        return 1;
+    }
+    
+    if (codepoint <= 0x7ff) {
+        result[0] = (char)(0xc0 | (codepoint >> 6));
+        result[1] = (char)(0x80 | (codepoint & 0x3f));
+        return 2;
+    }
+    
+    if (codepoint <= 0xffff) {
+        result[0] = (char)(0xe0 | ((codepoint >> 12)));
+        result[1] = (char)(0x80 | ((codepoint >>  6) & 0x3f));
+        result[2] = (char)(0x80 | ((codepoint) & 0x3f));
+        return 3;
+    }
+    
+    if (codepoint <= 0x10ffff) {
+        result[0] = (char)(0xf0 | ((codepoint >> 18)));
+        result[1] = (char)(0x80 | ((codepoint >> 12) & 0x3f));
+        result[2] = (char)(0x80 | ((codepoint >>  6) & 0x3f));
+        result[3] = (char)(0x80 | ((codepoint) & 0x3f));
+        return 4;
+    }
+    return 0;
+}
 
 
 
