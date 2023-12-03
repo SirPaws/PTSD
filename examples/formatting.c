@@ -14,7 +14,7 @@ void callback(pprintf_info_t *info) {
     int arrcount = va_arg(*info->list, int);
     int *arr     = va_arg(*info->list, int*);
 
-    pstream_write(info->stream, pcreate_const_string("[ "));
+    pwrite_stream(info->stream, pcreate_const_string("[ "));
     info->count += 2;
 
     char buf[20];
@@ -24,12 +24,12 @@ void callback(pprintf_info_t *info) {
         char *printbuf = buf;
         if (arr[i] > 0) printbuf++; count--;
 
-        pstream_write(info->stream, pstring(printbuf, count));
+        pwrite_stream(info->stream, pstring(printbuf, count));
         info->count += count;
         if (i != arrcount - 1)
-            pstream_write(info->stream, pcreate_const_string(", ")), info->count += 2;
+            pwrite_stream(info->stream, pcreate_const_string(", ")), info->count += 2;
     }
-    pstream_write(info->stream, pcreate_const_string("]"));
+    pwrite_stream(info->stream, pcreate_const_string("]"));
     info->count++;
 }
 
@@ -41,10 +41,10 @@ int main(void) {
         .flags = STREAM_INPUT|STREAM_OUTPUT,
         .filename = "pio.s",
     };
-    pfile_stream_t fstream = pinit_stream(fstream_info);
+    pfile_stream_t fstream = pcreate_stream(fstream_info);
     if (fstream.is_valid) {
         char arr[23];
-        pstream_read(&fstream, arr, 23);
+        pread_stream(&fstream, arr, 23);
         pstring_t read_from_file = pstring(arr, 23);
         pprintf("read this from a file: {\n%S\n}\n", read_from_file);
         pfree_stream(&fstream);
@@ -52,12 +52,12 @@ int main(void) {
         pstream_info_t sstream_info = {
             .type  = STRING_STREAM,
             .flags = STREAM_INPUT|STREAM_OUTPUT,
-            .buffersize = 50
+            .buffer_size = 50
         };
 
-        pstring_stream_t sstream = pinit_stream(sstream_info); 
+        pstring_stream_t sstream = pcreate_stream(sstream_info); 
         {
-            pstream_write_string(&sstream, read_from_file);
+            pwrite_stream_s(&sstream, read_from_file);
             pstring_t sstream_string = pstream_to_buffer_string(&sstream);
             pprintf("string stream holds {\n%S\n}\n", sstream_string);
         }
@@ -151,7 +151,7 @@ int main(void) {
 
     pprintf("\tlet's do %u random numbers\n", 10);
     for (int i = 0; i < 10; i++) {
-        srand(pget_tick(PSTD_HIGH_RESOLUTION_CLOCK)); 
+        srand(pget_tick(PTSD_HIGH_RESOLUTION_CLOCK)); 
         int num = rand();
         pprintf("\t\t% 2u: ( pPrintf: %5u, ", i,  num);
         printf("printf: %5u )\n", num);
