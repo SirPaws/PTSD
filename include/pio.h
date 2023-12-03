@@ -299,7 +299,7 @@ void pdestroy_std_stream(void);
 
 static void pmsvc_initialize(void);
 #pragma section(".CRT$XCT", read)
-__declspec(dllexport, allocate(".CRT$XCT"))
+__declspec(dllexport, selectany, allocate(".CRT$XCT"))
 void (*pmsvc_initialize_var)(void) = pmsvc_initialize;
 static void pmsvc_initialize(void) {
     atexit(pdestroy_std_stream);
