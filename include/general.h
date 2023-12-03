@@ -283,7 +283,7 @@ static inline void *pzero_allocate_implementation(usize size) {
     memset(tmp, 0, size);
     return tmp;
 }
-#      define pzero_allocate(size) pzero_allocate_implementation
+#      define pzero_allocate(size) pzero_allocate_implementation(size)
 #   endif // pZeroAllocate
 #   ifndef pReallocate
 #      define preallocate(size, buffer) realloc(buffer, size)
