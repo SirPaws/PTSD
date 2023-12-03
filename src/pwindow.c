@@ -135,7 +135,8 @@ static LRESULT CALLBACK pwin32_winproc(HWND hwnd, UINT msg, WPARAM wparam, LPARA
     }
     for (usize i = 0; i < win->device_count; i++) {
         pdevice_proc_result_t result = 
-            win->devices[i]->wnd_proc(win->devices[i], win, msg, wparam, lparam);
+            win->devices[i]->wnd_proc(win->devices[i], 
+                    &(pwindow_procedure_parameter_pack_t){win, msg, wparam, lparam});
         if (result.handled) return result.result;
     }
     return DefWindowProc(hwnd, msg, wparam, lparam);
@@ -145,18 +146,17 @@ void pwindow_hit_device_init(pdevice_t *const) { /* INTENTIONAL STUB */ }
 void pwindow_hit_device_shutdown(pdevice_t *const) { /* INTENTIONAL STUB */ }
 pstate_t pwindow_hit_device_update(pdevice_t *const) { return (pstate_t){0};/* INTENTIONAL STUB */ }
 void                  pwindow_hit_state(pdevice_t *const, usize value);
-pdevice_proc_result_t pwindow_hit_device_wnd_proc(pdevice_t *const device, 
-        pwindow_t *const win, u32 msg, usize, plong_ptr_t lparam) 
+pdevice_proc_result_t pwindow_hit_device_wnd_proc(pdevice_t *const device, pwindow_procedure_parameter_pack_t *pack) 
 {
-    if (msg != WM_NCHITTEST) 
+    if (pack->msg != WM_NCHITTEST) 
         return (pdevice_proc_result_t){.handled = false};
     
     if (!((phit_device_t*)device)->event_handler)
         return (pdevice_proc_result_t){.handled = false};
 
-    isize xpos = GET_X_LPARAM(lparam); 
-    isize ypos = GET_Y_LPARAM(lparam);
-    phit_location_t loc = ((phit_device_t*)device)->event_handler(win, xpos, ypos);
+    isize xpos = GET_X_LPARAM(pack->lparam); 
+    isize ypos = GET_Y_LPARAM(pack->lparam);
+    phit_location_t loc = ((phit_device_t*)device)->event_handler(pack->window, xpos, ypos);
     switch(loc) {
     case PHIT_NOWHERE        : return (pdevice_proc_result_t){.handled=true, HTNOWHERE     };
     case PHIT_USERSPACE      : return (pdevice_proc_result_t){.handled=true, HTCLIENT      };
@@ -381,19 +381,18 @@ pstate_t pkeyboard_state(pdevice_t *const device, usize value) {
     return ((pkeyboard_t*)device)->keys[value];
 }
 
-pdevice_proc_result_t pkeyboard_wnd_proc(pdevice_t *const device, 
-        pwindow_t *const win, u32 msg, usize wparam, plong_ptr_t lparam)
+pdevice_proc_result_t pkeyboard_wnd_proc(pdevice_t *const device, pwindow_procedure_parameter_pack_t *pack)
 {
     pkeyboard_t *keyboard = (void*)device;
-    switch(msg) {
+    switch(pack->msg) {
     case WM_KEYDOWN:
     case WM_SYSKEYDOWN:
     case WM_KEYUP:
     case WM_SYSKEYUP: {
-            int action   = (HIWORD(lparam) & KF_UP) ? 0 : 1;
-            unsigned int scancode = (HIWORD(lparam) & (KF_EXTENDED | 0xff));
+            int action   = (HIWORD(pack->lparam) & KF_UP) ? 0 : 1;
+            unsigned int scancode = (HIWORD(pack->lparam) & (KF_EXTENDED | 0xff));
             if (!scancode) {
-                scancode = MapVirtualKeyW((UINT) wparam, MAPVK_VK_TO_VSC);
+                scancode = MapVirtualKeyW((UINT) pack->wparam, MAPVK_VK_TO_VSC);
             }
             pkeycode_t key = keyboard->keycodes[scancode];
             if (action == 1 && !keyboard->keys[key].held) {
@@ -401,7 +400,7 @@ pdevice_proc_result_t pkeyboard_wnd_proc(pdevice_t *const device,
             }
             else if (action == 0) keyboard->keys[key].released = true;
         }
-        return (pdevice_proc_result_t){.handled=true, DefWindowProc((HWND)win->handle, msg, wparam, lparam)};
+        return (pdevice_proc_result_t){.handled=true, DefWindowProc((HWND)pack->window->handle, pack->msg, pack->wparam, pack->lparam)};
     }
     return (pdevice_proc_result_t){0};
 }
@@ -460,13 +459,11 @@ pstate_t pmouse_state(pdevice_t *const device, usize value) {
     if (value >= PTSD_MOUSE_INPUT_COUNT) return (pstate_t){0};
     return ((pmouse_t*)device)->inputs[value];
 }
-
-pdevice_proc_result_t pmouse_wnd_proc(pdevice_t *const device, 
-        pwindow_t *const, u32 msg, usize wparam, plong_ptr_t lparam)
+pdevice_proc_result_t pmouse_wnd_proc(pdevice_t *const device, pwindow_procedure_parameter_pack_t *pack) //NOLINT(bugprone-easily-swappable-parameters): part of windows api
 {
     pmouse_t *mouse = (void*)device;
 
-    switch(msg) {
+    switch(pack->msg) {
     case WM_LBUTTONDOWN:
     case WM_LBUTTONUP:
     case WM_RBUTTONDOWN:
@@ -476,18 +473,18 @@ pdevice_proc_result_t pmouse_wnd_proc(pdevice_t *const device,
     case WM_XBUTTONDOWN:
     case WM_XBUTTONUP: {
             pmouse_button_t button; int action; 
-            /**/ if (msg == WM_LBUTTONDOWN || msg == WM_LBUTTONUP)
+            /**/ if (pack->msg == WM_LBUTTONDOWN || pack->msg == WM_LBUTTONUP)
                  button = PTSD_MOUSE_LEFT;
-            else if (msg == WM_RBUTTONDOWN || msg == WM_RBUTTONUP) //NOLINT
+            else if (pack->msg == WM_RBUTTONDOWN || pack->msg == WM_RBUTTONUP)
                  button = PTSD_MOUSE_RIGHT;
-            else if (msg == WM_MBUTTONDOWN || msg == WM_MBUTTONUP) //NOLINT
+            else if (pack->msg == WM_MBUTTONDOWN || pack->msg == WM_MBUTTONUP)
                  button = PTSD_MOUSE_MIDDLE;
-            else if (GET_XBUTTON_WPARAM(wparam) == XBUTTON1)//NOLINT
+            else if (GET_XBUTTON_WPARAM(pack->wparam) == XBUTTON1)
                  button = PTSD_MOUSE_BUTTON_4;
             else button = PTSD_MOUSE_BUTTON_5;
 
-            if (msg == WM_LBUTTONDOWN || msg == WM_RBUTTONDOWN 
-             || msg == WM_MBUTTONDOWN || msg == WM_XBUTTONDOWN) {
+            if (pack->msg == WM_LBUTTONDOWN || pack->msg == WM_RBUTTONDOWN 
+             || pack->msg == WM_MBUTTONDOWN || pack->msg == WM_XBUTTONDOWN) {
                 action = 1;
             } else {
                 action = 0;
@@ -495,19 +492,19 @@ pdevice_proc_result_t pmouse_wnd_proc(pdevice_t *const device,
             
             if      (action == 1) mouse->inputs[button].pressed  = true;
             else if (action == 0) mouse->inputs[button].released = true;
-            mouse->inputs[PTSD_MOUSE_XY].x = GET_X_LPARAM(lparam);
-            mouse->inputs[PTSD_MOUSE_XY].y = GET_Y_LPARAM(lparam);
+            mouse->inputs[PTSD_MOUSE_XY].x = GET_X_LPARAM(pack->lparam);
+            mouse->inputs[PTSD_MOUSE_XY].y = GET_Y_LPARAM(pack->lparam);
             return (pdevice_proc_result_t){.handled=true, 0};
         }
     case WM_MOUSEWHEEL:
-        mouse->inputs[PTSD_MOUSE_WHEEL_XY].y = (SHORT) HIWORD(wparam) / (double) WHEEL_DELTA;
+        mouse->inputs[PTSD_MOUSE_WHEEL_XY].y = (SHORT) HIWORD(pack->wparam) / (double) WHEEL_DELTA;
         return (pdevice_proc_result_t){.handled=true, 0};
     case WM_MOUSEHWHEEL:
-        mouse->inputs[PTSD_MOUSE_WHEEL_XY].x = (SHORT) HIWORD(wparam) / (double) WHEEL_DELTA;
+        mouse->inputs[PTSD_MOUSE_WHEEL_XY].x = (SHORT) HIWORD(pack->wparam) / (double) WHEEL_DELTA;
         return (pdevice_proc_result_t){.handled=true, 0};
     case WM_MOUSEMOVE: 
-        mouse->inputs[PTSD_MOUSE_XY].x = GET_X_LPARAM(lparam);
-        mouse->inputs[PTSD_MOUSE_XY].y = GET_Y_LPARAM(lparam);
+        mouse->inputs[PTSD_MOUSE_XY].x = GET_X_LPARAM(pack->lparam);
+        mouse->inputs[PTSD_MOUSE_XY].y = GET_Y_LPARAM(pack->lparam);
         return (pdevice_proc_result_t){.handled=true, 0};
     }
     return (pdevice_proc_result_t){0};

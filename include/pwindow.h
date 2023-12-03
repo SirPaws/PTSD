@@ -101,16 +101,14 @@ struct pdevice_proc_result_t {
 };
 #endif
 
-typedef struct pdevice_t pdevice_t;
-struct pdevice_t {
-    void (*init)(pdevice_t *const);
-    void (*shutdown)(pdevice_t *const);
-    void (*update)(pdevice_t *const);
-    pstate_t (*state)(pdevice_t *const, usize);
-
+typedef struct pwindow_procedure_parameter_pack_t pwindow_procedure_parameter_pack_t;
 #ifdef PTSD_WINDOWS
-    pdevice_proc_result_t (*wnd_proc)(pdevice_t *const,
-            struct pwindow_t *const, u32 msg, usize wparam, plong_ptr_t lparam);
+struct pwindow_procedure_parameter_pack_t {
+    struct pwindow_t *const window;
+    u32 msg;
+    usize wparam;
+    plong_ptr_t lparam;
+};
 #elif defined(PTSD_WASM)
 #error device callback has not been defined for this platform
 #elif defined(PTSD_LINUX)
@@ -118,6 +116,16 @@ struct pdevice_t {
 #elif defined(PTSD_MACOS)
 #error device callback has not been defined for this platform
 #endif
+
+
+typedef struct pdevice_t pdevice_t;
+struct pdevice_t {
+    void (*init)(pdevice_t *const);
+    void (*shutdown)(pdevice_t *const);
+    void (*update)(pdevice_t *const);
+    pstate_t (*state)(pdevice_t *const, usize);
+
+    pdevice_proc_result_t (*wnd_proc)(pdevice_t *const, pwindow_procedure_parameter_pack_t[static const 1]);
 };
 
 #ifdef PTSD_WINDOWS
@@ -411,7 +419,7 @@ void                  pwindow_hit_device_init(pdevice_t *const);
 void                  pwindow_hit_device_shutdown(pdevice_t *const);
 pstate_t              pwindow_hit_device_update(pdevice_t *const);
 pdevice_proc_result_t pwindow_hit_device_wnd_proc(pdevice_t *const, 
-        pwindow_t *const, u32 msg, usize wparam, plong_ptr_t lparam);
+        pwindow_procedure_parameter_pack_t[static const 1]);
 #endif
 
 void                  pkeyboard_init(pdevice_t *const);
@@ -419,8 +427,8 @@ void                  pkeyboard_shutdown(pdevice_t *const);
 void                  pkeyboard_update(pdevice_t *const);
 pstate_t              pkeyboard_state(pdevice_t *const, usize value);
 #ifdef PTSD_WINDOWS
-pdevice_proc_result_t pkeyboard_wnd_proc(pdevice_t *const, 
-        pwindow_t *const, u32 msg, usize wparam, plong_ptr_t lparam);
+pdevice_proc_result_t pkeyboard_wnd_proc(pdevice_t *const,
+        pwindow_procedure_parameter_pack_t[static const 1]);
 #endif
 
 void                  pmouse_init(pdevice_t *const);
@@ -428,8 +436,8 @@ void                  pmouse_shutdown(pdevice_t *const);
 void                  pmouse_update(pdevice_t *const);
 pstate_t              pmouse_state(pdevice_t *const, usize value);
 #ifdef PTSD_WINDOWS
-pdevice_proc_result_t pmouse_wnd_proc(pdevice_t *const, 
-        pwindow_t *const, u32 msg, usize wparam, plong_ptr_t lparam);
+pdevice_proc_result_t pmouse_wnd_proc(pdevice_t *const,
+        pwindow_procedure_parameter_pack_t[static const 1]);
 #endif
 
 pmodifier_t pmodifier(void);
