@@ -8,14 +8,6 @@
 #include "pstring.h"
 #include "pplatform.h"
 
-#if defined(PTSD_MSVC)
-#pragma message when using pio with msvc compiler you need to define PTSD_MSVC_MAIN and include pio.h in the file where 'main' is defined
-#define PTSD_PIO_CONSTRUCTOR
-#define PTSD_PIO_DESTRUCTOR
-#else
-#define PTSD_PIO_CONSTRUCTOR __attribute__(( constructor ))
-#define PTSD_PIO_DESTRUCTOR  __attribute__(( destructor ))
-#endif
 
 #define stretchy 
 
@@ -301,11 +293,23 @@ static inline usize punicode_to_utf8(u32 codepoint, char result[4]) {
 }
 
 
+#if defined(PTSD_MSVC)
+void pinitialize_std_stream(void);
+void pdestroy_std_stream(void);
 
-
+static void pmsvc_initialize(void);
+#pragma section(".CRT$XCT", read)
+__declspec(allocate(".CRT$XCT"))
+void (*pmsvc_initialize_var)(void) = pmsvc_initialize;
+static void pmsvc_initialize(void) {
+    atexit(pdestroy_std_stream);
+    pinitialize_std_stream();
+}
+#else
+void pinitialize_std_stream(void) __attribute__((constructor));
+void pdestroy_std_stream(void)    __attribute__((destructor));
+#endif
 // don't know if these need to be in the header file
-void pinitialize_std_stream(void) PTSD_PIO_CONSTRUCTOR;
-void pdestroy_std_stream(void)    PTSD_PIO_DESTRUCTOR;
 
 //TODO: explain what all the vairables mean, maybe write an example
 typedef struct pprintf_info_t pprintf_info_t;
