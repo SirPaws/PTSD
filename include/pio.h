@@ -360,45 +360,4 @@ void pformat_pop_adv_impl(pstring_t fmt);
 #define pformat_pop(fmt) pformat_pop_impl(pcreate_string(fmt))
 #define pformat_pop_adv(fmt) pformat_pop_adv_impl(pcreate_string(fmt))
 
-#if defined(PTSD_MSVC)
-#   if defined(PTSD_MSVC_MAIN)
-#       if PTSD_MSVC_MAIN == 0
-            extern int fake_main(void);
-            int main(void) { 
-                pinitialize_std_stream();
-                int value = fake_main(); 
-                pdestroy_std_stream();
-                return value;
-            }
-#       elif PTSD_MSVC_MAIN == 3
-            extern int fake_main(int argc, char **argv, char **envp);
-            int main(int argc, char **argv, char **envp) { 
-                pinitialize_std_stream();
-                int value = fake_main(argc, argv, envp);
-                pdestroy_std_stream();
-                return value;
-            }
-#       elif PTSD_MSVC_MAIN == 2
-            extern int fake_main(int argc, char **argv);
-            int main(int argc, char **argv) { 
-                pinitialize_std_stream();
-                int value = fake_main(argc, argv);
-                pdestroy_std_stream();
-                return value;
-            }
-#       else
-            extern int fake_main(int argc, char **argv);
-            int main(int argc, char **argv) { 
-                pinitialize_std_stream();
-                int value = fake_main(argc, argv);
-                pdestroy_std_stream();
-                return value;
-            }
-#       endif
-#   endif
-#define main fake_main
-#endif
-
-
-
 #endif // PTSD_PIO_HEADER
