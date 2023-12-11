@@ -10,7 +10,7 @@
 
 #define pcreate_string(str) pstring((str), sizeof((str)) - 1)
 #define pcreate_const_string(str) ((const pstring_t){.c_str = (str), .length = sizeof((str)) - 1})
-#define pnext_none_whitespace_m(type, ...) pnext_none_whitespace(type, sizeof((char[]){__VA_ARGS__}), (char[]){__VA_ARGS__})
+#define pnext_none_whitespace_m(type, ...) pnext_none_whitespace(type, sizeof((const char[]){__VA_ARGS__}), (const char[]){__VA_ARGS__})
 
 typedef struct pstring_t pstring_t;
 struct pstring_t {
@@ -30,7 +30,7 @@ PTSD_UNUSED static inline bool pempty_string(const pstring_t str);
 
 
 PTSD_UNUSED static inline pstring_t premove_from_end(pstring_t str, pstring_t match);
-PTSD_UNUSED static inline pstring_t pnext_none_whitespace(pstring_t *type, usize count, char delimiters[count]);
+PTSD_UNUSED static inline pstring_t pnext_none_whitespace(pstring_t *type, usize count, const char delimiters[count]);
 
 // NOTE: this function will not create a new string, it will change the characters of the `str`
 // if you want to keep the string intact you will have to make a copy before calling these functions
@@ -78,6 +78,7 @@ static inline pstring_t pallocate_string(const char *buffer, usize length) {
     };
     if (buffer) {
         memcpy(str.c_str, buffer, length);
+        str.length = length;
     }
     return str;
 }
@@ -85,7 +86,7 @@ static inline pstring_t pallocate_string(const char *buffer, usize length) {
 PTSD_UNUSED 
 static inline pstring_t pcopy_string(const pstring_t str) {
     char *dst = pzero_allocate(str.length + 1);
-    struct pstring_t r = pstring((char *)dst, str.length);
+    struct pstring_t r = pstring(dst, str.length);
     memcpy(dst, str.c_str, str.length);
 	return r;
 }
@@ -126,10 +127,10 @@ PTSD_UNUSED static inline pstring_t premove_from_end(pstring_t str, pstring_t ma
         name.length -= match.length;
         return name;
     }
-    return name = str;
+    return name;
 }
 
-PTSD_UNUSED static inline pstring_t pnext_none_whitespace(pstring_t *type, usize count, char delimiter[count]) {
+PTSD_UNUSED static inline pstring_t pnext_none_whitespace(pstring_t *type, usize count, const char delimiter[count]) {
     if (!type->c_str || !type->length) return *type;
     char *start = type->c_str;
     char *end   = type->c_str + type->length;
