@@ -504,6 +504,7 @@ static usize psb_reserve_implementation_(void *mem, usize count, usize data_size
         void *tmp = preallocate(size, meta);
         assert(tmp);
         meta = tmp;
+        meta->endofstorage = ((data_size) * (count));
         (*array_ptr) = (void*)(meta + 1);
     }
     return count;
