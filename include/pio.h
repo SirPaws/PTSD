@@ -19,16 +19,48 @@ extern "C" {
 
 
 /*
-    pPrintf extra format specifiers
+    pprintf extra format specifiers
     
     |-----------------------------------------------------------|
     |S              | prints a pstring_t (char *, with length)  |
     |-----------------------------------------------------------|
-    |Cc             | clear color output                        |
+    |Cc             | clear graphic mode (color and styles)     |
     |-----------------------------------------------------------|
     |Cbg(r, g, b)   | set background color                      |
     |-----------------------------------------------------------|
     |Cfg(r, g, b)   | set foreground color                      |
+    |-----------------------------------------------------------|
+    |save      TODO:| save cursor position          \x1b[s      |
+    |-----------------------------------------------------------|
+    |restore   TODO:| restore cursor position       \x1b[u      |
+    |-----------------------------------------------------------|
+    |bold      TODO:| enable bold mode.             \x1b[1m     |
+    |-----------------------------------------------------------|
+    |nobold    TODO:| disable bold mode.            \x1b[22m    |
+    |-----------------------------------------------------------|
+    |dim       TODO:| enable  dim/faint mode.       \x1b[2m     |
+    |-----------------------------------------------------------|
+    |nodim     TODO:| disable dim/faint mode.       \x1b[22m    |
+    |-----------------------------------------------------------|
+    |italic    TODO:| enable  italic mode.          \x1b[3m     |
+    |-----------------------------------------------------------|
+    |noitalic  TODO:| disable italic mode.          \x1b[23m    |
+    |-----------------------------------------------------------|
+    |line      TODO:| enable  underline mode.       \x1b[4m     |
+    |-----------------------------------------------------------|
+    |noline    TODO:| disable underline mode.       \x1b[24m    |
+    |-----------------------------------------------------------|
+    |blink     TODO:| enable  blinking mode         \x1b[5m     |
+    |-----------------------------------------------------------|
+    |noblink   TODO:| disable blinking mode         \x1b[25m    |
+    |-----------------------------------------------------------|
+    |hide      TODO:| enable  hidden/invisible mode \x1b[8m     |
+    |-----------------------------------------------------------|
+    |nohide    TODO:| disable hidden/invisible mode \x1b[28m    |
+    |-----------------------------------------------------------|
+    |strike    TODO:| enable  strikethrough mode.   \x1b[9m     |
+    |-----------------------------------------------------------|
+    |nostrike  TODO:| disable strikethrough mode.   \x1b[29m    |
     |-----------------------------------------------------------|
     |b              | binary. supports '.', '0',                |
     |               | and, length modifiers                     |
@@ -46,6 +78,10 @@ extern "C" {
     |               | this is done through the `pformat_push`   |
     |               | and `pformat_pop` functions.              |
     |               | see examples/formatting.c for usage       |
+    |-----------------------------------------------------------|
+    | NOTE: colour and styling uses ansi escape sequences       |
+    |       if your system does not support those this will     |
+    |       not work as expected                                |
     |-----------------------------------------------------------|
 */
 
