@@ -4,7 +4,6 @@
 // with clang on linux:
 // clang -Iinclude build.c -o ptsd.o && ar -cr libptsd.a ptsd.o
 
-#include "src/pcli.c" //NOLINT
 #include "src/pio.c" //NOLINT
 #include "src/pplatform.c" //NOLINT
 #include "src/pstring.c" //NOLINT
