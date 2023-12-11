@@ -397,6 +397,7 @@ PIO_STATIC void pprintf_handle_string(pprintf_info_t *info, pformatting_specific
     pstring_t str;
     if (cstring){
         char *c_str = va_arg(*info->list, char *);
+        if (!c_str) return;
         str = pstring(c_str, strlen(c_str) );
     } else { 
         str = va_arg(*info->list, pstring_t); 
