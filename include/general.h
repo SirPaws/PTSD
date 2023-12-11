@@ -44,6 +44,7 @@
 #   endif
 #endif
 
+#define PTSD_C2Y 6
 #define PTSD_C23 5
 #define PTSD_C18 4
 #define PTSD_C17 4
@@ -58,6 +59,10 @@
 #      define PTSD_C_VERSION PTSD_C11
 #   elif __STDC_VERSION__ == 201710
 #      define PTSD_C_VERSION PTSD_C18
+#   elif __STDC_VERSION__ == 202311L
+#      define PTSD_C_VERSION PTSD_C23
+#   else
+#      define PTSD_C_VERSION PTSD_C2Y
 #   endif
 #elif defined(__STDC__)
 #      define PTSD_C_VERSION PTSD_C89
@@ -65,10 +70,6 @@
 
 #if defined(__has_c_attribute)
 #   define PTSD_HAS_ATTRIBUTE __has_c_attribute
-#   if __STDC_VERSION__ >= 201710 
-#       undef  PTSD_C_VERSION
-#       define PTSD_C_VERSION PTSD_C23
-#   endif 
 #else
 #   define PTSD_HAS_ATTRIBUTE(x) 0
 #endif
@@ -204,7 +205,8 @@ typedef size_t    usize;
 typedef float     f32;
 typedef double    f64;
 
-#if PTSD_C_VERSION >= PTSD_C99
+#if PTSD_C_VERSION >= PTSD_C23
+#elif PTSD_C_VERSION >= PTSD_C99
      typedef _Bool pbool_t;
      static const pbool_t pfalse = 0;
      static const pbool_t ptrue  = 1;
