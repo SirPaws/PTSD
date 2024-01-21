@@ -123,6 +123,11 @@ int main(void) {
     pprintf("\tnow we print a positive signed integer '%5i'\n", 5394);
     pprintf("\tnow we print a positive signed integer '%+i'\n", 5394);
     pprintf("\tnow we print an unsigned integer '%u'\n", 5394);
+    pprintf("\tnow we try with modifiers\n");
+    pprintf("\t\t%%hd  with the number -451: %hd\n", (s16)-451);
+    pprintf("\t\t%%hhd with the number -21 : %hd\n", (s8) - 21);
+    pprintf("\t\t%%ld  with the number -451: %hd\n", (s32)-451);
+    pprintf("\t\t%%lld with the number -451: %hd\n", (s64)-451);
 
     u32 buffer_length = 0;
     char buffer[30];
