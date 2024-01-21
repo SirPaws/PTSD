@@ -702,16 +702,35 @@ PIO_STATIC void pprintf_handle_unsignedint(
 
 PIO_STATIC void pprintf_handle_int(pprintf_info_t *info, pformatting_specification_t *spec, char printtype) {
     u64 num = 0;
+    
+    bool is_signed = false;
+    switch (printtype) {
+    case 'd': case 'i': 
+    case 'o':           is_signed = true;
+    case 'x': case 'X': case 'u': default: break;
+    }
 
     if ( PTSD_EXPECT( spec->length == PFL_DEFAULT, 1) ) {
-        num = va_arg(*info->list, s32);
+        if (is_signed) 
+             num = va_arg(*info->list, s32);
+        else num = va_arg(*info->list, u32);
     } else {
-        switch(spec->length) {
-            case PFL_HH: 
-            case PFL_H: 
+        if (is_signed) switch(spec->length) {
+            case PFL_HH: num = va_arg(*info->list, s32);       break;
+            case PFL_H:  num = va_arg(*info->list, s32);       break;
+            case PFL_L:  num = va_arg(*info->list, s32);       break;
+            case PFL_LL: num = va_arg(*info->list, s64);       break;
+            case PFL_J:  num = va_arg(*info->list, intmax_t);  break;
+            case PFL_Z:
+            case PFL_T:  num = va_arg(*info->list, isize); break;
+            case PFL_DEFAULT: case PFL_128:
+            default: return;
+        } else switch(spec->length) {
+            case PFL_HH: num = va_arg(*info->list, u32);       break;
+            case PFL_H:  num = va_arg(*info->list, u32);       break;
             case PFL_L:  num = va_arg(*info->list, u32);       break;
             case PFL_LL: num = va_arg(*info->list, u64);       break;
-            case PFL_J:  num = va_arg(*info->list, intmax_t);  break;
+            case PFL_J:  num = va_arg(*info->list, uintmax_t); break;
             case PFL_Z:
             case PFL_T:  num = va_arg(*info->list, usize); break;
             case PFL_DEFAULT: case PFL_128:
