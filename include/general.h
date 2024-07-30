@@ -15,20 +15,20 @@
 
 #if _WIN32 || _WIN64
     #if _WIN64
-        #define PTSD_64
+        #define PTSD_64 (1)
     #else
-        #define PTSD_32
+        #define PTSD_32 (1)
     #endif
 #elif __GNUC__
     #if __x86_64__ || __ppc64__
-        #define PTSD_64
+        #define PTSD_64 (1)
     #else
-        #define PTSD_32
+        #define PTSD_32 (1)
     #endif
 #elif UINTPTR_MAX > UINT_MAX
-    #define PTSD_64
+    #define PTSD_64 (1)
 #else
-    #define PTSD_32
+    #define PTSD_32 (1)
 #endif
 
 #if !(defined(_MSC_FULL_VER) && !defined(__clang__)) // not an msvc compiler
