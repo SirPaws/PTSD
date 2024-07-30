@@ -173,19 +173,15 @@ static inline pkeyboard_t pkeyboard(void) {
     void                  pkeyboard_init(pdevice_t *const);
     void                  pkeyboard_shutdown(pdevice_t *const);
     void                  pkeyboard_update(pdevice_t *const);
-    #ifdef PTSD_WINDOWS
-    pdevice_proc_result_t pkeyboard_wnd_proc(pdevice_t *const,
-            pwindow_procedure_parameter_pack_t[static const 1]);
-    #endif
+    pdevice_proc_result_t pkeyboard_device_proc(pdevice_t *const,
+            const pdevice_parameter_pack_t *const);
 
     return (pkeyboard_t) {
         .device = {
             .init     = pkeyboard_init,
             .shutdown = pkeyboard_shutdown,
             .update   = pkeyboard_update,
-    #ifdef PTSD_WINDOWS
-            .wnd_proc = pkeyboard_wnd_proc,
-    #endif
+            .device_proc = pkeyboard_device_proc,
         },
         .last_key = PTSD_KEY_UNKNOWN
     };

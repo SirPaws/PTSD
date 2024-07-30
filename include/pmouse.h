@@ -91,18 +91,14 @@ static inline pmouse_t pmouse(void) {
     void                  pmouse_init(pdevice_t *const);
     void                  pmouse_shutdown(pdevice_t *const);
     void                  pmouse_update(pdevice_t *const);
-    #ifdef PTSD_WINDOWS
-    pdevice_proc_result_t pmouse_wnd_proc(pdevice_t *const,
-            pwindow_procedure_parameter_pack_t[static const 1]);
-    #endif
+    pdevice_proc_result_t pmouse_device_proc(pdevice_t *const,
+            const pdevice_parameter_pack_t *const);
     return (pmouse_t){
         .device = {
             .init       = pmouse_init,
             .shutdown   = pmouse_shutdown,
             .update     = pmouse_update,
-    #ifdef PTSD_WINDOWS
-            .wnd_proc   = pmouse_wnd_proc,
-    #endif
+            .device_proc   = pmouse_device_proc,
         },
         .last_button = PTSD_MOUSE_BUTTON_NONE
     };

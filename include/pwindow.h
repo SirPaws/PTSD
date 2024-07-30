@@ -30,36 +30,27 @@
 
 struct pwindow_t;
 
-#if PTSD_32 && defined(PTSD_WINDOWS)
-typedef long plong_ptr_t;
+
+#if PTSD_WINDOW_GLFW
+#elif PTSD_WINDOW_SDL
+
+typedef bool pdevice_proc_result_t;
+typedef union SDL_Event pdevice_parameter_pack_t;
 #elif defined(PTSD_WINDOWS)
+
+#if PTSD_32
+typedef long plong_ptr_t;
+#elif PTSD_64
 typedef isize plong_ptr_t;
 #endif
 
-typedef bool pwindow_resize_event_handler_t(struct pwindow_t*, u32 width, u32 height); 
-typedef bool pwindow_close_event_handler_t(struct pwindow_t*);
-
-
-// typedef struct pstate_t pstate_t;
-// struct pstate_t {
-//     usize       code;
-//     pmodifier_t modifiers;
-//     union {
-//         struct { bool held, pressed, released; };
-//         struct { f64 x, y; };
-//     };
-// };
-
-#ifdef PTSD_WINDOWS
 typedef struct pdevice_proc_result_t pdevice_proc_result_t;
 struct pdevice_proc_result_t {
     bool handled; plong_ptr_t result;
 };
-#endif
 
-typedef struct pwindow_procedure_parameter_pack_t pwindow_procedure_parameter_pack_t;
-#ifdef PTSD_WINDOWS
-struct pwindow_procedure_parameter_pack_t {
+typedef struct pdevice_parameter_pack_t pdevice_parameter_pack_t;
+struct pdevice_parameter_pack_t {
     struct pwindow_t *const window;
     u32 msg;
     usize wparam;
@@ -80,7 +71,7 @@ struct pdevice_t {
     void (*shutdown)(pdevice_t *const);
     void (*update)(pdevice_t *const);
 #ifdef PTSD_WINDOWS
-    pdevice_proc_result_t (*wnd_proc)(pdevice_t *const, pwindow_procedure_parameter_pack_t[static const 1]);
+    pdevice_proc_result_t (*device_proc)(pdevice_t *const, const pdevice_parameter_pack_t *const);
 #endif
 };
 
@@ -213,7 +204,7 @@ void pfree_window(const pwindow_t *const);
 ///////////////////////////////////////////////////////////////////////////////////////
 // windows custom window hit handling /////////////////////////////////////////////////
 
-#ifdef PTSD_WINDOWS
+#if !(defined(PTSD_WINDOW_SDL) || defined(PTSD_WINDOW_GLFW)) && PTSD_WINDOWS
 typedef enum phit_location_t {
     PHIT_NOWHERE,
     PHIT_USERSPACE,
@@ -242,13 +233,13 @@ static phit_device_t phit_device(phit_location_t (*event_handler)(pwindow_t*, is
     void                  pwindow_hit_device_shutdown(pdevice_t *const);
     void                  pwindow_hit_device_update(pdevice_t *const);
     pdevice_proc_result_t pwindow_hit_device_wnd_proc(pdevice_t *const, 
-            pwindow_procedure_parameter_pack_t[static const 1]);
+            const pdevice_parameter_pack_t *const);
    return (phit_device_t){
         .device = {
             .init          = pwindow_hit_device_init,
             .shutdown      = pwindow_hit_device_shutdown,
             .update        = pwindow_hit_device_update,
-            .wnd_proc      = pwindow_hit_device_wnd_proc,
+            .device_proc      = pwindow_hit_device_wnd_proc,
         },
         .event_handler = event_handler
     };

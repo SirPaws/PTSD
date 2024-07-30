@@ -1,8 +1,8 @@
-
 #include "pwindow.h"
+#include "plimits.h"
+#include "pstacktrace.h"
+#include "SDL.h"
 #include "pmouse.h"
-#include <windows.h>
-#include <windowsx.h>
 
 void pmouse_init(pdevice_t *const device) {
     pmouse_t *mouse = (void*)device;
@@ -100,58 +100,45 @@ void pmo_update_buttonstate(pmouse_t *const mouse, pmouse_button_t buttoncode, p
     }
 }
 
-void pmo_update_position(pmouse_t *const mouse, int x, int y) {
-    mouse->inputs[PTSD_MOUSE_XY].x = x;
-    mouse->inputs[PTSD_MOUSE_XY].y = y;
-}
 
-pdevice_proc_result_t pmouse_device_proc(pdevice_t *const device, const pdevice_parameter_pack_t *const parm)
-{
+
+bool pmouse_device_proc(pdevice_t *const device, const SDL_Event *const event) {
     pmouse_t *mouse = (void*)device;
-    // pwindow_t *const, u32 msg, usize wparam, plong_ptr_t lparam)
-    switch(parm->msg) {
-    case WM_LBUTTONDOWN:
-    case WM_LBUTTONUP:
-    case WM_RBUTTONDOWN:
-    case WM_RBUTTONUP:
-    case WM_MBUTTONDOWN:
-    case WM_MBUTTONUP:
-    case WM_XBUTTONDOWN:
-    case WM_XBUTTONUP: {
-            pmouse_button_t button; int action; 
-            /**/ if (parm->msg == WM_LBUTTONDOWN || parm->msg == WM_LBUTTONUP)
-                 button = PTSD_MOUSE_LEFT;
-            else if (parm->msg == WM_RBUTTONDOWN || parm->msg == WM_RBUTTONUP) //NOLINT
-                 button = PTSD_MOUSE_RIGHT;
-            else if (parm->msg == WM_MBUTTONDOWN || parm->msg == WM_MBUTTONUP) //NOLINT
-                 button = PTSD_MOUSE_MIDDLE;
-            else if (GET_XBUTTON_WPARAM(parm->wparam) == XBUTTON1)//NOLINT
-                 button = PTSD_MOUSE_BUTTON_4;
-            else button = PTSD_MOUSE_BUTTON_5; //NOLINT
 
-            if (parm->msg == WM_LBUTTONDOWN || parm->msg == WM_RBUTTONDOWN 
-             || parm->msg == WM_MBUTTONDOWN || parm->msg == WM_XBUTTONDOWN) {
-                action = PTSD_MOUSE_PRESSED;
-            } else {
-                action = PTSD_MOUSE_RELEASED;
-            }
+    switch (event->type) {
+    case SDL_MOUSEMOTION: {
+            mouse->inputs[PTSD_MOUSE_XY].x = event->motion.x;
+            mouse->inputs[PTSD_MOUSE_XY].y = event->motion.y;
+            return true;
+        }
+    case SDL_MOUSEWHEEL:{
+            mouse->inputs[PTSD_MOUSE_WHEEL_XY].x = event->wheel.preciseX;
+            mouse->inputs[PTSD_MOUSE_WHEEL_XY].y = event->wheel.preciseY;
+            mouse->inputs[PTSD_MOUSE_XY].x = event->wheel.mouseX;
+            mouse->inputs[PTSD_MOUSE_XY].y = event->wheel.mouseY;
+            return true;
+        }
+    case SDL_MOUSEBUTTONDOWN:
+    case SDL_MOUSEBUTTONUP: {
+            int button = event->button.button;
+            if (button < 1 || button > PTSD_MOUSE_BUTTON_COUNT)
+                break;
+            button -= 1; // SDL starts mouse buttons at one, while ours start at 0
+
+            int state;
+            if (event->button.state == SDL_PRESSED)
+                 state = PTSD_MOUSE_PRESSED;
+            else state = PTSD_MOUSE_RELEASED;
 
             mouse->last_button = button;
-            pmo_update_buttonstate(mouse, button, action);
-            pmo_update_position(mouse, GET_X_LPARAM(parm->lparam), GET_Y_LPARAM(parm->lparam));
-            return (pdevice_proc_result_t){.handled=true, 0};
+            pmo_update_buttonstate(mouse, button, state);
+            mouse->inputs[PTSD_MOUSE_XY].x = event->button.x;
+            mouse->inputs[PTSD_MOUSE_XY].y = event->button.y;
+            return true;
         }
-    case WM_MOUSEWHEEL:
-        mouse->inputs[PTSD_MOUSE_WHEEL_XY].y = (SHORT) HIWORD(parm->wparam) / (double) WHEEL_DELTA;
-        return (pdevice_proc_result_t){.handled=true, 0};
-    case WM_MOUSEHWHEEL:
-        mouse->inputs[PTSD_MOUSE_WHEEL_XY].x = (SHORT) HIWORD(parm->wparam) / (double) WHEEL_DELTA;
-        return (pdevice_proc_result_t){.handled=true, 0};
-    case WM_MOUSEMOVE: 
-        pmo_update_position(mouse, GET_X_LPARAM(parm->lparam), GET_Y_LPARAM(parm->lparam));
-        return (pdevice_proc_result_t){.handled=true, 0};
     }
-    return (pdevice_proc_result_t){0};
+
+    return false;
 }
 
 bool pmo_is_pressed(pmouse_t *mo, pmouse_button_t button) {
@@ -190,3 +177,5 @@ pmouse_state_t pmo_get_position(pmouse_t *mo) {
 pmouse_state_t pmo_get_scroll(pmouse_t *mo) {
     return mo->inputs[PTSD_MOUSE_WHEEL_XY];
 }
+
+

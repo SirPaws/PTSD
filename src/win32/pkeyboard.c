@@ -263,8 +263,8 @@ void pkb_update_keystate(pkeyboard_t *const keyboard, pkeycode_t keycode, pkey_a
     }
 }
 
-pdevice_proc_result_t pkeyboard_wnd_proc(pdevice_t *const device, 
-        pwindow_procedure_parameter_pack_t parm[static const 1])
+pdevice_proc_result_t pkeyboard_device_proc(pdevice_t *const device, 
+        const pdevice_parameter_pack_t *const parm)
 {
     pkeyboard_t *const keyboard = (void* const)device;
     switch(parm->msg) {

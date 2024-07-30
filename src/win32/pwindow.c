@@ -131,7 +131,7 @@ static LRESULT CALLBACK pwin32_winproc(HWND hwnd, UINT msg, WPARAM wparam, LPARA
     }
     for (usize i = 0; i < win->device_count; i++) {
         pdevice_proc_result_t result = 
-            win->devices[i]->wnd_proc(win->devices[i], &(pwindow_procedure_parameter_pack_t){win, msg, wparam, lparam});
+            win->devices[i]->device_proc(win->devices[i], &(pdevice_parameter_pack_t){win, msg, wparam, lparam});
         if (result.handled) return result.result;
     }
     return DefWindowProc(hwnd, msg, wparam, lparam);
@@ -141,7 +141,7 @@ void pwindow_hit_device_init(pdevice_t *const) { /* INTENTIONAL STUB */ }
 void pwindow_hit_device_shutdown(pdevice_t *const) { /* INTENTIONAL STUB */ }
 void pwindow_hit_device_update(pdevice_t *const) { /* INTENTIONAL STUB */ }
 pdevice_proc_result_t pwindow_hit_device_wnd_proc(pdevice_t *const device, 
-        pwindow_procedure_parameter_pack_t parm[static const 1]) 
+        const pdevice_parameter_pack_t *const parm) 
 {
     if (parm->msg != WM_NCHITTEST) 
         return (pdevice_proc_result_t){.handled = false};
