@@ -3,6 +3,10 @@
 // 
 // with clang on linux:
 // clang -Iinclude build.c -o ptsd.o && ar -cr libptsd.a ptsd.o
+//
+// if you want to use glfw or sdl as a windowing backend, add `-DPTSD_WINDOW_GLFW` or `-DPTSD_WINDOW_SDL` to the command
+// so something like:
+// clang -DPTSD_WINDOW_SDL -Iinclude build.c ... 
 
 #include "src/pio.c" //NOLINT
 #include "src/pplatform.c" //NOLINT
