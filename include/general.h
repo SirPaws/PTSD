@@ -82,6 +82,81 @@
 #   define PTSD_HAS_VLA 0
 #endif
 
+#if PTSD_C_VERSION >= PTSD_C2Y
+#define PTSD_IN_VERSION_PTSD_C2Y(...) __VA_ARGS__
+#else
+#define PTSD_IN_VERSION_PTSD_C2Y(...)
+#endif
+#if PTSD_C_VERSION >= PTSD_C23
+#define PTSD_IN_VERSION_PTSD_C23(...) __VA_ARGS__
+#else
+#define PTSD_IN_VERSION_PTSD_C23(...)
+#endif
+#if PTSD_C_VERSION >= PTSD_C18
+#define PTSD_IN_VERSION_PTSD_C18(...) __VA_ARGS__
+#else
+#define PTSD_IN_VERSION_PTSD_C18(...)
+#endif
+#if PTSD_C_VERSION >= PTSD_C17
+#define PTSD_IN_VERSION_PTSD_C17(...) __VA_ARGS__
+#else
+#define PTSD_IN_VERSION_PTSD_C17(...)
+#endif
+#if PTSD_C_VERSION >= PTSD_C11
+#define PTSD_IN_VERSION_PTSD_C11(...) __VA_ARGS__
+#else
+#define PTSD_IN_VERSION_PTSD_C11(...)
+#endif
+#if PTSD_C_VERSION >= PTSD_C99
+#define PTSD_IN_VERSION_PTSD_C99(...) __VA_ARGS__
+#else
+#define PTSD_IN_VERSION_PTSD_C99(...)
+#endif
+#if PTSD_C_VERSION >= PTSD_C89
+#define PTSD_IN_VERSION_PTSD_C89(...) __VA_ARGS__
+#else
+#define PTSD_IN_VERSION_PTSD_C89(...)
+#endif
+#define PTSD_IN_VERSION(ver, ...) PTSD_IN_VERSION_ ## ver(__VA_ARGS__)
+
+#if PTSD_C_VERSION < PTSD_C2Y
+#define PTSD_BEFORE_VERSION_PTSD_C2Y(...) __VA_ARGS__
+#else
+#define PTSD_BEFORE_VERSION_PTSD_C2Y(...)
+#endif
+#if PTSD_C_VERSION < PTSD_C23
+#define PTSD_BEFORE_VERSION_PTSD_C23(...) __VA_ARGS__
+#else
+#define PTSD_BEFORE_VERSION_PTSD_C23(...)
+#endif
+#if PTSD_C_VERSION < PTSD_C18
+#define PTSD_BEFORE_VERSION_PTSD_C18(...) __VA_ARGS__
+#else
+#define PTSD_BEFORE_VERSION_PTSD_C18(...)
+#endif
+#if PTSD_C_VERSION < PTSD_C17
+#define PTSD_BEFORE_VERSION_PTSD_C17(...) __VA_ARGS__
+#else
+#define PTSD_BEFORE_VERSION_PTSD_C17(...)
+#endif
+#if PTSD_C_VERSION < PTSD_C11
+#define PTSD_BEFORE_VERSION_PTSD_C11(...) __VA_ARGS__
+#else
+#define PTSD_BEFORE_VERSION_PTSD_C11(...)
+#endif
+#if PTSD_C_VERSION < PTSD_C99
+#define PTSD_BEFORE_VERSION_PTSD_C99(...) __VA_ARGS__
+#else
+#define PTSD_BEFORE_VERSION_PTSD_C99(...)
+#endif
+#if PTSD_C_VERSION < PTSD_C89
+#define PTSD_BEFORE_VERSION_PTSD_C89(...) __VA_ARGS__
+#else
+#define PTSD_BEFORE_VERSION_PTSD_C89(...)
+#endif
+#define PTSD_BEFORE_VERSION(ver, ...) PTSD_BEFORE_VERSION_ ## ver(__VA_ARGS__)
+
+
 
 #if PTSD_HAS_ATTRIBUTE(maybe_unused)
 #define PTSD_UNUSED [[maybe_unused]]
