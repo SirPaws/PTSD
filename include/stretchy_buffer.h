@@ -40,6 +40,46 @@
 // in GNU compatible this is equivalent to sizeof(__typeof(value))
 #define psb_sizeof(value) psb_sizeof_implementation(value)
 
+// for each loop macro, makes it easier to do loops
+// `psb_foreach` is equivalent to writing this
+// ```c
+// for (int *it = psb_begin(array); it != psb_end(array); it++) {
+//     ...
+// }
+// ```
+// for the `_r` and `_i` version, the iteration is in reverse, meaning they're
+// equivalent to writing
+// ```c
+// for (int *it = psb_begin_r(array); it != psb_end_r(array); it++) {
+//     ...
+// }
+// ```
+//
+//
+// if a second parameter is passed in this will be the name of the iterator
+// if not it'll be called `it`
+// ```c
+// int *stretchy arr = NULL;
+// psb_pushback(arr, 1);
+// psb_pushback(arr, 2);
+// psb_pushback(arr, 3);
+// 
+// psb_foreach(arr) {
+//    printf("%d\n", *it);
+// }
+// // prints
+// //  1
+// //  2 
+// //  3
+// 
+// psb_foreach(arr, value) {
+//    printf("%d\n", *value);
+// }
+// // prints
+// //  1
+// //  2 
+// //  3
+// ```
 #define psb_foreach(array, .../*[optiona] name*/)   psb_foreach_implementation(array, __VA_ARGS__)
 #define psb_foreach_r(array, .../*[optiona] name*/) psb_foreach_i_implementation(array, __VA_ARGS__)
 #define psb_foreach_i(array, .../*[optiona] name*/) psb_foreach_i_implementation(array, __VA_ARGS__)
