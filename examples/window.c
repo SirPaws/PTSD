@@ -13,7 +13,7 @@ int main(void) {
         .width = 1024,
     });
 
-    static constexpr pstring_t states[] = {
+    static PTSD_IN_VERSION(PTSD_C23, constexpr) pstring_t states[] = {
         pcreate_const_string("RELEASED"),
         pcreate_const_string("PRESSED"),
         pcreate_const_string("HELD"),
