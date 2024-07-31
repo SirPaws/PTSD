@@ -126,6 +126,15 @@ bool penable_console_color_output(void);
 // the out string is allocated with malloc, remember to free it
 bool pfind_in_environment_path(const char *file, pstring_t *out);
 
+// result is allocated and needs to be freed
+pstring_t pcurrent_working_dir(void);
+void pset_working_dir(pstring_t);
+
+// alias for pcurrent_working_dir
+pstring_t pcwd(void);
+// alias for pset_working_dir
+void pcd(pstring_t);
+
 #endif // PPLATFORM_HEADER
 
 #ifdef PPLATFORM_HEADER_ONLY

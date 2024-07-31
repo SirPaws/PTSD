@@ -10,11 +10,11 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #elif defined(PTSD_WINDOWS)
-#define PATH_MAX (32767)
 #include <Windows.h>
 #include <handleapi.h>
 #include <memoryapi.h>
 #include <winnt.h>
+#define PATH_MAX (32767)
 #elif defined(PTSD_LINUX)
 #include <unistd.h>
 #include <sys/stat.h>
@@ -456,3 +456,25 @@ char pnext_in_environment_path(const char **buffer_ptr, const char *file, char *
 #endif
 }
 
+pstring_t pcurrent_working_dir(void) {
+    char buf[PATH_MAX + 1] = {0};
+    if (!GetCurrentDirectory(sizeof buf, buf))
+        return pstring(NULL, 0);
+    return pcopy_string(pstring(buf, strlen(buf)));
+}
+
+void pset_working_dir(pstring_t str) {
+    char buf[PATH_MAX + 1] = {0};
+    memcpy(buf, str.c_str, str.length);
+    SetCurrentDirectory(buf);
+}
+
+#if PTSD_GNU_COMPATIBLE
+pstring_t pcwd(void) __attribute__((weak, alias("pcurrent_working_dir")));
+void pcd(pstring_t) __attribute__((weak, alias("pset_working_dir")));
+#else // MVSC 
+pstring_t pcwd(void);
+void pcd(pstring_t);
+#pragma comment(linker, "/alternatename:pwd=pcurrent_working_dir") 
+#pragma comment(linker, "/alternatename:pcd=pset_working_dir") 
+#endif
