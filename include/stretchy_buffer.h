@@ -9,8 +9,8 @@
 #error not implemented yet
 #endif
 
-#ifndef PTSD_STRETCHY_BUFFER_GROWTH_COUNT
-#define PTSD_STRETCHY_BUFFER_GROWTH_COUNT 2
+#ifndef PTSD_STRETCHY_BUFFER_GROWTH_RATE
+#define PTSD_STRETCHY_BUFFER_GROWTH_RATE 2
 #endif
 
 // symbol to make it clear that a datatype is a stretchy buffer
@@ -105,24 +105,24 @@
 #define psb_pushback(array, value) psb_pushback_implementation(array, value)
 
 // appends 'count' elements from 'val_arr' to the end of the array and returns a pointer to the last element pushed
-#define psb_pushback_n(array, val_arr, count) psb_pushback_n_implementation(array, val_arr, count)
+#define psb_pushback_n(array, count, val_arr) psb_pushback_n_implementation(array, count, val_arr)
 
 // appends 'value' to the end of the array and returns a pointer to the location of 'value'
 // the difference between psb_pseudo_pushback and psb_pushback is that pseudo_pushback is intended
 // for C arrays that do not have meta data, so an example would be
 // ```c
-//   int cur_length = 0;
+//   int length = 0;
 //   int *array = NULL;
-//   psb_pseudo_pushback(array, length, 1); length++;
-//   psb_pseudo_pushback(array, length, 2); length++;
-//   psb_pseudo_pushback(array, length, 3); length++;
+//   psb_pseudo_pushback(array, length, 1); // array contains: [1      ], length: 1
+//   psb_pseudo_pushback(array, length, 2); // array contains: [1, 2   ], length: 2
+//   psb_pseudo_pushback(array, length, 3); // array contains: [1, 2, 3], length: 3
 // ```
 // int this example the array pointer, note, however that this function is very naive
 // and will reallocate each time it is called
 #define psb_pseudo_pushback(array, length, value) psb_pseudo_pushback_implementation(array, length, value)
 
 // same as psb_pushback but gives control over how many bytes needs to be inserted into the array
-#define psb_pushbytes(array, value, num_bytes) psb_pushbytes_implementation(array, value, num_bytes)
+#define psb_pushbytes(array, num_bytes, value) psb_pushbytes_implementation(array, num_bytes, value)
 
 // removes last element in array and returns a copy 
 #define psb_popback(array) psb_popback_implementation(array)
@@ -179,8 +179,11 @@
 // this function frees the buffer, 
 // if it has a free elements function it will also free the
 // elements
-#define psb_free_implementation(array) \
-    psb_free_buffer(psb_get_meta(array), psb_sizeof((array)[0]))
+#define psb_free_implementation(array) ({                                       \
+    if ((array)) psb_free_buffer(psb_get_meta(array), psb_sizeof((array)[0]));  \
+    (array) = NULL;                                                             \
+    /*returns void*/;                                                           \
+})
 
 // attaches a function to the buffer, that will be called on each element
 // when the element is removed, equivalent to a destrutor in c++
@@ -262,13 +265,13 @@
 
 
 // appends 'count' elements from 'val_arr' to the end of the array and returns a pointer to the last element pushed
-#define psb_pushback_n_implementation(array, val_arr, count) ({                         \
+#define psb_pushback_n_implementation(array, count, val_arr) ({                         \
+    psb_get_meta_or_create(array);                                                      \
     __auto_type psb_pushback_ret = (array);                                             \
-    pmaybe_grow_n_elems(&(array), psb_sizeof((array)[0]), (count));                     \
+    psb_reserve(array, count); \
+    /*psb_maybe_grow_n_elems(&(array), psb_sizeof((array)[0]), (count));              */\
     for (usize psb_pushback_n_i = 0; psb_pushback_n_i < (count); psb_pushback_n_i++) {  \
-        psb_pushback_ret = &(array)[psb_size(array) + psb_pushback_n_i];                \
-        *psb_pushback_ret = (val_arr)[psb_pushback_n_i];                                \
-        psb_size(array)++;                                                              \
+        psb_pushback_ret = psb_pushback(array, ((val_arr)[psb_pushback_n_i]));          \
     }                                                                                   \
     psb_pushback_ret;                                                                   \
 })
@@ -293,12 +296,12 @@
 })
 
 // same as psb_pushback but gives control over how many bytes needs to be inserted into the array
-#define psb_pushbytes_implementation(array, value, bytes) ({    \
+#define psb_pushbytes_implementation(array, num_bytes, value) ({\
     psb_get_meta_or_create(array);                              \
-    psb_maybe_byte_grow(&(array), (bytes));                     \
-    memcpy((array) + psb_size((array)), (value), (bytes));      \
+    psb_maybe_byte_grow(&(array), (num_bytes));                 \
+    memcpy((array) + psb_size((array)), (value), (num_bytes));  \
     __auto_type psb_pushback_ret = (array) + psb_size((array)); \
-    psb_size((array)) += (bytes);                               \
+    psb_size((array)) += (num_bytes);                           \
     psb_pushback_ret;                                           \
 })
 
@@ -317,38 +320,40 @@
 // note that this might invalidate the 'position' parameter so if you need to reuse
 // 'position' you should call it thously
 // location = psb_insert(array, location, 10)
-#define psb_insert_implementation(array, position, value) ({                                    \
-    __auto_type psb_insert_array = psb_get_meta_or_create(array);                               \
-    usize psb_insert_size = psb_sizeof( value );                                                \
-    usize psb_insert_offset = (position) - psb_begin(array);                                    \
-    __typeof(value) *psb_insert_result = NULL;                                                  \
-    if (psb_insert_array->size && psb_insert_offset >= psb_insert_array->size) {                \
-        /*TODO: handle this properly*/                                                          \
-        psb_insert_result = psb_pushback(array, value);                                         \
-    }                                                                                           \
-    else {                                                                                      \
-        psb_maybe_grow(&(array), psb_insert_size);                                              \
-        /* first we extract all elements after the place where we want                        */\
-        /* to insert and then we shift them one element forward                               */\
-        /* here is an example we wan't to insert 6 at the place pointed to below              */\
-        /* [1, 2, 3, 4]                                                                       */\
-        /*     ^                                                                              */\
-        /* we make a new array that holds [2, 3, 4]                                           */\
-        /* we insert that into the array                                                      */\
-        /* [1, 2, 2, 3, 4]                                                                    */\
-        /* then we insert the value                                                           */\
-        /* [1, 6, 2, 3, 4]                                                                    */\
-        usize psb_insert_elems = psb_size(array) - psb_insert_offset;                           \
-        if (psb_insert_elems) {                                                                 \
-            memmove((array) + psb_insert_offset + 1,                                            \
-                    (array) + psb_insert_offset, psb_insert_elems * psb_insert_size);           \
-        }                                                                                       \
-                                                                                                \
-        psb_get_meta(array)->size++;                                                            \
-        (array)[psb_insert_offset] = value;                                                     \
-        psb_insert_result = (array) + psb_insert_offset;                                        \
-    }                                                                                           \
-    psb_insert_result;                                                                          \
+#define psb_insert_implementation(array, position, value) ({                                                \
+    __auto_type psb_insert_array = psb_get_meta_or_create(array);                                           \
+    usize psb_insert_size = psb_sizeof( value );                                                            \
+    usize psb_insert_offset = (position) - psb_begin(array);                                                \
+    __typeof(value) *psb_insert_result = NULL;                                                              \
+    if (psb_insert_array->size == 0) {                                                                      \
+        psb_insert_result = psb_pushback(array, value);                                                     \
+    } else if (psb_insert_offset == psb_insert_array->size) {                                               \
+        psb_insert_result = psb_pushback(array, value);                                                     \
+    } else if (psb_insert_offset > psb_insert_array->size) {                                                \
+        /* this is an error so the input is ignored, not sure if that's right, but it's what we'll do     */\
+    } else {                                                                                                \
+        psb_maybe_grow(&(array), psb_insert_size);                                                          \
+        /* first we extract all elements after the place where we want                                    */\
+        /* to insert and then we shift them one element forward                                           */\
+        /* here is an example we wan't to insert 6 at the place pointed to below                          */\
+        /* [1, 2, 3, 4]                                                                                   */\
+        /*     ^                                                                                          */\
+        /* we make a new array that holds [2, 3, 4]                                                       */\
+        /* we insert that into the array                                                                  */\
+        /* [1, 2, 2, 3, 4]                                                                                */\
+        /* then we insert the value                                                                       */\
+        /* [1, 6, 2, 3, 4]                                                                                */\
+        usize psb_insert_elems = psb_size(array) - psb_insert_offset;                                       \
+        if (psb_insert_elems) {                                                                             \
+            memmove((array) + psb_insert_offset + 1,                                                        \
+                    (array) + psb_insert_offset, psb_insert_elems * psb_insert_size);                       \
+        }                                                                                                   \
+                                                                                                            \
+        psb_get_meta(array)->size++;                                                                        \
+        (array)[psb_insert_offset] = value;                                                                 \
+        psb_insert_result = (array) + psb_insert_offset;                                                    \
+    }                                                                                                       \
+    psb_insert_result;                                                                                      \
 })
 
 // removes element at 'position' in 'array' and returns the data that was at 'position'
@@ -384,15 +389,14 @@
 
 
 // creates a copy of a strechy buffer and returns it
-#define psb_copybuffer_implementation(arr) ({                                       \
-    __auto_type psb_copybuffer_array  = psb_get_meta(array);                        \
-    usize psb_copybuffer_size = psb_sizeof((arr)[0]) * psb_copybuffer_array->size;  \
-    pstretchy_buffer_t *psb_copybuffer_copy =                                       \
-        pallocate(sizeof(pstretchy_buffer_t) * psb_copybuffer_size)                 \
-    psb_copybuffer_copy->endofstorage = psb_copybuffer_size;                        \
-    psb_copybuffer_copy->size = psb_copybuffer_array->size;                         \
-    memcpy((arr), psb_copybuffer_array + 1, psb_copybuffer_size;                    \
-    (__typeof((arr)[0])*)( psb_copybuffer_copy + 1);                                \
+#define psb_copybuffer_implementation(array) ({                                     \
+    typeof(*(array)) *psb_copybuffer_result = NULL;                                 \
+    if ((array)) {                                                                  \
+        psb_reserve(psb_copybuffer_result, psb_size(array));                        \
+        memcpy((psb_copybuffer_result), (array), psb_get_meta(array)->endofstorage);\
+        psb_get_meta(psb_copybuffer_result)->size = psb_get_meta(array)->size;      \
+    }                                                                               \
+    psb_copybuffer_result;                                                          \
 })
 
 // creates a copy of a static array as a strechy buffer and returns it
@@ -425,7 +429,8 @@ static void psb_maybe_byte_grow(void* array, usize bytes) {
     pstretchy_buffer_t* meta = (*meta_ptr) - 1;
 
     if (meta->size + bytes > meta->endofstorage) {
-        psb_byte_grow(array, bytes);
+        usize num_bytes = (meta->size + bytes) - meta->endofstorage;
+        psb_byte_grow(array, num_bytes);
     }
 }
 
@@ -435,19 +440,26 @@ static void psb_maybe_grow(void* array, usize datasize) {
     pstretchy_buffer_t* meta = (*meta_ptr) - 1;
 
     if ((meta->size + 1) * datasize > meta->endofstorage) {
-        psb_grow(array, datasize, PTSD_STRETCHY_BUFFER_GROWTH_COUNT);
+        usize count = 2;
+        if (meta->endofstorage) {
+            usize inner_count = meta->endofstorage/datasize;
+            count = inner_count * PTSD_STRETCHY_BUFFER_GROWTH_RATE;
+            count -= inner_count;
+        }
+
+        psb_grow(array, datasize, count);
     }
 }
 
-PTSD_UNUSED
-static void pmaybe_grow_n_elems(void *array, usize datasize, usize count) {
-    pstretchy_buffer_t** meta_ptr = (pstretchy_buffer_t**)array;
-    pstretchy_buffer_t* meta = (*meta_ptr) - 1;
-
-    if ((meta->size + count) * datasize >= meta->endofstorage) {
-        psb_grow(array, datasize, (meta->size + count));
-    }
-}
+// PTSD_UNUSED
+// static void psb_maybe_grow_n_elems(void *array, usize datasize, usize count) {
+//     pstretchy_buffer_t** meta_ptr = (pstretchy_buffer_t**)array;
+//     pstretchy_buffer_t* meta = (*meta_ptr) - 1;
+// 
+//     if ((meta->size + count) * datasize > meta->endofstorage) {
+//         psb_grow(array, datasize, (meta->size + count));
+//     }
+// }
 
 static void psb_byte_grow(void* array_ptr, usize bytes) {
     if (!bytes || !array_ptr) return;
@@ -475,7 +487,9 @@ static void psb_pseudo_grow(void* array_ptr, usize datasize, usize count) {
 }
 
 static void psb_grow(void* array_ptr, usize datasize, usize count) {
-    if (!count || !array_ptr || !datasize) return;
+    if (!array_ptr || !datasize) return;
+    if (count == 0) count = 2;
+
     u8* array = *(u8**)array_ptr;
     pstretchy_buffer_t* meta = ((pstretchy_buffer_t*)array) - 1;
 
@@ -523,6 +537,7 @@ static usize psb_set_capacity_implementation_(void *mem, usize count, usize data
         void *tmp = preallocate(size, meta);
         assert(tmp);
         meta = tmp;
+        meta->endofstorage = ((data_size) * (count));
         (*array_ptr) = (void*)(meta + 1);
     }
     return count;
@@ -538,14 +553,19 @@ static usize psb_reserve_implementation_(void *mem, usize count, usize data_size
         assert(meta);
         meta->endofstorage = array_size;
         (*array_ptr)       = (void*)(meta + 1);
-    } else if (psb_size(*array_ptr) < (count)) {
-        pstretchy_buffer_t *meta = psb_get_meta(*array_ptr);
-        usize size = ((data_size) * (count)) + sizeof(pstretchy_buffer_t);
-        void *tmp = preallocate(size, meta);
-        assert(tmp);
-        meta = tmp;
-        meta->endofstorage = ((data_size) * (count));
-        (*array_ptr) = (void*)(meta + 1);
+    } else {
+        auto meta = psb_get_meta(*array_ptr);
+        usize endofstorage = meta->endofstorage;
+        usize capacity = endofstorage - (meta->size * data_size);
+        if (capacity < ((data_size) * (count))) {
+            usize extra_capacity = ((data_size) * (count)) - capacity;
+            usize size = extra_capacity + sizeof(pstretchy_buffer_t);
+            void *tmp = preallocate(size, meta);
+            assert(tmp);
+            meta = tmp;
+            meta->endofstorage += extra_capacity;
+            (*array_ptr) = (void*)(meta + 1);
+        }
     }
     return count;
 }
