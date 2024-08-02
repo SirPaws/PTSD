@@ -131,7 +131,7 @@ typedef size_t    usize;
 #define pda_len(array)                           pda_size_implementation(array)
 #define pda_sizeof(value)                        pda_sizeof_implementation(value)
 
-#define pda_free(array)
+#define pda_free(array)                          pda_free_implementation(array)
 #define pda_set_capacity(array, count)           pda_set_capacity_implementation(array, count)
 #define pda_set_cap(array, count)                pda_set_capacity_implementation(array, count)
 #define pda_set_count(array, count)              pda_set_capacity_implementation(array, count)
@@ -139,7 +139,7 @@ typedef size_t    usize;
 #define pda_set_length(array, count)             pda_set_capacity_implementation(array, count)
 
 #define pda_pushback(array, value)               pda_pushback_implementation(array, value)
-#define pda_pushbytes(array, value, bytes)       pda_pushbytes_implementation(array, value, bytes)
+#define pda_pushbytes(array, num_bytes, data)    pda_pushbytes_implementation(array, num_bytes, data)
 #define pda_begin(array)                         pda_begin_implementation(array)
 #define pda_end(array)                           pda_end_implementation(array)
 #define pda_insert(array, position, value)       pda_insert_implementation(array, position, value)
@@ -178,15 +178,16 @@ typedef size_t    usize;
 #define pda_size_implementation(array)   ((array)->size) 
 #define pda_sizeof_implementation(value) (sizeof(__typeof(value)))
 
-#define pda_free_implementation(array) ({   \
-        pfree((array)->data);               \
-        memset((array), 0, sizeof *(array));\
+#define pda_free_implementation(array) ({        \
+        if ((array)->data) pfree((array)->data); \
+        memset((array), 0, sizeof *(array));     \
+        (array)->data = NULL;                    \
     })
 
 #define pda_set_capacity_implementation(array, count) ({                                    \
     if (!(array)->data) {                                                                   \
         __typeof(*(array)) pda_set_capacity_array = {                                       \
-            .end_of_storage = pda_sizeof((array)->data[0]) * (count),                       \
+            .end_of_storage = (count),                                                      \
             .data         = pzero_allocate(pda_sizeof((array)->data[0]) * (count))          \
         };                                                                                  \
         *(array) = pda_set_capacity_array;                                                  \
@@ -205,11 +206,11 @@ typedef size_t    usize;
     pda_pushback_ret;                                               \
 })
 
-#define pda_pushbytes_implementation(array, value, bytes) ({        \
-    pda_maybe_byte_grow((pdynarray_t *)(array), (bytes));           \
-    memcpy((array)->data + (array)->size, (value), (bytes));        \
+#define pda_pushbytes_implementation(array, num_bytes, value) ({    \
+    pda_maybe_bytegrow((pdynarray_t *)(array), (num_bytes));        \
+    memcpy((array)->data + (array)->size, (value), (num_bytes));    \
     __auto_type pda_pushbytes_ret = (array)->data + ((array)->size);\
-    (array)->size += (bytes);                                       \
+    (array)->size += (num_bytes);                                   \
     pda_pushbytes_ret;                                              \
 })
 
@@ -220,8 +221,13 @@ typedef size_t    usize;
     usize pda_insert_size   = pda_sizeof(value);                                                            \
     usize pda_insert_offset = (position) - pda_begin(array);                                                \
     __typeof(value) *pda_insert_result = NULL;                                                              \
-    if (pda_insert_offset >= (array)->size) {}                                                              \
-    else {                                                                                                  \
+    if ((array)->size == 0) {                                                                               \
+        pda_insert_result = pda_pushback(array, value);                                                     \
+    } else if (pda_insert_offset == (array)->size) {                                                        \
+        pda_insert_result = pda_pushback(array, value);                                                     \
+    } else if (pda_insert_offset > (array)->size) {                                                         \
+        /* this is an error so the input is ignored, not sure if that's right, but it's what we'll do     */\
+    } else {                                                                                                \
         pda_maybe_grow((pdynarray_t *)(array), pda_insert_size);                                            \
         /* first we extract all elements after the place where we want                                    */\
         /* to insert and then we shift them one element forward                                           */\
@@ -252,7 +258,7 @@ typedef size_t    usize;
     __typeof((array)->data[0]) *pda_makehole_result = NULL;                                     \
     if (pda_makehole_offset >= (array)->size) {}                                                \
     else {                                                                                      \
-        pda_maybe_byte_grow((pdynarray_t *)(array), num_bytes);                                 \
+        pda_maybe_bytegrow((pdynarray_t *)(array), num_bytes);                                  \
         /* first we extract all elements after the place where we want                        */\
         /* to insert and then we shift them one element forward                               */\
         /* here is an example we wan't to insert 6 at the place pointed to below              */\
@@ -311,8 +317,8 @@ typedef size_t    usize;
 //TODO: this code is unreadable consider changing it
 #define pda_copy_dynarray_implementation(arr) ({                                        \
     __typeof(arr) pda_copy_dynarray_tmp = { 0 };                                        \
-    pda_copy_dynarray_tmp.data = pallocate( (arr).size );                               \
-    memcpy(pda_copy_dynarray_tmp.data, (arr).data, sizeof(*(arr).data) * (arr).size);   \
+    pda_copy_dynarray_tmp.data = pallocate( sizeof((arr).data[0]) * (arr).size );       \
+    memcpy(pda_copy_dynarray_tmp.data, (arr).data, sizeof((arr).data[0]) * (arr).size); \
     pda_copy_dynarray_tmp.size = pda_copy_dynarray_tmp.end_of_storage = (arr).size;     \
     pda_copy_dynarray_tmp;                                                              \
 })
@@ -324,7 +330,7 @@ typedef size_t    usize;
         pda_copy_array_tmp.data = pallocate( sizeof(arr) ); \
         memcpy(pda_copy_array_tmp.data, (arr), sizeof(arr));\
         pda_copy_array_tmp.size = countof(arr);             \
-        pda_copy_array_tmp.end_of_storage = sizeof(arr);    \
+        pda_copy_array_tmp.end_of_storage = countof(arr);   \
         pda_copy_array_tmp;                                 \
 })
 
@@ -348,7 +354,7 @@ static void pda_maybe_bytegrow(pdynarray_t *array, usize bytes) {
 
 PTSD_UNUSED
 static void pda_maybe_grow(pdynarray_t *array, usize datasize) {
-    if ((array->size + 1) * datasize > array->end_of_storage) {
+    if ((array->size + 1) > array->end_of_storage) {
         pda_grow((pdynarray_t *)array,
                 datasize, PTSD_DYNARRAY_GROWTH_COUNT);
     }
