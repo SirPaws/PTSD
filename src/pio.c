@@ -290,7 +290,7 @@ void pwrite_stream_s(pgeneric_stream_t *stream, pstring_t str) {
             fputc(str.c_str[i], stream->file);
     } else {
         char *stretchy buffer = stream->buffer;
-        psb_pushbytes(buffer, str.c_str, str.length);
+        psb_pushbytes(buffer, str.length, str.c_str);
         stream->buffer = buffer;
         stream->cursor += str.length;
     }
