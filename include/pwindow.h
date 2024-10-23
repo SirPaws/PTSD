@@ -78,22 +78,27 @@ struct pdevice_t {
 #ifdef PTSD_WINDOWS
 #endif
 
-typedef enum pcontext_kind_t {
-    PDEFAULT,
-    PNO_CONTEXT,
-    PSOFTWARE,
-    POPENGL,
-    PVULKAN,
-#ifdef PTSD_WINDOWS
-    PDIRECTX,
-#endif
-#ifdef PTSD_MACOS
-    PMETAL,
-#endif
-} pcontext_kind_t;
+typedef struct pcontext_device_id_t pcontext_device_id_t;
+struct pcontext_device_id_t { u32 value; };
 
-typedef union pcontext_t pcontext_t;
-union pcontext_t {
+typedef struct pcontext_impl_t pcontext_impl_t;
+struct pcontext_impl_t {
+    void (*init)(pcontext_impl_t *const, struct pwindow_t *);
+    void (*shutdown)(pcontext_impl_t *const);
+
+    bool (*list_devices)(pcontext_impl_t *const, u32 *num_devices, pcontext_device_id_t buffer[*num_devices]);
+    bool (*get_device_name)(pcontext_impl_t *const, pcontext_device_id_t id);
+
+    void (*resize_screen)(pcontext_impl_t *const, u32 width, u32 height);
+
+    void (*clear)(pcontext_impl_t *const, u8 r, u8 g, u8 b, u8 a);
+    void (*prepare_screen) (pcontext_impl_t *const);
+    void (*draw_screen)    (pcontext_impl_t *const);
+    void (*teardown_screen)(pcontext_impl_t *const);
+};
+
+typedef union pcontext_info_t pcontext_info_t;
+union pcontext_info_t {
     //TODO: when these have been formalised
     // i want to write a transparent struct in here
     // so that if someone doesn't care about the internals
@@ -107,28 +112,30 @@ union pcontext_t {
     // case PVULKAN: pget_context(win)->vk.clear(pget_context(win));
     // ...
     // }
-    const struct pgl_context_t *gl;
-    const struct pvk_context_t *vk;
-    const struct psw_context_t *sw;
-    const struct pgl_context_t *opengl;
-    const struct pvk_context_t *vulkan;
-    const struct psw_context_t *software;
+    struct pcontext_impl_t *any;
+    struct pgl_context_t *gl;
+    struct pvk_context_t *vk;
+    struct psw_context_t *sw;
+    struct pgl_context_t *opengl;
+    struct pvk_context_t *vulkan;
+    struct psw_context_t *software;
 #ifdef PTSD_WINDOWS
-    const struct pdx_context_t *dx;
-    const struct pdx_context_t *directx;
+    struct pdx_context_t *dx;
+    struct pdx_context_t *directx;
 #endif
 #ifdef PTSD_MACOS
-    const struct pmt_context_t *mt;
-    const struct pmt_context_t *metal;
+    struct pmt_context_t *mt;
+    struct pmt_context_t *metal;
 #endif
 };
+
 
 typedef struct pwindow_t pwindow_t;
 struct pwindow_t {
     u32 width, height;
     u32 x, y;
     volatile bool is_running;
-    pcontext_t context;
+    struct pcontext_impl_t *context;
     usize device_count;
     pdevice_t **devices;
     phandle_t *handle;
@@ -140,6 +147,7 @@ typedef enum pwindow_hint_t {
     // this will setup a window that is resizable but has no titlebar
     PHINT_UNDECORATED,
     PHINT_NO_RESIZE,
+    //TODO(Paw): Add a hint for border width
 } pwindow_hint_t;
 
 typedef struct pwindow_info_t pwindow_info_t;
@@ -152,7 +160,7 @@ struct pwindow_info_t {
     u32             width, height;
     u32             x, y;
     pwindow_t      *parent;
-    /* pcontext_info_t *context*/
+    pcontext_info_t context;
 };
 
 
@@ -206,6 +214,7 @@ void pfree_window(const pwindow_t *const);
 
 #if !(defined(PTSD_WINDOW_SDL) || defined(PTSD_WINDOW_GLFW)) && PTSD_WINDOWS
 typedef enum phit_location_t {
+    PHIT_DEFAULT,
     PHIT_NOWHERE,
     PHIT_USERSPACE,
     PHIT_LEFT,
@@ -225,10 +234,10 @@ typedef enum phit_location_t {
 typedef struct phit_device_t phit_device_t;
 struct phit_device_t {
     pdevice_t device;
-    phit_location_t (*event_handler)(struct pwindow_t*, isize x, isize y);
+    phit_location_t (*event_handler)(phit_device_t *, struct pwindow_t*, isize x, isize y);
 };
 PTSD_UNUSED
-static phit_device_t phit_device(phit_location_t (*event_handler)(pwindow_t*, isize, isize)) {
+static phit_device_t phit_device(phit_location_t (*event_handler)(phit_device_t *, pwindow_t*, isize, isize)) {
     void                  pwindow_hit_device_init(pdevice_t *const);
     void                  pwindow_hit_device_shutdown(pdevice_t *const);
     void                  pwindow_hit_device_update(pdevice_t *const);

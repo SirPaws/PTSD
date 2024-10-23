@@ -16,6 +16,28 @@ static struct {
     bool handled;
 } PTSD_STACKTRACE_CTX = {0};
 
+#if PTSD_WINDOWS
+BOOL WINAPI pcrtl_c_handler_routine(_In_ DWORD dwCtrlType) {
+    (void)dwCtrlType;
+    exit(EXIT_FAILURE);
+    return TRUE;
+}
+
+void pwin32_print_error(DWORD error) {
+    if (error != ERROR_SUCCESS) {
+        void *message_buffer;
+        FormatMessage(
+           FORMAT_MESSAGE_ALLOCATE_BUFFER |
+           FORMAT_MESSAGE_FROM_SYSTEM |
+           FORMAT_MESSAGE_IGNORE_INSERTS,
+           NULL, error, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+           (LPSTR)&message_buffer, 
+           0, NULL);
+        pprintf("last error was %d: %s\n", error, message_buffer);
+    }
+}
+
+#endif
 
 void pstacktrace_signal_handler(int sig);
 void pstacktrace_register_signal_handlers(const char *application_name) {
@@ -26,6 +48,9 @@ void pstacktrace_register_signal_handlers(const char *application_name) {
     signal(SIGINT , pstacktrace_signal_handler);
     signal(SIGSEGV, pstacktrace_signal_handler);
     signal(SIGTERM, pstacktrace_signal_handler);
+#if PTSD_WINDOWS
+SetConsoleCtrlHandler(pcrtl_c_handler_routine, TRUE);
+#endif
 }
 
 void pstacktrace_unregister_signal_handlers(void) {
@@ -36,11 +61,17 @@ void pstacktrace_unregister_signal_handlers(void) {
     signal(SIGINT , SIG_DFL);
     signal(SIGSEGV, SIG_DFL);
     signal(SIGTERM, SIG_DFL);
+#if PTSD_WINDOWS
+SetConsoleCtrlHandler(pcrtl_c_handler_routine, FALSE);
+#endif
 }
 
 void pstacktrace_signal_handler(int sig) {
     if (PTSD_STACKTRACE_CTX.handled)
         return;
+#if PTSD_WINDOWS
+    u32 error = GetLastError();
+#endif
 
     pstacktrace_print();
     switch (sig) {
@@ -52,6 +83,9 @@ void pstacktrace_signal_handler(int sig) {
     case SIGTERM: pprintf(PTSD_STACKTRACE_ERROR_COLOUR "SIGTERM%Cc: " "Termination signal\n");              break;
     default:      pprintf(PTSD_STACKTRACE_ERROR_COLOUR "UNKNOWN%Cc: " "unknown signal\n");
     }
+#if PTSD_WINDOWS
+    pwin32_print_error(error);
+#endif
 }
 
 void pstacktrace_pretty_print(bool named, const char *symbol_name, usize offset, void *address) {
@@ -94,6 +128,9 @@ void panic(const char *fmt, ...) {
         .type  = STRING_STREAM,
         .flags = STREAM_INOUT, 
     };
+#if PTSD_WINDOWS
+    u32 error = GetLastError();
+#endif
 
     pstring_stream_t out = pcreate_stream(info);
     
@@ -106,6 +143,9 @@ void panic(const char *fmt, ...) {
 
     pstacktrace_print();
     pprintf(PTSD_STACKTRACE_ERROR_COLOUR "PANIC%Cc: " "%S\n", str);
+#if PTSD_WINDOWS
+    pwin32_print_error(error);
+#endif
     PTSD_STACKTRACE_CTX.handled = true;
     abort();
 }

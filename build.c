@@ -16,4 +16,5 @@
 #include "src/random.c" //NOLINT
 #include "src/stacktrace.c" //NOLINT
 #include "src/util.c" //NOLINT
+#include "src/context/gl/gl.c"
 
