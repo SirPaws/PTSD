@@ -402,7 +402,18 @@ bool punmap_file(void *handle) {
 #endif
 }
 
-
+usize penvironment_variable(pstring_t variable, pbuffer_t *buffer) {
+    pstring_t copy = pcopy_string(variable);
+    if (!buffer || !buffer->length || !buffer->c_str) {
+        usize result = GetEnvironmentVariable(copy.c_str, nullptr, 0);
+        pfree_string(&copy);
+        return result;
+    }
+        
+    usize result = GetEnvironmentVariable(copy.c_str, buffer->c_str, buffer->length);
+    pfree_string(&copy);
+    return result;
+}
 
 char pnext_in_environment_path(const char **buffer, const char *file, char *out, usize *length);
 bool pfind_in_environment_path(const char *file, pstring_t *out) {

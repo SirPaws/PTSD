@@ -8,6 +8,10 @@
 #endif
 
 typedef struct phandle_t phandle_t;
+
+/// this type is meant for passing a buffer to insert into
+/// the length would be how much data the buffer can hold
+/// and the pointer is a pointer to the buffer
 typedef pstring_t pbuffer_t;
 
 phandle_t *pnull_handle(void);
@@ -125,6 +129,33 @@ bool penable_console_color_output(void);
 
 // the out string is allocated with malloc, remember to free it
 bool pfind_in_environment_path(const char *file, pstring_t *out);
+
+// if the buffer points to null, or the length is zero, this function will return 
+// the minimum required length for the buffer
+usize penvironment_variable(pstring_t variable, pbuffer_t *);
+
+// this function allocates a string an returns it, remember to free it
+// with pfree_string
+static inline pstring_t penv_str(pstring_t variable) {
+    usize length = penvironment_variable(variable, &(pbuffer_t){});
+    pbuffer_t buffer = {
+        .length = length + 1,
+        .c_str = pallocate(length + 1)
+    };
+
+    (void)penvironment_variable(variable, &buffer);
+    return buffer;
+}
+// this function allocates a string an returns it, remember to free it
+// with pfree_string
+static inline pstring_t penv_cstr(const char *variable) {
+    return penv_str(pstring((char*)variable, strlen(variable)));
+}
+#define penv(variable)          \
+    _Generic((variable),        \
+        pstring_t: penv_str,    \
+        default:   penv_cstr)   \
+    ((variable))
 
 // result is allocated and needs to be freed
 pstring_t pcurrent_working_dir(void);
