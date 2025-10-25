@@ -156,7 +156,11 @@
 #endif
 #define PTSD_BEFORE_VERSION(ver, ...) PTSD_BEFORE_VERSION_ ## ver(__VA_ARGS__)
 
-
+#if PTSD_C_VERSION >= PTSD_C23
+#define PTSD_CONSTEXPR constexpr
+#else
+#define PTSD_CONSTEXPR const
+#endif
 
 #if PTSD_HAS_ATTRIBUTE(maybe_unused)
 #define PTSD_UNUSED [[maybe_unused]]

@@ -1,6 +1,7 @@
 #define PTSD_UTF8_STANDALONE
 #include "putf8.h"
 #include "putf8_util.h"
+#include "puchar.h"
 #include <threads.h>
 
 int main(void) {
@@ -8,6 +9,13 @@ int main(void) {
     pstr_t *string1 = pstr(u8"ålborg");
     pstr_t *string2 = pstr(string0);
     pstr_t *string3 = pstr(u8"🏳️‍⚧️");
+
+    pu8_is_ascii_whitespace(' ');
+
+    bool pstr8_is(pstring8_t, const bool[static const UCHAR_MAX]);
+    auto x = pstring8(string0);
+
+    pstr8_is(x, pu8_is_ascii_whitespace);
 
     pstr_t *lit = pstr_literal(u8"ålborg");
     assert(lit[0] == u8"å"[0]);

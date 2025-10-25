@@ -78,7 +78,7 @@ struct pstr_iter_t {
 
 
 #define pstr_foreach_(string, name) \
-    for(typeof(pstr_char_next(string)) name = pstr_char_next(string); name; name = pstr_char_next(string)) //NOLINT
+    for(auto name = pstr_char_next(string); name; name = pstr_char_next(string)) //NOLINT
 #define pstr_foreach(string, ...)   \
     pstr_foreach_(string, PTSD_DEFAULT(__VA_ARGS__, it))
 
