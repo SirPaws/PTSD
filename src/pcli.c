@@ -48,7 +48,7 @@ void pcli_push_id_to_map(pcli_command_id_map_t map[static 1], usize hash, usize 
 pcli_command_t *pcli_find_command_by_name(pcli_t ctx[static const 1], usize hash, pstring_t name) {
     auto name_node = ctx->name_map.buckets[hash % 32];
     while (name_node) {
-        if (name_node->hash == hash && pcmp_string(name_node->name, name))
+        if (name_node->hash == hash && pstring_equal(name_node->name, name))
             return name_node->value;
         name_node = name_node->next;
     }
@@ -70,7 +70,7 @@ pcli_command_t *pcli_find_command_by_id(pcli_t ctx[static const 1], usize hash, 
 pcli_command_t *pcli_has_command(pcli_t ctx[static const 1], usize name_hash, usize id_hash, pstring_t name, usize id) {
     auto name_node = ctx->name_map.buckets[name_hash % 32];
     while (name_node) {
-        if (name_node->hash == name_hash && pcmp_string(name_node->name, name))
+        if (name_node->hash == name_hash && pstring_equal(name_node->name, name))
             return name_node->value;
         name_node = name_node->next;
     }
@@ -105,7 +105,7 @@ void pcli_push_command(pcli_t ctx[static const 1], pstring_t name, usize id) {
 
     pcli_command_t *command = pcli_has_command(ctx, name_hash, id_hash, name, id);
     if (command) {
-        if (pcmp_string(command->name, name)) 
+        if (pstring_equal(command->name, name)) 
             return; // if the name matches this command was added twice, and we don't need to reprocess it
         // if not then this is an alias
         // add it to the alias array, and also to the name map
@@ -246,13 +246,13 @@ void pcli_process_command(usize argc, char *argv[argc], pcli_command_t cmd[stati
         usize hash   = phash(current_word.c_str, (isize)current_word.length, PCLI_GLOBALS.seed); 
         
         psb_foreach(cmd->sub_commands, sub_command) {
-            if (sub_command->hash == hash && pcmp_string(sub_command->name, current_word)) {
+            if (sub_command->hash == hash && pstring_equal(sub_command->name, current_word)) {
                 pcli_process_command(argc--, argv++, sub_command, buffer);
                 return;
             }
 
             psb_foreach(sub_command->aliases, alias) {
-                if (pcmp_string(*alias, current_word)) {
+                if (pstring_equal(*alias, current_word)) {
                     pcli_process_command(argc--, argv++, sub_command, buffer);
                     return;
                 }
@@ -285,7 +285,7 @@ void *pcli_run(pcli_t ctx[static const 1], int argc, char *argv[]) {
     usize len = argc == 0 ? 0 : strlen(*argv);
     pstring_t first_word = pstring(*argv, len);
 
-    if (pcmp_string(first_word, pcreate_const_string("--version")) && (ctx->has_version || ctx->has_short_version)) {
+    if (pstring_equal(first_word, pcreate_const_string("--version")) && (ctx->has_version || ctx->has_short_version)) {
         pcli_command_t *command = nullptr;
         if (ctx->has_version) {
             usize hash   = phash(&ctx->version_id, sizeof ctx->version_id, PCLI_GLOBALS.seed); 
@@ -301,7 +301,7 @@ void *pcli_run(pcli_t ctx[static const 1], int argc, char *argv[]) {
         return (void*)ctx->data_buffer;
     }
     
-    if (pcmp_string(first_word, pcreate_const_string("-v")) && (ctx->has_version || ctx->has_short_version)) {
+    if (pstring_equal(first_word, pcreate_const_string("-v")) && (ctx->has_version || ctx->has_short_version)) {
         pcli_command_t *command = nullptr;
         if (ctx->has_short_version) {
             usize hash   = phash(&ctx->short_version_id, sizeof ctx->short_version_id, PCLI_GLOBALS.seed); 
@@ -317,10 +317,10 @@ void *pcli_run(pcli_t ctx[static const 1], int argc, char *argv[]) {
         return (void*)ctx->data_buffer;
     }
     
-    if ((pcmp_string(first_word, pcreate_const_string("--help"))
-         || pcmp_string(first_word, pcreate_const_string("-help"))
-         || pcmp_string(first_word, pcreate_const_string("-?"))
-         || pcmp_string(first_word, pcreate_const_string("/?"))
+    if ((pstring_equal(first_word, pcreate_const_string("--help"))
+         || pstring_equal(first_word, pcreate_const_string("-help"))
+         || pstring_equal(first_word, pcreate_const_string("-?"))
+         || pstring_equal(first_word, pcreate_const_string("/?"))
         ) && ctx->has_help)
     {
         usize hash   = phash(&ctx->help_id, sizeof ctx->help_id, PCLI_GLOBALS.seed); 

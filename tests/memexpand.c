@@ -44,7 +44,7 @@ static MunitTest PTSD_MEMEXPAND_TESTS[] = {
     { NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL }
 };
 
-static constexpr MunitSuite PTSD_MEMEXPAND_SUITE = {
+static const MunitSuite PTSD_MEMEXPAND_SUITE = {
     "/memexpand", PTSD_MEMEXPAND_TESTS, nullptr, 16, MUNIT_SUITE_OPTION_NONE
 };
 

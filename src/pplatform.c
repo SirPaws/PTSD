@@ -234,9 +234,9 @@ pfilestat_ex_t pfilestat_ex(const char *file, bool include_link_path) {
 }
 
 pfilestat_ex_t pfilestat_exs(pstring_t str, bool include_link_path) {
-    pstring_t copy = pcopy_string(str);
+    pstring_t copy = pstring_copy(str);
     pfilestat_ex_t result = pfilestat_ex(copy.c_str, include_link_path);
-    pfree_string(&copy);
+    pstring_free(&copy);
     return result;
 }
 
@@ -257,9 +257,9 @@ u64 pfile_id(const char *file) {
 }
 
 u64 pfile_ids(pstring_t file) {
-    pstring_t copy = pcopy_string(file);
+    pstring_t copy = pstring_copy(file);
     u64 result = pfile_id(copy.c_str);
-    pfree_string(&copy);
+    pstring_free(&copy);
     return result;
 }
 
@@ -403,15 +403,15 @@ bool punmap_file(void *handle) {
 }
 
 usize penvironment_variable(pstring_t variable, pbuffer_t *buffer) {
-    pstring_t copy = pcopy_string(variable);
+    pstring_t copy = pstring_copy(variable);
     if (!buffer || !buffer->length || !buffer->c_str) {
         usize result = GetEnvironmentVariable(copy.c_str, nullptr, 0);
-        pfree_string(&copy);
+        pstring_free(&copy);
         return result;
     }
         
     usize result = GetEnvironmentVariable(copy.c_str, buffer->c_str, buffer->length);
-    pfree_string(&copy);
+    pstring_free(&copy);
     return result;
 }
 
@@ -471,7 +471,7 @@ pstring_t pcurrent_working_dir(void) {
     char buf[PATH_MAX + 1] = {0};
     if (!GetCurrentDirectory(sizeof buf, buf))
         return pstring(NULL, 0);
-    return pcopy_string(pstring(buf, strlen(buf)));
+    return pstring_copy(pstring(buf, strlen(buf)));
 }
 
 void pset_working_dir(pstring_t str) {

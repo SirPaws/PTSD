@@ -4,9 +4,11 @@
 #include "dynarray.c"
 #include "limits.c"
 #include "stretchy_buffer.c"
+#include "strings.c"
 
 #define SUITES(x)                   \
     x(PTSD_MEMEXPAND_SUITE)         \
+    x(PTSD_PSTRING_SUITE)           \
     x(PTSD_STREAM_SUITE)            \
     x(PTSD_FORMATTING_SUITE)        \
     x(PTSD_DYNARRAY_SUITE)          \

@@ -935,7 +935,7 @@ PIO_STATIC void pprintf_handle_characters_written(pprintf_info_t *info, pformatt
 void pformat_push_impl(pstring_t fmt, pformat_callback_t *callback) {
     if (psb_size(callbacks)) {
         for (usize i = 0; i < psb_size(callbacks); i++)
-            if (pcmp_string(fmt, callbacks[i].format))
+            if (pstring_equal(fmt, callbacks[i].format))
                 return;
     }
     struct puser_callback_t usercb = { fmt, callback };
@@ -945,7 +945,7 @@ void pformat_push_impl(pstring_t fmt, pformat_callback_t *callback) {
 void pformat_push_adv_impl(pstring_t fmt, pformat_callback_adv_t *callback) {
     if (psb_size(advcallbacks)) {
         for (usize i = 0; i < psb_size(advcallbacks); i++)
-            if (pcmp_string(fmt, advcallbacks[i].format))
+            if (pstring_equal(fmt, advcallbacks[i].format))
                 return;
     }
     struct padv_user_callback_t usercb = { fmt, callback };
@@ -955,7 +955,7 @@ void pformat_push_adv_impl(pstring_t fmt, pformat_callback_adv_t *callback) {
 void pformat_pop_impl(pstring_t fmt) {
     struct puser_callback_t *remove = NULL;
     for (usize i = 0; i < psb_size(callbacks); i++)
-        if (pcmp_string(fmt, callbacks[i].format))
+        if (pstring_equal(fmt, callbacks[i].format))
             remove = callbacks + i;
     
     if (remove) psb_remove(callbacks, remove);
@@ -964,7 +964,7 @@ void pformat_pop_impl(pstring_t fmt) {
 void pformat_pop_adv_impl(pstring_t fmt) {
     struct padv_user_callback_t *remove = NULL;
     for (usize i = 0; i < psb_size(advcallbacks); i++)
-        if (pcmp_string(fmt, advcallbacks[i].format))
+        if (pstring_equal(fmt, advcallbacks[i].format))
             remove = advcallbacks + i;
     
     if (remove) psb_remove(advcallbacks, remove);

@@ -44,6 +44,6 @@ static MunitTest PTSD_STREAM_TESTS[] = {
     { NULL, NULL, NULL, NULL, MUNIT_TEST_OPTION_NONE, NULL }
 };
 
-static constexpr MunitSuite PTSD_STREAM_SUITE = {
+static const MunitSuite PTSD_STREAM_SUITE = {
     "/stream", PTSD_STREAM_TESTS, nullptr, 16, MUNIT_SUITE_OPTION_NONE
 };

@@ -250,13 +250,13 @@ bool pread_line_stream(pgeneric_stream_t *stream, pstring_t *string) {
             if (chr == '\r') continue; // if we see '\r' we assume it's followed by '\n'
             if (chr == '\n') {
                 psb_pushback(line, chr);
-                *string = pcopy_string(pstring(line, psb_size(line)));
+                *string = pstring_copy(pstring(line, psb_size(line)));
                 psb_free(line);
                 return true;
             }
             psb_pushback(line, chr);
         }
-        *string = pcopy_string(pstring(line, psb_size(line)));
+        *string = pstring_copy(pstring(line, psb_size(line)));
         psb_free(line);
         return true;
     } else {
@@ -274,7 +274,7 @@ bool pread_line_stream(pgeneric_stream_t *stream, pstring_t *string) {
         }
         if (end - begin == 0) return false;
         stream->cursor = end + 1;
-        *string = pcopy_string(pstring(str + begin, end - begin));
+        *string = pstring_copy(pstring(str + begin, end - begin));
         return true;
     }
 }

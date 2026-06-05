@@ -2,6 +2,7 @@
 #define PTSD_PSTRING_HEADER
 #if !defined(PTSD_PSTRING_STANDALONE)
 #include "general.h"
+#include "stretchy_buffer.h"
 #else
 #error not implemented yet!
 #endif
@@ -15,14 +16,14 @@ struct pstring_t {
 };
 
 PTSD_UNUSED static inline pstring_t pstring(char *c_str, usize length);
-PTSD_UNUSED static inline void pfree_string(pstring_t *str);
+PTSD_UNUSED static inline void pstring_free(pstring_t *str);
 
-PTSD_UNUSED static inline pstring_t pallocate_string(const char *buffer, usize length);
-PTSD_UNUSED static inline pstring_t pcopy_string(const pstring_t str);
+PTSD_UNUSED static inline pstring_t pstring_alloc(const char *buffer, usize length);
+PTSD_UNUSED static inline pstring_t pstring_copy(const pstring_t str);
 
-PTSD_UNUSED static inline bool pcmp_string(const pstring_t rhs, const pstring_t lhs);
-PTSD_UNUSED static inline bool pcmpi_string(const pstring_t rhs, const pstring_t lhs);
-PTSD_UNUSED static inline bool pempty_string(const pstring_t str);
+PTSD_UNUSED static inline bool pstring_equal(const pstring_t lhs, const pstring_t rhs);
+PTSD_UNUSED static inline bool pstring_case_equal(const pstring_t lhs, const pstring_t rhs);
+PTSD_UNUSED static inline bool pstring_is_empty(const pstring_t str);
 
 
 PTSD_UNUSED static inline pstring_t premove_from_end(pstring_t str, pstring_t match);
@@ -47,6 +48,22 @@ PTSD_UNUSED static inline pstring_t ptoupper(pstring_t str);
 // ```
 PTSD_UNUSED static inline pstring_t ptolower(pstring_t str);
 
+// Makes a stretchy buffer containing all the lines in the string.
+// Both LF and CRLF are considered end of line tokens, and they are not included.
+// NOTE: the strings stored in the stretchy buffer are not allocated themselves, so you only need
+// to call psb_free to free it
+PTSD_UNUSED static inline pstring_t *stretchy plines(pstring_t);
+
+// Splits the string into lines and stores each line in the buffer passed in.
+// This function will keep filling the buffer until it either runs out of space, or lines
+// return value is the number of lines (aka the size of the buffer).
+// Both LF and CRLF are considered end of line tokens, and they are not included.
+// If either the buffer is null or the size is 0, this function will return the number of lines present in the string.
+// NOTE: does not allocate any memory.
+PTSD_UNUSED static inline usize plines_into(usize buffer_size, pstring_t buffer[buffer_size], pstring_t str);
+
+
+
 #define pcreate_string(str) pstring((str), sizeof((str)) - 1)
 #define pcreate_const_string(str) ((const pstring_t){.c_str = (str), .length = sizeof((str)) - 1})
 #define pnext_none_whitespace(type, ...) pnext_none_whitespace(type, sizeof((const char[]){__VA_ARGS__}), (const char[]){__VA_ARGS__})
@@ -68,14 +85,14 @@ static inline pstring_t pstring(char *c_str, usize length) {
 }
 
 PTSD_UNUSED
-static inline void pfree_string(pstring_t *str) {
+static inline void pstring_free(pstring_t *str) {
     if (!str || !str->c_str) return;
     pfree(str->c_str);
     str->c_str = nullptr;
 }
 
 PTSD_UNUSED
-static inline pstring_t pallocate_string(const char *buffer, usize length) {
+static inline pstring_t pstring_alloc(const char *buffer, usize length) {
     pstring_t str = {
         .c_str = pallocate(length)
     };
@@ -87,7 +104,7 @@ static inline pstring_t pallocate_string(const char *buffer, usize length) {
 }
 
 PTSD_UNUSED 
-static inline pstring_t pcopy_string(const pstring_t str) {
+static inline pstring_t pstring_copy(const pstring_t str) {
     char *dst = pzero_allocate(str.length + 1);
     struct pstring_t r = pstring(dst, str.length);
     memcpy(dst, str.c_str, str.length);
@@ -95,7 +112,7 @@ static inline pstring_t pcopy_string(const pstring_t str) {
 }
 
 PTSD_UNUSED 
-static inline bool pcmp_string(const pstring_t rhs, const pstring_t lhs) {
+static inline bool pstring_equal(const pstring_t lhs, const pstring_t rhs) {
 	if (rhs.length != lhs.length) return false;
     for (register usize i = 0; i < rhs.length; i++) {
         if (rhs.c_str[i] != lhs.c_str[i]) return false;
@@ -104,7 +121,7 @@ static inline bool pcmp_string(const pstring_t rhs, const pstring_t lhs) {
 }
 
 PTSD_UNUSED 
-static inline bool pcmpi_string(const pstring_t rhs, const pstring_t lhs) {
+static inline bool pstring_case_equal(const pstring_t lhs, const pstring_t rhs) {
 	if (rhs.length != lhs.length) return false;
     for (register usize i = 0; i < rhs.length; i++) {
         char left = (char)toupper(lhs.c_str[i]);
@@ -114,7 +131,7 @@ static inline bool pcmpi_string(const pstring_t rhs, const pstring_t lhs) {
     return true;
 }
 
-PTSD_UNUSED static inline bool pempty_string(const pstring_t str) {
+PTSD_UNUSED static inline bool pstring_is_empty(const pstring_t str) {
     return !(str.length || str.c_str);
 }
 
@@ -125,7 +142,7 @@ PTSD_UNUSED static inline pstring_t premove_from_end(pstring_t str, pstring_t ma
 
     name.c_str += name.length - match.length;
     name.length = match.length;
-    if (pcmp_string(name, match)) {
+    if (pstring_equal(name, match)) {
         name = str;
         name.length -= match.length;
         return name;
@@ -193,6 +210,88 @@ PTSD_UNUSED static inline pstring_t ptolower(pstring_t str) {
         *chr = (char)tolower(*chr); chr++;
     }
     return str;
+}
+
+pstring_t *stretchy plines(pstring_t text) {
+    pstring_t *stretchy result = nullptr;
+    if (pstring_is_empty(text)) return nullptr;
+
+    pstring_t str = text;
+    while (str.length) {
+        usize newline_index = str.length + 1;
+        for (usize i = 0; i < str.length; i++) {
+            if (str.c_str[i] == '\n') {
+                newline_index = i;
+                break;
+            }
+        }
+        if (newline_index > str.length) break;
+
+        pstring_t line = pstring(str.c_str, newline_index);
+        if (line.c_str[line.length - 1] == '\r') line.length--;
+        str.length -= newline_index + 1;
+        str.c_str += newline_index + 1;
+        
+        psb_pushback(result, line);
+    }
+
+    if (str.length) 
+        psb_pushback(result, str);
+    return result;
+}
+
+PTSD_UNUSED static inline 
+usize plines_into(usize buffer_size, pstring_t buffer[buffer_size], pstring_t str) {
+    if (pstring_is_empty(str)) return 0;
+
+    if (!(buffer_size || buffer)) {
+        // count lines
+        usize count = 0;
+        while (str.length) {
+            usize newline_index = str.length + 1;
+            for (usize i = 0; i < str.length; i++) {
+                if (str.c_str[i] == '\n') {
+                    newline_index = i;
+                    break;
+                }
+            }
+            if (newline_index > str.length) break;
+        
+            pstring_t line = pstring(str.c_str, newline_index);
+            if (line.c_str[line.length - 1] == '\r') line.length--;
+            str.length -= newline_index + 1;
+            str.c_str += newline_index + 1;
+            
+            count++;
+        }
+
+        return count;
+    }
+
+    usize count = 0;
+    while (str.length) {
+        usize newline_index = str.length + 1;
+        for (usize i = 0; i < str.length; i++) {
+            if (str.c_str[i] == '\n') {
+                newline_index = i;
+                break;
+            }
+        }
+        if (newline_index > str.length) break;
+
+        pstring_t line = pstring(str.c_str, newline_index);
+        if (line.c_str[line.length - 1] == '\r') line.length--;
+        str.length -= newline_index + 1;
+        str.c_str += newline_index + 1;
+        
+        if (count >= buffer_size) {
+            count++;
+            continue;
+        }
+        buffer[count++] = line;
+    }
+
+    return count;
 }
 
 #undef ptrim_ascii_whitespace
