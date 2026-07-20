@@ -54,18 +54,29 @@
 
 #if defined(__STDC_VERSION__)
 #   if __STDC_VERSION__ == 199901
-#      define PTSD_C_VERSION PTSD_C99
+#       define PTSD_C_VERSION PTSD_C99
 #   elif __STDC_VERSION__ == 201112
-#      define PTSD_C_VERSION PTSD_C11
+#       define PTSD_C_VERSION PTSD_C11
+#   elif __STDC_VERSION__ == 202312L
+//      Microsoft Shenanigans...
+//      When running with /std:clatest 
+//      msvc sets __STDC_VERSION__ to 202312L
+//      for some reason, but it doesn't
+//      actually support most of C23,
+//      it does mostly support C11 though.
+//      So that's a safe bet
+#       define PTSD_C_VERSION PTSD_C11
 #   elif __STDC_VERSION__ == 201710
-#      define PTSD_C_VERSION PTSD_C18
+#       define PTSD_C_VERSION PTSD_C18
 #   elif __STDC_VERSION__ == 202311L
-#      define PTSD_C_VERSION PTSD_C23
+#       define PTSD_C_VERSION PTSD_C23
 #   else
-#      define PTSD_C_VERSION PTSD_C2Y
+#       define PTSD_C_VERSION PTSD_C2Y
 #   endif
 #elif defined(__STDC__)
 #      define PTSD_C_VERSION PTSD_C89
+#else
+#   define PTSD_C_VERSION PTSD_C89
 #endif
 
 #if defined(__has_c_attribute)
