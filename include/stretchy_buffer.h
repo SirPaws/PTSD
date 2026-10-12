@@ -559,7 +559,7 @@ static usize psb_reserve_implementation_(void *mem, usize count, usize data_size
         usize capacity = endofstorage - (meta->size * data_size);
         if (capacity < ((data_size) * (count))) {
             usize extra_capacity = ((data_size) * (count)) - capacity;
-            usize size = extra_capacity + sizeof(pstretchy_buffer_t);
+            usize size = endofstorage + extra_capacity + sizeof(pstretchy_buffer_t);
             void *tmp = preallocate(size, meta);
             assert(tmp);
             meta = tmp;
