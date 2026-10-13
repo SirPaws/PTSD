@@ -11,6 +11,27 @@
 #else
 #endif
 
+// 1. Check for Clang's feature macro
+#if defined(__has_feature)
+#  if __has_feature(address_sanitizer)
+#    define USING_ASAN 1
+#  endif
+#endif
+
+// 2. Check for GCC and MSVC's standard macro
+#if !defined(USING_ASAN) && defined(__SANITIZE_ADDRESS__)
+#  define USING_ASAN 1
+#endif
+
+// 3. Fallback if ASan is disabled
+#if !defined(USING_ASAN)
+#  define USING_ASAN 0
+#endif
+
+#ifdef USING_ASAN
+# warning address sanitizer in use, disabling stacktraces
+#endif
+
 static struct {
     const char *program_name;
     bool handled;
@@ -41,6 +62,7 @@ void pwin32_print_error(DWORD error) {
 
 void pstacktrace_signal_handler(int sig);
 void pstacktrace_register_signal_handlers(const char *application_name) {
+#ifndef USING_ASAN
     PTSD_STACKTRACE_CTX.program_name = application_name;
     signal(SIGABRT, pstacktrace_signal_handler);
     signal(SIGFPE , pstacktrace_signal_handler);
@@ -51,9 +73,11 @@ void pstacktrace_register_signal_handlers(const char *application_name) {
 #if PTSD_WINDOWS
 SetConsoleCtrlHandler(pcrtl_c_handler_routine, TRUE);
 #endif
+#endif
 }
 
 void pstacktrace_unregister_signal_handlers(void) {
+#ifndef USING_ASAN
     PTSD_STACKTRACE_CTX.program_name = NULL;
     signal(SIGABRT, SIG_DFL);
     signal(SIGFPE , SIG_DFL);
@@ -64,9 +88,11 @@ void pstacktrace_unregister_signal_handlers(void) {
 #if PTSD_WINDOWS
 SetConsoleCtrlHandler(pcrtl_c_handler_routine, FALSE);
 #endif
+#endif
 }
 
 void pstacktrace_signal_handler(int sig) {
+#ifndef USING_ASAN
     if (PTSD_STACKTRACE_CTX.handled)
         return;
 #if PTSD_WINDOWS
@@ -86,9 +112,11 @@ void pstacktrace_signal_handler(int sig) {
 #if PTSD_WINDOWS
     pwin32_print_error(error);
 #endif
+#endif
 }
 
 void pstacktrace_pretty_print(bool named, const char *symbol_name, usize offset, void *address) {
+#ifndef USING_ASAN
 #define PROGRAM_NAME(x)  PTSD_STACKTRACE_PATH_COLOUR x "%Cc"
 #define FUNCTION_NAME(x) "%Cfg(255,  34, 243)" x "%Cc"
 #define NUMBER(x)        PTSD_STACKTRACE_NUMBER_COLOUR x "%Cc"
@@ -97,6 +125,7 @@ void pstacktrace_pretty_print(bool named, const char *symbol_name, usize offset,
     if (named)
         pprintf(FUNCTION_NAME("%s") "+" NUMBER("%#zX") " ", symbol_name, offset);
     pprintf("["NUMBER("%zX")"]\n", (usize)address);
+#endif
 }
 
 void pstacktrace_print(void) {

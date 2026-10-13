@@ -13,6 +13,7 @@ static const MunitSuite test_suite = {
 };
 
 
+UserDieCallback
 
 int main(int argc, char* argv[MUNIT_ARRAY_PARAM(argc + 1)]) {
 #if PTSD_WINDOWS

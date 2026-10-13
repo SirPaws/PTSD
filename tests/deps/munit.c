@@ -242,6 +242,15 @@ munit_errorf_ex(const char* filename, int line, const char* format, ...) {
   abort();
 }
 
+_Noreturn 
+void munit_asan_die_saver(void) {
+#if defined(MUNIT_THREAD_LOCAL)
+  if (munit_error_jmp_buf_valid)
+    longjmp(munit_error_jmp_buf, 1);
+#endif
+  abort();
+}
+
 #if defined(__MINGW32__) || defined(__MINGW64__)
 #pragma GCC diagnostic pop
 #endif
@@ -1279,6 +1288,8 @@ munit_restore_stderr(int orig_stderr) {
 }
 #endif /* !defined(MUNIT_NO_BUFFER) */
 
+void __sanitizer_set_death_callback(void (*callback)(void));
+
 /* Run a test with the specified parameters. */
 static void
 munit_test_runner_run_test_with_params(MunitTestRunner* runner, const MunitTest* test, const MunitParameter params[]) {
@@ -1304,6 +1315,8 @@ munit_test_runner_run_test_with_params(MunitTestRunner* runner, const MunitTest*
   int status = 0;
   pid_t changed_pid;
 #endif
+
+  __sanitizer_set_death_callback(munit_asan_die_saver);
 
   if (params != NULL) {
     output_l = 2;

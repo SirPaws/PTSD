@@ -3,6 +3,8 @@
 
 static MunitResult
 test_stretchy_buffer_set_capacity(const MunitParameter[], void*) {
+    int *array = (int *)malloc(10 * sizeof(int));
+    array[10] = 1;
     int *stretchy vec = NULL;
 
     psb_set_capacity(vec, 10);
